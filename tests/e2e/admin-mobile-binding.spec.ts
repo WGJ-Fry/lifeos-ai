@@ -1,0 +1,570 @@
+import { expect, test } from "@playwright/test";
+
+const password = "correct horse battery staple";
+
+async function csrfHeaders(page: import("@playwright/test").Page) {
+  const csrf = (await page.context().cookies()).find((cookie) => cookie.name === "lifeos_csrf")?.value;
+  expect(csrf).toBeTruthy();
+  return { "X-LifeOS-CSRF": csrf! };
+}
+
+async function writeOfflineQueue(page: import("@playwright/test").Page, queue: Array<Record<string, unknown>>) {
+  await page.evaluate(async (items) => {
+    localStorage.setItem("lifeos_offline_message_queue", JSON.stringify(items));
+    const request = indexedDB.open("lifeos-offline-queue", 1);
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      request.onupgradeneeded = () => {
+        if (!request.result.objectStoreNames.contains("queues")) request.result.createObjectStore("queues");
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction("queues", "readwrite");
+      transaction.objectStore("queues").put({ queue: items, updatedAt: Date.now() }, "primary");
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    db.close();
+  }, queue);
+}
+
+test("admin setup, mobile binding, chat shell, and device revoke flow", async ({ page }) => {
+  await page.goto("/admin/login");
+  await expect(page.getByText("首次启动向导")).toBeVisible();
+  await expect(page.getByText("进入设置页配置 AI Key")).toBeVisible();
+  await page.getByLabel("密码", { exact: true }).fill(password);
+  await page.getByLabel("确认密码", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "完成初始化" }).click();
+  await expect(page).toHaveURL(/\/admin\/onboarding/);
+  await expect(page.getByText("把 LifeOS AI 配到可用状态")).toBeVisible();
+  await expect(page.getByText("初始化进度")).toBeVisible();
+  await expect(page.getByText("1 / 4")).toBeVisible();
+  await expect(page.getByText("启动安全自检")).toBeVisible();
+  await expect(page.getByText(/项需要处理|全部通过/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "处理安全项" })).toBeVisible();
+  await expect(page.getByText("1. 配置 AI Key")).toBeVisible();
+  await expect(page.getByText("2. 创建初始备份")).toBeVisible();
+  await expect(page.getByText("3. 绑定手机端")).toBeVisible();
+  await expect(page.getByText("默认聊天 Provider", { exact: true })).toBeVisible();
+  await page.route("**/api/v1/admin/ai-providers/openai/test", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        provider: {
+          id: "openai",
+          provider: "OpenAI",
+          envVar: "OPENAI_API_KEY",
+          configured: true,
+          source: "database",
+          storage: "local_aes_gcm",
+          active: true,
+          selectedModel: "gpt-4o",
+          defaultModel: "gpt-4o-mini",
+          models: ["gpt-4o-mini", "gpt-4o"],
+        },
+        message: "OpenAI 连接测试通过。",
+      }),
+    });
+  });
+  await page.getByRole("button", { name: /OpenAI/ }).click();
+  await page.getByLabel("OpenAI 模型").selectOption("gpt-4o");
+  await page.getByPlaceholder("输入 API Key").fill("sk-playwright-onboarding-secret-value");
+  await page.getByRole("button", { name: "保存并测试" }).click();
+  await expect(page.getByText("OpenAI 连接测试通过。 已设为默认聊天 Provider。")).toBeVisible();
+  await expect(page.getByRole("button", { name: /OpenAI/ }).getByText("默认聊天")).toBeVisible();
+  await expect(page.getByRole("button", { name: "已是默认聊天 Provider" })).toBeDisabled();
+  await expect(page.getByText("2 / 4")).toBeVisible();
+  await page.unroute("**/api/v1/admin/ai-providers/openai/test");
+  await page.getByRole("button", { name: "创建备份" }).click();
+  await expect(page.getByText(/已创建初始备份：lifeos-.*\.db/)).toBeVisible();
+  await expect(page.getByText("3 / 4")).toBeVisible();
+  await expect(page.getByText("已有备份：1 份")).toBeVisible();
+  await page.getByRole("button", { name: "开启每日自动备份" }).click();
+  await expect(page.getByText("已开启每日自动备份。之后 LifeOS AI 会定期创建 SQLite 快照。")).toBeVisible();
+  await expect(page.getByText("自动备份：已开启，每 24 小时")).toBeVisible();
+  await expect(page.getByText(/下次自动备份：/)).toBeVisible();
+  await page.getByRole("link", { name: "进入控制台" }).click();
+  await expect(page).toHaveURL(/\/admin\/dashboard/);
+  await expect(page.getByText("LifeOS Local Core")).toBeVisible();
+
+  await page.route("**/api/v1/admin/network-diagnostics", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        host: "127.0.0.1",
+        port: "3333",
+        publicBaseUrl: "",
+        publicAccessAllowed: false,
+        lanUrls: ["http://192.168.31.10:3333"],
+        lanEnvTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start",
+        recommendedBaseUrl: "https://pair.example.test",
+        connectionCandidates: [
+          {
+            id: "cloudflare-0",
+            label: "Cloudflare Tunnel",
+            baseUrl: "https://pair.example.test",
+            mode: "cloudflare",
+            priority: 90,
+            requiresRestart: true,
+            secure: true,
+            mobilePairUrl: "https://pair.example.test/mobile/pair",
+            mobileChatUrl: "https://pair.example.test/mobile/chat",
+            envTemplate: "PUBLIC_BASE_URL=https://pair.example.test LIFEOS_ALLOW_PUBLIC=1 npm run start",
+            restartInstruction: "复制环境变量后重启 LifeOS AI。",
+            notes: ["适合异地访问。复制启动环境并重启后，绑定二维码会使用这个 HTTPS 地址。"],
+          },
+        ],
+        cloudflare: {
+          installed: true,
+          running: true,
+          version: "cloudflared version 2026.6.0",
+          detectedUrls: ["https://pair.example.test"],
+          suggestedCommand: "cloudflared tunnel --url http://127.0.0.1:3333",
+          installCommand: "brew install cloudflared",
+          envTemplate: "PUBLIC_BASE_URL=https://pair.example.test LIFEOS_ALLOW_PUBLIC=1 npm run start",
+          notes: ["Cloudflare Tunnel 已运行。"],
+        },
+        tailscale: {
+          installed: false,
+          online: false,
+          version: "",
+          deviceName: "",
+          tailnetName: "",
+          urls: [],
+          magicDnsUrls: [],
+          mobileUrls: [],
+          installCommand: "brew install --cask tailscale",
+          envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start",
+          notes: ["未检测到 Tailscale CLI。"],
+        },
+        safety: {
+          publicModeRequired: false,
+          requiresHttpsForInternet: false,
+          notes: ["异地访问优先选择可信隧道。"],
+        },
+      }),
+    });
+  });
+  await page.route("**/api/v1/devices/bind/start", async (route) => {
+    const posted = route.request().postDataJSON() as { baseUrl?: string };
+    expect(posted.baseUrl).toBe("https://pair.example.test");
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "bind-e2e-recommended",
+        token: "bind_recommended_e2e",
+        expiresAt: Date.now() + 120_000,
+        baseUrl: "https://pair.example.test",
+        pairingUrl: "https://pair.example.test/mobile/install/bind_recommended_e2e",
+        localName: "LifeOS Test",
+      }),
+    });
+  });
+  await page.route("**/api/v1/devices/bind/bind-e2e-recommended", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "bind-e2e-recommended",
+        expiresAt: Date.now() + 120_000,
+        device: null,
+      }),
+    });
+  });
+  await page.goto("/admin/devices/pair");
+  await expect(page.getByText("已根据连接诊断自动选择绑定地址")).toBeVisible();
+  await expect(page.getByText("https://pair.example.test", { exact: true })).toBeVisible();
+  await expect(page.getByText("推荐安全")).toBeVisible();
+  await expect(page.getByText("需重启生效")).toBeVisible();
+  await expect(page.getByText(/Cloudflare Tunnel · 适合异地访问/)).toBeVisible();
+  await expect(page.getByText("PUBLIC_BASE_URL=https://pair.example.test LIFEOS_ALLOW_PUBLIC=1 npm run start")).toBeVisible();
+  const currentPairingEnvButton = page.getByRole("button", { name: "复制当前绑定启动环境" });
+  await expect(currentPairingEnvButton).toBeVisible();
+  await currentPairingEnvButton.click();
+  await expect(currentPairingEnvButton).toContainText("已复制启动环境");
+  await expect(page.getByRole("button", { name: "测试当前绑定地址" })).toBeVisible();
+  await page.unroute("**/api/v1/admin/network-diagnostics");
+  await page.unroute("**/api/v1/devices/bind/start");
+  await page.unroute("**/api/v1/devices/bind/bind-e2e-recommended");
+
+  await page.goto("/admin/settings");
+  await expect(page.getByText("管理员密码", { exact: true })).toBeVisible();
+  await page.getByLabel("当前密码").fill(password);
+  await page.getByLabel("新密码", { exact: true }).fill("password123");
+  await page.getByLabel("确认新密码").fill("password123");
+  await page.getByRole("button", { name: "更新管理员密码" }).click();
+  await expect(page.getByText("管理员密码已更新，请继续处理安全自检提示。")).toBeVisible();
+  await expect(page.getByText(/当前密码策略偏弱|密码策略已通过/).first()).toBeVisible();
+  await page.getByLabel("当前密码").fill("password123");
+  await page.getByLabel("新密码", { exact: true }).fill(password);
+  await page.getByLabel("确认新密码").fill(password);
+  await page.getByRole("button", { name: "更新管理员密码" }).click();
+  await expect(page.getByText(/管理员密码已更新/)).toBeVisible();
+  await page.goto("/admin/dashboard");
+
+  const csrf = await csrfHeaders(page);
+  const blockedBinding = await page.context().request.post("/api/v1/devices/bind/start");
+  expect(blockedBinding.status()).toBe(403);
+
+  await page.getByRole("button", { name: "创建备份" }).click();
+  await expect(page.getByText(/lifeos-.*\.db/)).toBeVisible();
+
+  const bindingResponse = await page.context().request.post("/api/v1/devices/bind/start", { headers: csrf });
+  expect(bindingResponse.ok()).toBeTruthy();
+  const binding = await bindingResponse.json();
+  expect(binding.token).toMatch(/^bind_/);
+
+  const phone = await page.context().newPage();
+  expect(new URL(binding.pairingUrl).pathname).toBe(`/mobile/install/${encodeURIComponent(binding.token)}`);
+  await phone.goto(binding.pairingUrl);
+  await phone.getByPlaceholder("例如：iPhone 15 Pro").fill("Playwright Phone");
+  await phone.getByRole("button", { name: "确认绑定" }).click();
+  await expect(phone.getByText("绑定完成")).toBeVisible();
+  await expect.poll(async () => phone.evaluate(() => localStorage.getItem("lifeos_device_credential"))).toBeNull();
+
+  await page.goto("/admin/onboarding");
+  await expect(page.getByText("4 / 4")).toBeVisible();
+  await expect(page.getByText("已绑定设备：1 台")).toBeVisible();
+
+  await phone.goto("/mobile/chat");
+  await expect(phone.getByText(/已连接电脑|正在连接电脑|连接中断，正在重试/)).toBeVisible();
+  await expect(phone.getByText("添加到主屏幕", { exact: true })).toBeVisible();
+  await phone.getByRole("button", { name: "关闭安装提示" }).click();
+  await phone.reload();
+  await expect(phone.getByText("添加到主屏幕", { exact: true })).toHaveCount(0);
+  await phone.goto("/mobile/device");
+  await expect(phone.getByText("设备与连接")).toBeVisible();
+  await expect(phone.getByText("已绑定电脑端")).toBeVisible();
+  await expect(phone.getByText("Playwright Phone")).toBeVisible();
+  await expect(phone.getByText("WebCrypto 签名", { exact: true })).toBeVisible();
+  await expect(phone.getByText("WebCrypto 签名已启用")).toBeVisible();
+  await phone.getByRole("button", { name: "刷新凭证状态" }).click();
+  await expect(phone.getByText("凭证状态已刷新。")).toBeVisible();
+  await expect(phone.getByText("连接与离线队列")).toBeVisible();
+  await writeOfflineQueue(phone, [
+      {
+        id: "offline-e2e-1",
+        message: { role: "user", parts: [{ text: "离线失败消息" }] },
+        queuedAt: Date.now(),
+        fingerprint: "offline-e2e-1",
+        status: "failed",
+        attempts: 2,
+        lastAttemptAt: Date.now(),
+        lastError: "network down",
+      },
+      {
+        id: "offline-e2e-2",
+        message: { role: "user", parts: [{ text: "准备删除的离线消息" }] },
+        queuedAt: Date.now(),
+        fingerprint: "offline-e2e-2",
+        status: "pending",
+        attempts: 0,
+      },
+    ]);
+  await phone.reload();
+  await expect(phone.getByText("最近错误：network down")).toBeVisible();
+  await expect(phone.getByText("离线消息明细")).toBeVisible();
+  await expect(phone.getByText("离线失败消息")).toBeVisible();
+  await expect(phone.getByText("失败原因：network down")).toBeVisible();
+  await expect(phone.getByLabel("下次自动重试：离线失败消息")).toBeVisible();
+  await expect(phone.getByText("准备删除的离线消息")).toBeVisible();
+  await phone.getByRole("button", { name: "重试离线消息：离线失败消息" }).click();
+  await expect(phone.getByText("这条离线消息已改为待同步。打开聊天页后会自动重试。")).toBeVisible();
+  phone.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("删除这条离线消息");
+    await dialog.accept();
+  });
+  await phone.getByRole("button", { name: "删除离线消息：准备删除的离线消息" }).click();
+  await expect(phone.getByText("已删除这条离线消息。")).toBeVisible();
+  await expect(phone.getByText("准备删除的离线消息")).toHaveCount(0);
+  await writeOfflineQueue(phone, [
+    {
+      id: "offline-e2e-1",
+      message: { role: "user", parts: [{ text: "离线失败消息" }] },
+      queuedAt: Date.now(),
+      fingerprint: "offline-e2e-1",
+      status: "pending",
+      attempts: 2,
+    },
+    {
+      id: "offline-e2e-3",
+      message: { role: "user", parts: [{ text: "批量重试失败消息" }] },
+      queuedAt: Date.now(),
+      fingerprint: "offline-e2e-3",
+      status: "failed",
+      attempts: 1,
+      lastAttemptAt: Date.now(),
+      lastError: "server unreachable",
+    },
+  ]);
+  await phone.reload();
+  await phone.getByRole("button", { name: "重试失败", exact: true }).click();
+  await expect(phone.getByText("失败消息已改为待同步。打开聊天页后会自动重试。")).toBeVisible();
+  phone.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("清空这台手机上的离线消息队列");
+    await dialog.accept();
+  });
+  await phone.getByRole("button", { name: "清空队列" }).click();
+  await expect(phone.getByText("已清空离线消息队列。")).toBeVisible();
+
+  await phone.goto("/mobile/actions");
+  await expect(phone.getByText("动作权限中心")).toBeVisible();
+  await phone.getByPlaceholder("URL，例如：weixin:// 或 shortcuts://...").fill("weixin://open?token=super-secret-action-token&body=private-message");
+  await phone.getByPlaceholder("名称，例如：打开微信").fill("Blocked App");
+  await phone.getByRole("button", { name: "保存" }).click();
+  await phone.getByText("URL Scheme 白名单").scrollIntoViewIfNeeded();
+  await phone.getByPlaceholder("http, https, tel, sms, mailto, shortcuts").fill("http, https, shortcuts");
+  await phone.getByRole("button", { name: "更新白名单" }).click();
+  phone.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("已拦截未授权");
+    await dialog.dismiss();
+  });
+  await phone.getByRole("button", { name: "打开", exact: true }).click();
+  await expect(phone.getByText("已记录 1 条")).toBeVisible();
+  await expect(phone.getByText("最近动作记录")).toBeVisible();
+  await expect(phone.getByText("已拦截").first()).toBeVisible();
+  await expect(phone.getByText(/来源：自定义 URL/).first()).toBeVisible();
+  await expect(phone.getByText(/风险：高风险/).first()).toBeVisible();
+  await expect(phone.getByText(/目标：Blocked App/).first()).toBeVisible();
+  await expect(phone.getByText("super-secret-action-token")).toHaveCount(0);
+  await expect(phone.getByText("private-message")).toHaveCount(0);
+  await expect(phone.getByText(/token=\[redacted\]/)).toBeVisible();
+  phone.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("无法保存");
+    await dialog.dismiss();
+  });
+  await phone.getByRole("button", { name: "保存" }).click();
+  await phone.goto("/mobile/chat");
+  await expect(phone.locator("iframe[sandbox*='allow-same-origin']")).toHaveCount(0);
+
+  await page.goto("/admin/dashboard");
+  await expect(page.getByText("Playwright Phone")).toBeVisible();
+  await page.getByRole("button", { name: "刷新凭证" }).click();
+  await expect(page.getByText("Playwright Phone")).toBeVisible();
+
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: "http://127.0.0.1:3333" });
+  await page.route("**/api/v1/admin/network-diagnostics", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        host: "0.0.0.0",
+        port: "3333",
+        publicBaseUrl: "",
+        publicAccessAllowed: true,
+        lanUrls: ["http://192.168.31.10:3333"],
+        lanEnvTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start",
+        recommendedBaseUrl: "https://amber-lifeos.trycloudflare.com",
+        connectionCandidates: [
+          {
+            id: "cloudflare-0",
+            label: "Cloudflare Tunnel",
+            baseUrl: "https://amber-lifeos.trycloudflare.com",
+            mode: "cloudflare",
+            priority: 90,
+            requiresRestart: true,
+            secure: true,
+            mobilePairUrl: "https://amber-lifeos.trycloudflare.com/mobile/pair",
+            mobileChatUrl: "https://amber-lifeos.trycloudflare.com/mobile/chat",
+            envTemplate: "PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com LIFEOS_ALLOW_PUBLIC=1 npm run start",
+            restartInstruction: "复制环境变量后重启 LifeOS AI。",
+            notes: ["适合异地访问。复制启动环境并重启后，绑定二维码会使用这个 HTTPS 地址。"],
+          },
+          {
+            id: "tailscale-magicdns-0",
+            label: "Tailscale MagicDNS",
+            baseUrl: "http://lifeos-mac.tailnet.example.ts.net:3333",
+            mode: "tailscale",
+            priority: 82,
+            requiresRestart: true,
+            secure: true,
+            mobilePairUrl: "http://lifeos-mac.tailnet.example.ts.net:3333/mobile/pair",
+            mobileChatUrl: "http://lifeos-mac.tailnet.example.ts.net:3333/mobile/chat",
+            envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=http://lifeos-mac.tailnet.example.ts.net:3333 npm run start",
+            restartInstruction: "复制环境变量后重启 LifeOS AI。",
+            notes: ["适合自己的手机和电脑异地连接。手机需登录同一个 Tailnet。"],
+          },
+          {
+            id: "lan-0",
+            label: "局域网 Wi-Fi",
+            baseUrl: "http://192.168.31.10:3333",
+            mode: "lan",
+            priority: 50,
+            requiresRestart: true,
+            secure: false,
+            mobilePairUrl: "http://192.168.31.10:3333/mobile/pair",
+            mobileChatUrl: "http://192.168.31.10:3333/mobile/chat",
+            envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start",
+            restartInstruction: "复制环境变量后重启 LifeOS AI。",
+            notes: ["适合同一 Wi-Fi。离开当前网络后通常不可用。"],
+          },
+        ],
+        cloudflare: {
+          installed: true,
+          running: true,
+          version: "cloudflared version 2026.6.0",
+          detectedUrls: ["https://amber-lifeos.trycloudflare.com"],
+          suggestedCommand: "cloudflared tunnel --url http://127.0.0.1:3333",
+          installCommand: "brew install cloudflared",
+          envTemplate: "PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com LIFEOS_ALLOW_PUBLIC=1 npm run start",
+          notes: ["Cloudflare Tunnel 已运行。"],
+        },
+        tailscale: {
+          installed: true,
+          online: true,
+          version: "1.88.0",
+          deviceName: "lifeos-mac",
+          tailnetName: "tailnet.example.ts.net",
+          urls: ["http://100.64.0.10:3333"],
+          magicDnsUrls: ["http://lifeos-mac.tailnet.example.ts.net:3333"],
+          mobileUrls: ["http://lifeos-mac.tailnet.example.ts.net:3333", "http://100.64.0.10:3333"],
+          installCommand: "brew install --cask tailscale",
+          envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=http://lifeos-mac.tailnet.example.ts.net:3333 npm run start",
+          notes: ["Tailscale 已登录并在线。"],
+        },
+        safety: {
+          publicModeRequired: true,
+          requiresHttpsForInternet: false,
+          notes: ["异地访问优先选择可信隧道。"],
+        },
+      }),
+    });
+  });
+  await page.route("**/api/v1/admin/network-diagnostics/test-url", async (route) => {
+    const posted = route.request().postDataJSON() as { baseUrl?: string };
+    expect(posted.baseUrl).toBe("https://amber-lifeos.trycloudflare.com");
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ result: { ok: true, url: posted.baseUrl, status: 200, latencyMs: 24 } }),
+    });
+  });
+  await page.getByRole("link", { name: "设置" }).click();
+  await expect(page).toHaveURL(/\/admin\/settings/);
+  await expect(page.getByRole("heading", { name: "系统设置" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "导出诊断包" })).toBeVisible();
+  await expect(page.getByText("配置诊断")).toBeVisible();
+  await expect(page.getByText("GEMINI_API_KEY", { exact: true })).toBeVisible();
+  await expect(page.getByText("手机连接向导")).toBeVisible();
+  await expect(page.getByText("https://amber-lifeos.trycloudflare.com").first()).toBeVisible();
+  await expect(page.getByText("http://100.64.0.10:3333").first()).toBeVisible();
+  await expect(page.getByText("tailnet.example.ts.net", { exact: true })).toBeVisible();
+  await expect(page.getByText("http://lifeos-mac.tailnet.example.ts.net:3333").first()).toBeVisible();
+  await expect(page.getByText("http://192.168.31.10:3333").first()).toBeVisible();
+  await expect(page.getByText("lifeos-mac", { exact: true })).toBeVisible();
+  await expect(page.getByText("推荐绑定地址")).toBeVisible();
+  await expect(page.getByText("Cloudflare Tunnel", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Tailscale MagicDNS", { exact: true })).toBeVisible();
+  await expect(page.getByText("需重启生效").first()).toBeVisible();
+  await expect(page.getByText("推荐启动环境", { exact: true })).toBeVisible();
+  await expect(page.getByText("PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com LIFEOS_ALLOW_PUBLIC=1 npm run start").first()).toBeVisible();
+  await expect(page.getByText("手机端入口").locator("..").getByText("https://amber-lifeos.trycloudflare.com/mobile/chat")).toBeVisible();
+  await expect(page.getByText("实际地址形如 /mobile/install/<token>")).toBeVisible();
+  const recommendedEnvButton = page.getByRole("button", { name: "复制推荐启动环境" });
+  await recommendedEnvButton.click();
+  await expect(recommendedEnvButton).toContainText("已复制推荐启动环境");
+  await page.getByRole("button", { name: "复制 Cloudflare Tunnel 启动环境" }).click();
+  await expect(page.getByRole("button", { name: "复制 Cloudflare Tunnel 启动环境" })).toContainText("已复制启动环境");
+  await page.getByRole("button", { name: "测试推荐地址" }).first().click();
+  await expect(page.getByText("连接成功：24ms，https://amber-lifeos.trycloudflare.com")).toBeVisible();
+  await expect(page.getByText("最近审计日志")).toBeVisible();
+  await expect(page.getByText("备份与恢复")).toBeVisible();
+  await expect(page.getByText("AI Key 安全配置")).toBeVisible();
+  const aiKeyPanel = page.locator("section", { hasText: "AI Key 安全配置" });
+  await expect(aiKeyPanel.getByRole("button", { name: /Gemini/ })).toBeVisible();
+  await expect(aiKeyPanel.getByRole("button", { name: /OpenAI/ })).toBeVisible();
+  await expect(aiKeyPanel.getByRole("button", { name: /OpenRouter/ })).toBeVisible();
+  await expect(aiKeyPanel.getByRole("button", { name: /本地模型/ })).toBeVisible();
+  await aiKeyPanel.getByRole("button", { name: /OpenAI/ }).click();
+  await aiKeyPanel.getByLabel("OpenAI 模型").selectOption("gpt-4o");
+  await aiKeyPanel.getByRole("button", { name: "保存模型" }).click();
+  await expect(aiKeyPanel.getByText("OpenAI 模型已保存：gpt-4o")).toBeVisible();
+  await aiKeyPanel.getByPlaceholder("输入 API Key").fill("sk-playwright-openai-secret-value");
+  await aiKeyPanel.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(aiKeyPanel.getByText("OpenAI 配置已安全保存。")).toBeVisible();
+  await aiKeyPanel.getByRole("button", { name: "测试" }).click();
+  await expect(aiKeyPanel.getByText(/OpenAI 已配置/)).toBeVisible();
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("OpenAI");
+    await dialog.accept();
+  });
+  await aiKeyPanel.getByRole("button", { name: "删除" }).click();
+  await expect(aiKeyPanel.getByText("OpenAI 配置已删除。")).toBeVisible();
+  await aiKeyPanel.getByRole("button", { name: /Gemini/ }).click();
+  await aiKeyPanel.getByPlaceholder("输入 API Key").fill("AIzaSy-playwright-secret-value-should-not-leak");
+  await aiKeyPanel.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(aiKeyPanel.getByText("Google Gemini 配置已安全保存。")).toBeVisible();
+  await expect(aiKeyPanel.getByText("本地加密存储").or(aiKeyPanel.getByText("系统安全存储")).first()).toBeVisible();
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("删除");
+    await dialog.accept();
+  });
+  await aiKeyPanel.getByRole("button", { name: "删除" }).click();
+  await expect(aiKeyPanel.getByText("Google Gemini 配置已删除。")).toBeVisible();
+
+  await expect(page.getByRole("link", { name: "下载最新" })).toBeVisible();
+  const backupPanel = page.locator("section", { hasText: "备份与恢复" });
+  await expect(backupPanel.getByRole("link", { name: "导出数据" })).toBeVisible();
+  await expect(backupPanel.getByText("数据导出范围")).toBeVisible();
+  await backupPanel.getByRole("checkbox", { name: "审计" }).uncheck();
+  await expect(backupPanel.getByRole("link", { name: "导出数据" })).toHaveAttribute("href", /scope=chat%2Cmemories%2Cdevices/);
+  await backupPanel.getByRole("button", { name: "全选" }).click();
+  await expect(backupPanel.getByRole("link", { name: "导出数据" })).toHaveAttribute("href", "/api/v1/data/export");
+  await expect(backupPanel.getByText("自动备份计划")).toBeVisible();
+  await backupPanel.getByLabel("开启自动备份").check();
+  await backupPanel.getByLabel("间隔").fill("12");
+  await backupPanel.getByRole("button", { name: "保存计划" }).click();
+  await expect(backupPanel.getByText("自动备份已开启：每 12 小时执行一次。")).toBeVisible();
+  await backupPanel.getByRole("button", { name: "创建备份" }).click();
+  await expect(backupPanel.getByText(/已创建备份：lifeos-.*\.db/)).toBeVisible();
+  await expect(backupPanel.getByText("加密备份导出")).toBeVisible();
+  await expect(backupPanel.getByText("加密备份导入")).toBeVisible();
+  await backupPanel.getByPlaceholder("加密口令，至少 10 个字符").fill("playwright encrypted backup");
+  const encryptedDownloadPromise = page.waitForEvent("download");
+  await backupPanel.getByRole("button", { name: "导出最新" }).click();
+  const encryptedDownload = await encryptedDownloadPromise;
+  expect(encryptedDownload.suggestedFilename()).toMatch(/\.lifeos-backup\.json$/);
+  await expect(backupPanel.getByText(/已生成加密备份/)).toBeVisible();
+  const encryptedBackupPath = await encryptedDownload.path();
+  expect(encryptedBackupPath).toBeTruthy();
+  await backupPanel.getByPlaceholder("导入口令").fill("playwright encrypted backup");
+  await backupPanel.locator('input[type="file"]').setInputFiles(encryptedBackupPath!);
+  await expect(backupPanel.getByText(/已导入加密备份/)).toBeVisible();
+  await backupPanel.getByRole("button", { name: "预览" }).first().click();
+  await expect(backupPanel.getByText(/^备份预览：lifeos-.*\.db$/)).toBeVisible();
+  await expect(backupPanel.getByText(/大小：\d+\.\d KB · 创建时间：/)).toBeVisible();
+  await expect(backupPanel.getByText(/\d+ 个 migration/)).toBeVisible();
+  await expect(backupPanel.getByText("messages")).toBeVisible();
+  await expect(backupPanel.getByText("恢复风险说明")).toBeVisible();
+  await expect(backupPanel.getByText("恢复会在下次启动前替换当前 SQLite。")).toBeVisible();
+  await expect(backupPanel.getByText("恢复前系统会自动创建当前数据库备份。")).toBeVisible();
+  await expect(backupPanel.getByText("清理策略")).toBeVisible();
+  await expect(backupPanel.getByText("备份至少保留 1 份；审计和聊天天数设置为 0 表示不清理。执行前会再次确认。")).toBeVisible();
+  await backupPanel.getByRole("spinbutton", { name: /保留备份/ }).fill("3");
+  await backupPanel.getByRole("spinbutton", { name: /审计早于/ }).fill("0");
+  await backupPanel.getByRole("spinbutton", { name: /聊天早于/ }).fill("30");
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("保留最新 3 份备份");
+    expect(dialog.message()).toContain("不清理审计日志");
+    expect(dialog.message()).toContain("30 天前聊天会话");
+    await dialog.accept();
+  });
+  await backupPanel.getByRole("button", { name: "按策略清理" }).click();
+  await expect(backupPanel.getByText(/清理完成/)).toBeVisible();
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("安排恢复备份");
+    await dialog.accept();
+  });
+  await backupPanel.getByRole("button", { name: "恢复" }).first().click();
+  await expect(backupPanel.getByText("恢复任务等待重启")).toBeVisible();
+  page.once("dialog", async (dialog) => {
+    expect(dialog.message()).toContain("取消等待重启");
+    await dialog.accept();
+  });
+  await backupPanel.getByRole("button", { name: "取消恢复任务" }).click();
+  await expect(backupPanel.getByText("已取消等待重启的恢复任务。")).toBeVisible();
+  await page.goto("/admin/dashboard");
+
+  await page.getByRole("button", { name: /撤销/ }).click();
+  await expect(page.getByText("Playwright Phone")).toHaveCount(0);
+});

@@ -1,0 +1,104 @@
+{
+  "name": "lifeos-ai",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Personal AI local core with desktop admin and mobile PWA client.",
+  "author": "LifeOS",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "desktop": "npm run build && electron desktop/main.cjs",
+    "desktop:pack": "npm run build && electron-builder --dir",
+    "desktop:pack:unsigned": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir -c.mac.identity=- -c.mac.entitlements=build/entitlements.mac.plist -c.mac.entitlementsInherit=build/entitlements.mac.plist",
+    "desktop:zip:unsigned": "npm run desktop:pack:unsigned && node scripts/package-unsigned-mac.mjs && npm run release:feed",
+    "desktop:dist": "npm run build && electron-builder",
+    "desktop:dist:mac": "npm run build && electron-builder --mac",
+    "desktop:dist:win": "npm run build && electron-builder --win --x64 -c.electronDist=",
+    "desktop:dist:linux": "npm run build && electron-builder --linux --x64 -c.electronDist=",
+    "desktop:artifact:smoke": "node scripts/desktop-artifact-smoke.mjs",
+    "desktop:artifact:smoke:launch": "LIFEOS_ARTIFACT_SMOKE_LAUNCH=1 node scripts/desktop-artifact-smoke.mjs",
+    "desktop:release:smoke": "node scripts/desktop-release-smoke.mjs",
+    "electron:install": "node scripts/install-electron.mjs",
+    "signing:check:mac": "node scripts/check-mac-signing-env.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "release:check:unsigned": "LIFEOS_DISTRIBUTION=unsigned LIFEOS_RELEASE_STRICT=1 node scripts/release-check.mjs",
+    "release:feed": "node scripts/prepare-update-feed.mjs",
+    "start": "node dist/server.cjs",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit",
+    "test:api": "npm run build && node --test tests/api-auth.test.mjs",
+    "test:desktop": "npm run build && node --test --test-concurrency=1 tests/desktop-smoke.test.mjs",
+    "test:smoke": "npm run build && node --test tests/frontend-smoke.test.mjs",
+    "test:e2e": "playwright test",
+    "quality:gate": "npm run lint && npm test && npm run test:e2e && npm run test:desktop && npm run release:check:unsigned",
+    "test": "npm run build && node --import tsx --test tests/offline-queue.test.mjs tests/mobile-pairing-intent.test.mjs tests/pwa-capabilities.test.mjs tests/device-credential-store.test.mjs tests/sensitive-local-storage.test.mjs tests/synced-client-state.test.mjs tests/network-status.test.mjs tests/network-diagnostics.test.mjs tests/backup-schedule.test.mjs tests/audit-redaction.test.mjs tests/data-export-redaction.test.mjs tests/diagnostic-bundle-redaction.test.mjs tests/ai-provider-runtime.test.mjs tests/chat-state-changes.test.mjs tests/chat-message-storage.test.mjs tests/chat-runtime-settings.test.mjs tests/chat-session-storage.test.mjs tests/server-mobile-install.test.mjs tests/system-actions.test.mjs tests/backup-restore-ui.test.mjs && node --test --test-concurrency=1 tests/api-auth.test.mjs tests/backup-restore.test.mjs tests/frontend-smoke.test.mjs tests/migrations.test.mjs tests/public-mode.test.mjs tests/release-feed.test.mjs"
+  },
+  "dependencies": {
+    "@google/genai": "^2.4.0",
+    "dotenv": "^17.2.3",
+    "electron-updater": "^6.8.9",
+    "express": "^4.21.2",
+    "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "react-router-dom": "^7.17.0",
+    "recharts": "^3.8.1",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^6.0.2",
+    "autoprefixer": "^10.4.21",
+    "electron": "^42.3.3",
+    "electron-builder": "^26.15.2",
+    "esbuild": "^0.28.1",
+    "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
+    "typescript": "~5.8.2",
+    "vite": "^8.0.16"
+  },
+  "build": {
+    "appId": "ai.lifeos.desktop",
+    "productName": "LifeOS AI",
+    "asar": true,
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "electronDist": "node_modules/electron/dist",
+    "files": [
+      "dist/**/*",
+      "desktop/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "desktop/icon.icns",
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
+  },
+  "overrides": {
+    "esbuild": "$esbuild"
+  }
+}

@@ -1,0 +1,151 @@
+import "./server/env";
+import express from "express";
+import fs from "fs";
+import http from "http";
+import path from "path";
+import { storePath } from "./server/db";
+import { tokenHash } from "./server/security";
+import { insertAuditLog } from "./server/audit";
+import { DeviceRecord, BindingSession, getDevices, insertBindingSession, insertDevice } from "./server/devices";
+import { registerAiRoutes } from "./server/aiRoutes";
+import { registerAdminRoutes } from "./server/routes/adminRoutes";
+import { registerBackupRoutes } from "./server/routes/backupRoutes";
+import { registerChatRoutes } from "./server/routes/chatRoutes";
+import { registerCoreRoutes } from "./server/routes/coreRoutes";
+import { registerDeviceRoutes } from "./server/routes/deviceRoutes";
+import { registerMemoryRoutes } from "./server/routes/memoryRoutes";
+import { registerStateRoutes } from "./server/routes/stateRoutes";
+import { attachRealtimeServer } from "./server/realtime";
+import { runMigrations } from "./server/migrations";
+import { requireCsrf, securityHeaders } from "./server/httpSecurity";
+import { startBackupScheduler } from "./server/backupSchedule";
+import { getInstallPairingToken, htmlWithInstallPairingManifest, setInstallPairingIntentCookie } from "./server/mobileInstall";
+
+const app = express();
+const PORT = Number(process.env.LIFEOS_PORT || process.env.PORT || 3000);
+const HOST = process.env.LIFEOS_HOST || "127.0.0.1";
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || process.env.APP_URL || "";
+
+if ((HOST === "0.0.0.0" || PUBLIC_BASE_URL) && process.env.LIFEOS_ALLOW_PUBLIC !== "1") {
+  throw new Error("Public/LAN mode requires LIFEOS_ALLOW_PUBLIC=1. Set it only behind trusted HTTPS/tunnel protection.");
+}
+
+type LifeOSStore = {
+  devices: DeviceRecord[];
+  bindingSessions: BindingSession[];
+};
+
+function migrateLegacyJsonStore() {
+  if (!fs.existsSync(storePath)) return;
+  if (getDevices(true).length > 0) return;
+
+  try {
+    const legacy = JSON.parse(fs.readFileSync(storePath, "utf8")) as LifeOSStore;
+    for (const device of legacy.devices || []) {
+      insertDevice(device);
+    }
+    for (const session of legacy.bindingSessions || []) {
+      insertBindingSession({
+        ...session,
+        tokenHash: (session as any).tokenHash || tokenHash((session as any).token || ""),
+      });
+    }
+    insertAuditLog("legacy_store_migrated", "database", "lifeos.db", {
+      devices: legacy.devices?.length || 0,
+      bindingSessions: legacy.bindingSessions?.length || 0,
+    });
+  } catch (error) {
+    console.warn("Failed to migrate legacy JSON store:", error);
+  }
+}
+
+migrateLegacyJsonStore();
+runMigrations();
+startBackupScheduler();
+
+app.use(express.json({ limit: "64mb" }));
+app.use(express.urlencoded({ limit: "64mb", extended: true }));
+app.use(securityHeaders);
+app.use(requireCsrf);
+
+registerCoreRoutes(app, HOST);
+registerAdminRoutes(app);
+registerBackupRoutes(app);
+registerDeviceRoutes(app);
+registerChatRoutes(app);
+registerMemoryRoutes(app);
+registerStateRoutes(app);
+
+registerAiRoutes(app);
+
+async function startServer() {
+  const server = http.createServer(app);
+  attachRealtimeServer(server);
+
+  if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.get(["/mobile/pair", "/mobile/chat", "/mobile/install/:installToken"], async (req, res, next) => {
+      const pairingToken = getInstallPairingToken(req);
+      if (!pairingToken) {
+        next();
+        return;
+      }
+      try {
+        const indexPath = path.join(process.cwd(), "index.html");
+        const rawHtml = await fs.promises.readFile(indexPath, "utf8");
+        const installHtml = htmlWithInstallPairingManifest(rawHtml, req);
+        const html = await vite.transformIndexHtml(req.originalUrl, installHtml);
+        setInstallPairingIntentCookie(res, pairingToken);
+        res.setHeader("Cache-Control", "no-store");
+        res.status(200).type("html").send(html);
+      } catch (error) {
+        vite.ssrFixStacktrace(error as Error);
+        next(error);
+      }
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.resolve(__dirname);
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      const indexPath = path.join(distPath, "index.html");
+      if (
+        (req.path === "/mobile/pair" && req.query.token) ||
+        (req.path === "/mobile/chat" && req.query.pairingToken) ||
+        /^\/mobile\/install\/[^/?#]+$/.test(req.path)
+      ) {
+        const pairingToken = getInstallPairingToken(req);
+        fs.readFile(indexPath, "utf8", (error, html) => {
+          if (error) {
+            res.sendFile(indexPath);
+            return;
+          }
+          setInstallPairingIntentCookie(res, pairingToken);
+          res.setHeader("Cache-Control", "no-store");
+          res.type("html").send(htmlWithInstallPairingManifest(html, req));
+        });
+        return;
+      }
+      res.sendFile(indexPath);
+    });
+  }
+
+  server.listen(PORT, HOST, () => {
+    console.log(`Server running on http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`);
+  });
+
+  const shutdown = () => {
+    server.close(() => {
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(0), 1500).unref();
+  };
+  process.once("SIGTERM", shutdown);
+  process.once("SIGINT", shutdown);
+}
+
+startServer();

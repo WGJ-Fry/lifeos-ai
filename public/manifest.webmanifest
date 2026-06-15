@@ -1,0 +1,74 @@
+{
+  "name": "LifeOS AI",
+  "short_name": "LifeOS",
+  "id": "/mobile/chat",
+  "description": "Personal AI mobile client connected to your LifeOS desktop core.",
+  "start_url": "/mobile/chat",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
+  "orientation": "portrait",
+  "background_color": "#060a10",
+  "theme_color": "#060a10",
+  "categories": ["productivity", "utilities"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/mobile-chat.svg",
+      "sizes": "390x844",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "手机端 AI 聊天"
+    },
+    {
+      "src": "/screenshots/mobile-device.svg",
+      "sizes": "390x844",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "设备与连接"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "手机端 AI",
+      "short_name": "AI",
+      "url": "/mobile/chat",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "绑定电脑",
+      "short_name": "绑定",
+      "url": "/mobile/pair",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "本地能力",
+      "short_name": "能力",
+      "url": "/mobile/actions",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

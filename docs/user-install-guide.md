@@ -1,0 +1,303 @@
+# User Install Guide / 用户安装使用指南
+
+中文 | [English](#english)
+
+LifeOS AI 是电脑端应用 + 手机端 PWA。电脑端负责运行本地核心、保存数据、连接 AI；手机端通过浏览器扫码绑定后使用。
+
+## 下载安装
+
+### macOS Apple Silicon
+
+文件：
+
+```text
+LifeOS AI-0.0.0-arm64.dmg
+```
+
+安装：
+
+1. 下载 DMG。
+2. 打开 DMG。
+3. 把 `LifeOS AI` 拖到 Applications。
+4. 从 Applications 打开。
+
+当前 macOS DMG 已 Developer ID 签名、Apple 公证、DMG stapled。
+
+兼容说明：早期 `macOS Unsigned Zip` 发布方式仍可用于私有测试；无签名包可能需要在系统设置中选择 `Open Anyway`。当前推荐使用已签名公证的 DMG。
+
+### Windows x64
+
+文件：
+
+```text
+LifeOS AI Setup 0.0.0.exe
+```
+
+安装：
+
+1. 下载 EXE。
+2. 双击运行安装器。
+3. 如果 Windows SmartScreen 提示未知发布者，请确认下载来源是官方 GitHub Release，并对照 `SHA256SUMS`。
+4. 安装后从开始菜单或桌面快捷方式打开。
+
+当前 Windows 包可安装，但还没有 Authenticode 正式签名。
+
+这是 `Windows NSIS Installer` 路线。
+
+### Linux x64
+
+文件：
+
+```text
+LifeOS AI-0.0.0.AppImage
+```
+
+运行：
+
+```bash
+chmod +x "LifeOS AI-0.0.0.AppImage"
+./"LifeOS AI-0.0.0.AppImage"
+```
+
+如果 AppImage 无法启动，请确认系统有 FUSE/AppImage 支持，或从终端启动查看缺失依赖。
+
+这是 `Linux AppImage` 路线。
+
+## 首次启动
+
+1. 打开 LifeOS AI。
+2. 设置管理员密码。
+3. 进入设置页，配置 AI provider 和 API Key。
+4. 创建一次手动备份。
+5. 打开手机绑定页面。
+6. 用手机扫码完成绑定。
+7. 手机进入已绑定页面后，再添加到主屏幕。
+
+不要在绑定成功前把未绑定页面添加到手机主屏幕，否则可能丢失绑定参数。
+
+关键规则：`Wait until the phone shows the bound chat or device page`。`Do not add the unbound QR page to the home screen`。如果已经添加错了，`delete the old home-screen icon` 后重新扫码绑定。
+
+这一流程也叫 `Bind The Phone PWA`。
+
+## 手机连接
+
+同一 Wi-Fi 下，使用管理端推荐的局域网地址。
+
+异地使用建议：
+
+- Tailscale：适合长期自用。
+- Cloudflare Tunnel：适合临时或固定 HTTPS 入口。
+
+不要直接把 LifeOS AI 暴露到公网 IP。开启 LAN/公网模式前，请确认管理员密码已设置，并在连接向导里查看安全提示。
+
+这一流程也叫 `Use It Away From Home`。桌面版推荐在连接向导里使用 `Save to desktop startup configuration`，它会写入 `desktop startup configuration`，重启后继续使用推荐地址。
+
+## AI Key
+
+推荐在电脑管理端设置 AI Key。Key 保存在电脑端安全存储或本地加密存储，不会保存到手机端。
+
+支持/预留：
+
+- Gemini
+- OpenAI
+- OpenRouter
+- 本地模型接口
+
+## 备份与恢复
+
+建议：
+
+1. 首次配置完成后创建手动备份。
+2. 开启自动备份计划。
+3. 升级前下载一份备份。
+4. 重要数据可导出加密备份。
+
+恢复不会立刻覆盖当前数据库。恢复任务会安排到下次启动执行，并会先创建恢复前备份。重启前可以取消待恢复任务。
+
+## 校验下载文件
+
+macOS/Linux：
+
+```bash
+shasum -a 256 -c SHA256SUMS
+```
+
+Windows PowerShell：
+
+```powershell
+Get-FileHash ".\LifeOS AI Setup 0.0.0.exe" -Algorithm SHA256
+```
+
+当前 SHA256 见 [release-assets.md](release-assets.md)。
+
+## 更新
+
+当前版本暂未启用自动更新。更新方式：
+
+1. 退出 LifeOS AI。
+2. 下载新版安装包。
+3. 校验 SHA256。
+4. 安装新版。
+5. 打开后确认管理端、手机绑定和备份列表正常。
+
+自动更新以后需要配置 `LIFEOS_UPDATE_URL`，并发布 `release-manifest.json` 和对应 `latest*.yml`。
+
+## 常见问题
+
+- 管理端打不开：从桌面菜单打开日志目录或导出诊断包。
+- 手机扫不到/打不开：确认手机和电脑网络互通，优先使用连接向导推荐地址。
+- AI 不回复：检查 AI provider 是否配置，API Key 是否有效。
+- 手机主屏幕打开后丢绑定：删除旧图标，重新扫码绑定，进入已绑定页面后再添加到主屏幕。
+- 更新后数据不对：进入设置页预览备份并恢复，或查看 [rollback.md](rollback.md)。
+
+---
+
+# English
+
+LifeOS AI is a desktop app plus a mobile PWA. The desktop app runs the local core, stores data, and connects to AI providers. The phone connects through a paired browser/PWA.
+
+## Download And Install
+
+### macOS Apple Silicon
+
+File:
+
+```text
+LifeOS AI-0.0.0-arm64.dmg
+```
+
+Install:
+
+1. Download the DMG.
+2. Open it.
+3. Drag `LifeOS AI` to Applications.
+4. Open it from Applications.
+
+The current macOS DMG is Developer ID signed, Apple notarized, and stapled.
+
+Compatibility note: the earlier `macOS Unsigned Zip` path is still useful for private testing. Unsigned builds may require the macOS `Open Anyway` flow. The signed DMG is recommended for this release.
+
+### Windows x64
+
+File:
+
+```text
+LifeOS AI Setup 0.0.0.exe
+```
+
+Install:
+
+1. Download the EXE.
+2. Run the installer.
+3. If SmartScreen warns about an unknown publisher, verify that the file came from the official GitHub Release and compare it with `SHA256SUMS`.
+4. Open LifeOS AI from the Start Menu or desktop shortcut.
+
+The current Windows package is installable but not Authenticode signed yet.
+
+This is the `Windows NSIS Installer` path.
+
+### Linux x64
+
+File:
+
+```text
+LifeOS AI-0.0.0.AppImage
+```
+
+Run:
+
+```bash
+chmod +x "LifeOS AI-0.0.0.AppImage"
+./"LifeOS AI-0.0.0.AppImage"
+```
+
+If it does not start, make sure your distribution has FUSE/AppImage support, or run it from a terminal to see missing dependency messages.
+
+This is the `Linux AppImage` path.
+
+## First Launch
+
+1. Open LifeOS AI.
+2. Set an administrator password.
+3. Configure an AI provider and API key in Settings.
+4. Create a manual backup.
+5. Open the phone pairing page.
+6. Scan the QR code with the phone.
+7. Add the PWA to the home screen only after the phone shows the paired page.
+
+Do not add the unpaired page to the phone home screen before pairing succeeds.
+
+Key rule: `Wait until the phone shows the bound chat or device page`. `Do not add the unbound QR page to the home screen`. If it was added too early, `delete the old home-screen icon` and pair again.
+
+This flow is also called `Bind The Phone PWA`.
+
+## Phone Connection
+
+On the same Wi-Fi, use the LAN address recommended by the admin connection guide.
+
+For remote access, prefer:
+
+- Tailscale for long-term personal use.
+- Cloudflare Tunnel for HTTPS access.
+
+Do not expose LifeOS AI directly to a public IP. Before enabling LAN/public mode, set an admin password and review the security hints in the connection guide.
+
+This flow is also called `Use It Away From Home`. In the desktop app, prefer `Save to desktop startup configuration`; it writes the selected address to the `desktop startup configuration` for future launches.
+
+## AI Keys
+
+Configure AI keys in the desktop admin UI. Keys are stored on the computer in secure storage or encrypted local fallback storage, not on the phone.
+
+Supported or prepared providers:
+
+- Gemini
+- OpenAI
+- OpenRouter
+- Local model endpoint
+
+## Backups And Restore
+
+Recommended:
+
+1. Create a manual backup after first setup.
+2. Enable automatic backups.
+3. Download a backup before upgrades.
+4. Export an encrypted backup for important data.
+
+Restore does not immediately overwrite the current database. It schedules a restore for the next startup and creates a pre-restore backup first. Pending restores can be cancelled before restarting.
+
+## Verify Downloads
+
+macOS/Linux:
+
+```bash
+shasum -a 256 -c SHA256SUMS
+```
+
+Windows PowerShell:
+
+```powershell
+Get-FileHash ".\LifeOS AI Setup 0.0.0.exe" -Algorithm SHA256
+```
+
+Current SHA256 values are listed in [release-assets.md](release-assets.md).
+
+## Updates
+
+Auto-update is not enabled in the current build. Manual update flow:
+
+1. Quit LifeOS AI.
+2. Download the newer package.
+3. Verify SHA256.
+4. Install the newer package.
+5. Open the app and confirm admin, phone pairing, and backups still look correct.
+
+Future auto-update requires `LIFEOS_UPDATE_URL`, `release-manifest.json`, and the matching `latest*.yml` feed files.
+
+## Troubleshooting
+
+- Admin does not open: use the desktop menu to open logs or export a diagnostic bundle.
+- Phone cannot connect: confirm network reachability and use the recommended address from the connection guide.
+- AI does not answer: check provider configuration and API key validity.
+- Home-screen icon loses pairing: delete the old icon, scan a fresh QR code, pair first, then add the paired page to the home screen.
+- Data looks wrong after an update: preview and restore a backup, or see [rollback.md](rollback.md).

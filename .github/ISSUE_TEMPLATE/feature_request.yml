@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest an improvement for LifeOS AI
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 想解决的问题
+      description: What user problem should this solve? / 这个功能要解决什么用户问题？
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal / 建议方案
+      description: Describe the feature or experience you want. / 描述你希望的功能或体验。
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / 模块
+      options:
+        - Desktop app
+        - Mobile PWA
+        - AI providers
+        - Backups and restore
+        - Remote connection
+        - Local actions
+        - Security
+        - Packaging and release
+        - Other
+    validations:
+      required: true

@@ -1,0 +1,6 @@
+{
+  "name": "JARVIS Studio",
+  "description": "An intelligent multi-modal micro-app workshop and visual workspace powered by JARVIS that parses any code or UI screenshots to automatically compile and run reactive widgets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

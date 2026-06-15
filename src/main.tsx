@@ -1,0 +1,84 @@
+import {StrictMode, Suspense, lazy} from 'react';
+import {createRoot} from 'react-dom/client';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { clearSensitiveLocalStorageResidue } from './services/sensitiveLocalStorage';
+import './index.css';
+
+clearSensitiveLocalStorageResidue();
+
+const App = lazy(() => import('./App.tsx'));
+const AdminChatPage = lazy(() => import('./pages/admin/AdminChatPage.tsx'));
+const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage.tsx'));
+const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage.tsx'));
+const AdminMemoryPage = lazy(() => import('./pages/admin/AdminMemoryPage.tsx'));
+const AdminOnboardingPage = lazy(() => import('./pages/admin/AdminOnboardingPage.tsx'));
+const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage.tsx'));
+const DevicePairPage = lazy(() => import('./pages/admin/DevicePairPage.tsx'));
+const MobileActionsPage = lazy(() => import('./pages/mobile/MobileActionsPage.tsx'));
+const MobileChatPage = lazy(() => import('./pages/mobile/MobileChatPage.tsx'));
+const MobileDevicePage = lazy(() => import('./pages/mobile/MobileDevicePage.tsx'));
+const MobilePairPage = lazy(() => import('./pages/mobile/MobilePairPage.tsx'));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen bg-[#060a10] text-zinc-100 flex items-center justify-center">
+      <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 text-sm font-bold text-zinc-300">
+        <div className="w-2 h-2 rounded-full bg-cyan-300 animate-pulse" />
+        正在载入 LifeOS...
+      </div>
+    </div>
+  );
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          <Route path="/" element={<Navigate to={window.innerWidth < 700 ? "/mobile/chat" : "/admin/login"} replace />} />
+          <Route path="/chat" element={<App />} />
+          <Route path="/mobile/actions" element={<MobileActionsPage />} />
+          <Route path="/mobile/chat" element={<MobileChatPage />} />
+          <Route path="/mobile/device" element={<MobileDevicePage />} />
+          <Route path="/mobile/install/:token" element={<MobilePairPage />} />
+          <Route path="/mobile/pair" element={<MobilePairPage />} />
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin/onboarding" element={<AdminOnboardingPage />} />
+          <Route path="/admin/chat" element={<AdminChatPage />} />
+          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+          <Route path="/admin/memory" element={<AdminMemoryPage />} />
+          <Route path="/admin/settings" element={<AdminSettingsPage />} />
+          <Route path="/admin/devices/pair" element={<DevicePairPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  </StrictMode>,
+);
+
+if ("serviceWorker" in navigator && (import.meta as any).env?.PROD) {
+  let reloadedForServiceWorkerUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadedForServiceWorkerUpdate) return;
+    reloadedForServiceWorkerUpdate = true;
+    window.location.reload();
+  });
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js")
+      .then((registration) => {
+        registration.waiting?.postMessage({ type: "LIFEOS_SKIP_WAITING" });
+        registration.addEventListener("updatefound", () => {
+          registration.installing?.addEventListener("statechange", () => {
+            if (registration.waiting) {
+              registration.waiting.postMessage({ type: "LIFEOS_SKIP_WAITING" });
+            }
+          });
+        });
+        return registration.update();
+      })
+      .catch((error) => {
+        console.warn("LifeOS service worker registration failed", error);
+      });
+  });
+}

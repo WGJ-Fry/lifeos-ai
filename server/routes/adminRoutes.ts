@@ -1,0 +1,407 @@
+import type express from "express";
+import { db } from "../db";
+import { insertAuditLog, listAuditLogs } from "../audit";
+import { aiProviders, deleteAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
+import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
+import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
+import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
+import { getNetworkDiagnostics, testConnectionUrl } from "../networkDiagnostics";
+import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
+import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
+import { createSecret, tokenHash } from "../security";
+import { setClientState } from "../clientState";
+import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
+import { getOnboardingStatus, markOnboardingComplete } from "../onboarding";
+import { getBackupSchedule } from "../backupSchedule";
+
+const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
+
+function loginKey(req: express.Request) {
+  return getClientIp(req);
+}
+
+function getProviderId(value: string): AiProviderId | null {
+  return aiProviders.some((provider) => provider.id === value) ? value as AiProviderId : null;
+}
+
+function aiStatusAuditMetadata(status: ReturnType<typeof getAiProviderStatus>) {
+  return {
+    provider: status.provider,
+    configured: status.configured,
+    enabled: status.enabled,
+    source: status.source,
+    selectedModel: status.selectedModel,
+    secureStorage: {
+      current: status.secureStorage?.current || null,
+      preferred: status.secureStorage?.preferred,
+      label: status.secureStorage?.label,
+      systemAvailable: Boolean(status.secureStorage?.systemAvailable),
+      fallbackActive: Boolean(status.secureStorage?.fallbackActive),
+      migrationRecommended: Boolean(status.secureStorage?.migrationRecommended),
+    },
+  };
+}
+
+function getDataDirDiagnosticLabel() {
+  return process.env.LIFEOS_DATA_DIR ? "已配置自定义数据目录" : "默认数据目录";
+}
+
+export function registerAdminRoutes(app: express.Express) {
+  app.get("/api/v1/admin/status", (req, res) => {
+    const configured = isAdminConfigured();
+    const authenticated = Boolean(getAdminSessionByToken(getBearerToken(req)));
+    const onboarding = configured && authenticated ? getOnboardingStatus() : null;
+    res.json({
+      configured,
+      authenticated,
+      envManaged: Boolean(process.env.LIFEOS_ADMIN_PASSWORD),
+      onboardingRequired: onboarding?.required ?? null,
+      nextPath: onboarding?.nextPath ?? null,
+    });
+  });
+
+  app.get("/api/v1/admin/onboarding", requireAdmin, (_req, res) => {
+    res.json({ onboarding: getOnboardingStatus() });
+  });
+
+  app.put("/api/v1/admin/onboarding/complete", requireAdmin, (req, res) => {
+    try {
+      const onboarding = markOnboardingComplete({ type: "admin", id: "owner" });
+      insertAuditLog("admin_onboarding_completed", "admin", "owner", {
+        completedAt: onboarding.completedAt,
+        steps: onboarding.steps.map((step) => ({ id: step.id, done: step.done })),
+        securityOverall: onboarding.securityOverall,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ onboarding });
+    } catch (error: any) {
+      res.status(error.statusCode || 400).json({ error: error.message || "Onboarding is not complete", steps: error.details || undefined });
+    }
+  });
+
+  app.get("/api/v1/admin/config-diagnostics", requireAdmin, (_req, res) => {
+    const publicBaseUrl = getConfiguredPublicBaseUrl();
+    const host = process.env.LIFEOS_HOST || "127.0.0.1";
+    const aiStatus = getAiConfigStatus();
+    const publicAccessWarning = Boolean(publicBaseUrl) || host === "0.0.0.0";
+    const backupSchedule = getBackupSchedule();
+
+    res.json({
+      ai: {
+        ...aiStatus,
+        recommendations: aiStatus.configured
+          ? [
+            aiStatus.source === "environment"
+              ? "AI 服务由环境变量配置。更换环境变量后需要重启 LifeOS AI。"
+              : `AI Key 已保存到${aiStatus.secureStorage.label}。`,
+          ]
+          : [
+            aiStatus.secureStorage.systemAvailable ? "桌面版会优先使用系统安全存储保存 AI Key。" : "当前环境会使用本地 AES-GCM 加密保存 AI Key。",
+            "也可以在 .env.local 中设置 GEMINI_API_KEY、OPENAI_API_KEY、OPENROUTER_API_KEY 或 LOCAL_MODEL_BASE_URL 后重启 LifeOS AI。",
+          ],
+      },
+      network: {
+        host,
+        publicBaseUrl,
+        publicAccessAllowed: process.env.LIFEOS_ALLOW_PUBLIC === "1",
+        publicAccessWarning,
+        recommendations: publicAccessWarning
+          ? ["仅通过可信 HTTPS 隧道或受控反向代理暴露服务。", "公网/LAN 模式必须显式设置 LIFEOS_ALLOW_PUBLIC=1。", "只有在可信代理后才设置 LIFEOS_TRUST_PROXY=1。"]
+          : ["当前仅本机监听，适合桌面端单机使用。"],
+      },
+      storage: {
+        dataDir: getDataDirDiagnosticLabel(),
+        dataDirConfigured: Boolean(process.env.LIFEOS_DATA_DIR),
+        backupRetentionCount: process.env.LIFEOS_BACKUP_RETENTION_COUNT || "20",
+        backupSchedule: {
+          enabled: backupSchedule.enabled,
+          intervalHours: backupSchedule.intervalHours,
+          nextRunAt: backupSchedule.nextRunAt,
+        },
+        recommendations: backupSchedule.enabled
+          ? ["升级、恢复或开启公网访问前确认最近一次 SQLite 备份可用。"]
+          : ["升级、恢复或开启公网访问前先创建 SQLite 备份。", "长期使用建议开启自动备份计划。"],
+      },
+      release: {
+        ...getReleaseDiagnostics(),
+        recommendations: ["发布给普通用户时同时提供安装包、USER-INSTALL.md、SHA256SUMS 和 release-manifest.json。"],
+      },
+      securityCheck: getSecurityDiagnostics(),
+    });
+  });
+
+  app.get("/api/v1/admin/network-diagnostics", requireAdmin, (_req, res) => {
+    res.json(getNetworkDiagnostics());
+  });
+
+  app.post("/api/v1/admin/network-diagnostics/test-url", requireAdmin, async (req, res) => {
+    const baseUrl = String(req.body?.baseUrl || "").trim();
+    if (!baseUrl) return res.status(400).json({ error: "baseUrl is required" });
+    try {
+      const result = await testConnectionUrl(baseUrl);
+      insertAuditLog("network_connection_tested", "network", baseUrl, {
+        ok: result.ok,
+        status: result.status,
+        latencyMs: result.latencyMs,
+      });
+      res.json({ result });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Connection test failed" });
+    }
+  });
+
+  app.put("/api/v1/admin/desktop-connection-config", requireAdmin, (req, res) => {
+    try {
+      const config = saveDesktopRuntimeConfig({
+        mode: req.body?.mode,
+        label: req.body?.label,
+        baseUrl: req.body?.baseUrl,
+      });
+      insertAuditLog("desktop_connection_config_saved", "network", config.mode, {
+        mode: config.mode,
+        label: config.label,
+        host: config.host,
+        port: config.port,
+        publicBaseUrlConfigured: Boolean(config.publicBaseUrl),
+        allowPublic: config.allowPublic,
+        restartRequired: true,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({
+        config,
+        restartRequired: true,
+        message: "桌面连接配置已保存。退出并重新打开 LifeOS AI 后生效。",
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Desktop connection configuration is invalid" });
+    }
+  });
+
+  app.get("/api/v1/admin/ai-providers", requireAdmin, (_req, res) => {
+    res.json({ providers: listAiProviderStatuses() });
+  });
+
+  app.post("/api/v1/admin/ai-providers/:providerId/test", requireAdmin, (req, res) => {
+    const providerId = getProviderId(req.params.providerId);
+    if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
+    const status = getAiProviderStatus(providerId);
+    insertAuditLog("ai_provider_tested", "config", providerId, {
+      ...aiStatusAuditMetadata(status),
+      result: status.enabled && status.configured ? "ready" : "not_configured",
+    });
+    res.json({
+      ok: status.enabled && status.configured,
+      provider: status,
+      message: status.enabled
+        ? status.configured
+          ? `${status.provider} 已配置。`
+          : `${status.provider} 尚未配置 Key。`
+        : `${status.provider} 配置已保存。`,
+    });
+  });
+
+  app.put("/api/v1/admin/ai-providers/:providerId/model", requireAdmin, (req, res) => {
+    const providerId = getProviderId(req.params.providerId);
+    if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
+    const model = String(req.body?.model || "").trim();
+    try {
+      const status = saveSelectedAiModel(providerId, model, { type: "admin", id: "owner" });
+      insertAuditLog("ai_provider_model_updated", "config", providerId, {
+        provider: status.provider,
+        model: status.selectedModel,
+      });
+      res.json({ provider: status });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Unsupported AI model" });
+    }
+  });
+
+  app.put("/api/v1/admin/ai-providers/:providerId/active", requireAdmin, (req, res) => {
+    const providerId = getProviderId(req.params.providerId);
+    if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
+    try {
+      saveActiveAiProvider(providerId, { type: "admin", id: "owner" });
+      const status = getAiProviderStatus(providerId);
+      insertAuditLog("ai_provider_default_updated", "config", providerId, {
+        provider: status.provider,
+        active: status.active,
+        configured: status.configured,
+        selectedModel: status.selectedModel,
+      });
+      res.json({ provider: status, providers: listAiProviderStatuses() });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Could not update default AI provider" });
+    }
+  });
+
+  app.get("/api/v1/admin/diagnostic-bundle", requireAdmin, (req, res) => {
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const bundle = createDiagnosticBundle() as any;
+    insertAuditLog("diagnostic_bundle_exported", "diagnostics", "lifeos-diagnostics", {
+      stamp,
+      aiConfigured: Boolean(bundle.ai?.configured),
+      aiProviders: Array.isArray(bundle.ai?.providers) ? bundle.ai.providers.length : 0,
+      configuredAiProviders: Array.isArray(bundle.ai?.providers) ? bundle.ai.providers.filter((provider: any) => provider.configured).length : 0,
+      deviceTotal: bundle.devices?.total || 0,
+      deviceActive: bundle.devices?.active || 0,
+      deviceOnline: bundle.devices?.online || 0,
+      backupCount: bundle.database?.backups?.length || 0,
+      pendingRestore: Boolean(bundle.database?.pendingRestore),
+      releaseManifestAvailable: Boolean(bundle.release?.manifestAvailable),
+      releaseChecksumAvailable: Boolean(bundle.release?.checksumAvailable),
+      releaseArtifactCount: bundle.release?.artifactCount || 0,
+      securityOverall: bundle.security?.overall || "unknown",
+      publicMode: Boolean(bundle.security?.publicMode),
+    }, (req as any).actor?.type, (req as any).actor?.id);
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="lifeos-diagnostics-${stamp}.json"`);
+    res.json(bundle);
+  });
+
+  app.put("/api/v1/admin/ai-key", requireAdmin, (req, res) => {
+    const apiKey = String(req.body?.apiKey || "").trim();
+    if (process.env.GEMINI_API_KEY) {
+      return res.status(409).json({ error: "AI key is managed by GEMINI_API_KEY environment variable" });
+    }
+    if (apiKey.length < 16) {
+      return res.status(400).json({ error: "API key is too short" });
+    }
+
+    saveAiApiKey(apiKey);
+    const status = getAiConfigStatus();
+    insertAuditLog("ai_key_saved", "config", "google_gemini", aiStatusAuditMetadata(status));
+    res.json({ ai: getAiConfigStatus() });
+  });
+
+  app.put("/api/v1/admin/ai-providers/:providerId/key", requireAdmin, (req, res) => {
+    const providerId = getProviderId(req.params.providerId);
+    if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
+    const provider = aiProviders.find((item) => item.id === providerId)!;
+    const apiKey = String(req.body?.apiKey || "").trim();
+    if (process.env[provider.envVar]) {
+      return res.status(409).json({ error: `AI key is managed by ${provider.envVar} environment variable` });
+    }
+    if (apiKey.length < 8) {
+      return res.status(400).json({ error: "API key is too short" });
+    }
+
+    try {
+      saveAiApiKey(apiKey, providerId);
+      const status = getAiProviderStatus(providerId);
+      insertAuditLog("ai_key_saved", "config", providerId, aiStatusAuditMetadata(status));
+      res.json({ provider: status });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "AI provider configuration is invalid" });
+    }
+  });
+
+  app.delete("/api/v1/admin/ai-key", requireAdmin, (_req, res) => {
+    if (process.env.GEMINI_API_KEY) {
+      return res.status(409).json({ error: "AI key is managed by GEMINI_API_KEY environment variable" });
+    }
+    deleteAiApiKey();
+    const status = getAiConfigStatus();
+    insertAuditLog("ai_key_deleted", "config", "google_gemini", aiStatusAuditMetadata(status));
+    res.json({ ai: getAiConfigStatus() });
+  });
+
+  app.delete("/api/v1/admin/ai-providers/:providerId/key", requireAdmin, (req, res) => {
+    const providerId = getProviderId(req.params.providerId);
+    if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
+    const provider = aiProviders.find((item) => item.id === providerId)!;
+    if (process.env[provider.envVar]) {
+      return res.status(409).json({ error: `AI key is managed by ${provider.envVar} environment variable` });
+    }
+    deleteAiApiKey(providerId);
+    const status = getAiProviderStatus(providerId);
+    insertAuditLog("ai_key_deleted", "config", providerId, aiStatusAuditMetadata(status));
+    res.json({ provider: status });
+  });
+
+  app.post("/api/v1/admin/setup", (req, res) => {
+    if (isAdminConfigured()) {
+      return res.status(409).json({ error: "Admin is already configured" });
+    }
+
+    const password = String(req.body?.password || "");
+    if (password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    createAdminCredential(password);
+    setClientState("lifeos_admin_password_policy", evaluatePasswordPolicy(password), { type: "admin", id: "owner" });
+    const session = createAdminSession();
+    setHttpOnlyCookie(res, "lifeos_admin_session", session.token, session.expiresAt);
+    setClientCookie(res, "lifeos_csrf", createSecret("csrf"), session.expiresAt);
+    res.json({ expiresAt: session.expiresAt, onboardingRequired: true, nextPath: "/admin/onboarding" });
+  });
+
+  app.put("/api/v1/admin/password", requireAdmin, (req, res) => {
+    if (process.env.LIFEOS_ADMIN_PASSWORD) {
+      return res.status(409).json({ error: "Admin password is managed by LIFEOS_ADMIN_PASSWORD environment variable" });
+    }
+
+    const currentPassword = String(req.body?.currentPassword || "");
+    const newPassword = String(req.body?.newPassword || "");
+    if (!verifyAdminPassword(currentPassword)) {
+      insertAuditLog("admin_password_change_failed", "admin", "owner", { reason: "invalid_current_password" }, "admin", "owner");
+      return res.status(401).json({ error: "Current password is invalid" });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    const policy = evaluatePasswordPolicy(newPassword);
+    createAdminCredential(newPassword, { auditAction: false });
+    setClientState("lifeos_admin_password_policy", policy, { type: "admin", id: "owner" });
+    insertAuditLog("admin_password_changed", "admin", "owner", {
+      meetsPolicy: policy.meetsPolicy,
+      lengthBucket: policy.lengthBucket,
+      hasVariety: policy.hasVariety,
+      notCommon: policy.notCommon,
+    }, "admin", "owner");
+    res.json({ ok: true, passwordPolicy: policy, securityCheck: getSecurityDiagnostics() });
+  });
+
+  app.post("/api/v1/admin/login", rateLimit({ keyPrefix: "admin-login", windowMs: 15 * 60 * 1000, max: 12 }), (req, res) => {
+    if (!isAdminConfigured()) {
+      return res.status(409).json({ error: "Admin setup is required" });
+    }
+
+    const key = loginKey(req);
+    const failure = loginFailures.get(key);
+    if (failure && failure.lockedUntil > Date.now()) {
+      res.setHeader("Retry-After", String(Math.ceil((failure.lockedUntil - Date.now()) / 1000)));
+      return res.status(423).json({ error: "Admin login is temporarily locked" });
+    }
+
+    const password = String(req.body?.password || "");
+    if (!verifyAdminPassword(password)) {
+      const next = { count: (failure?.count || 0) + 1, lockedUntil: 0 };
+      if (next.count >= 5) next.lockedUntil = Date.now() + 10 * 60 * 1000;
+      loginFailures.set(key, next);
+      insertAuditLog("admin_login_failed", "admin", "owner");
+      return res.status(401).json({ error: "Invalid password" });
+    }
+
+    loginFailures.delete(key);
+    const session = createAdminSession();
+    setHttpOnlyCookie(res, "lifeos_admin_session", session.token, session.expiresAt);
+    setClientCookie(res, "lifeos_csrf", createSecret("csrf"), session.expiresAt);
+    const onboarding = getOnboardingStatus();
+    res.json({ expiresAt: session.expiresAt, onboardingRequired: onboarding.required, nextPath: onboarding.nextPath });
+  });
+
+  app.post("/api/v1/admin/logout", requireAdmin, (req, res) => {
+    const token = getBearerToken(req);
+    if (token) {
+      db.prepare("UPDATE admin_sessions SET revoked_at = ? WHERE token_hash = ?").run(Date.now(), tokenHash(token));
+    }
+    clearHttpOnlyCookie(res, "lifeos_admin_session");
+    clearHttpOnlyCookie(res, "lifeos_csrf");
+    insertAuditLog("admin_logout", "admin", "owner");
+    res.json({ ok: true });
+  });
+
+  app.get("/api/v1/audit-logs", requireAdmin, (_req, res) => {
+    res.json({ logs: listAuditLogs() });
+  });
+}

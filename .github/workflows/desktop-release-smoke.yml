@@ -1,0 +1,57 @@
+name: Desktop Release Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "desktop/**"
+      - "server/**"
+      - "src/**"
+      - "public/**"
+      - "scripts/**"
+      - "tests/**"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - "playwright.config.ts"
+
+jobs:
+  desktop-release-smoke:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Linux packaging dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libxss1 libasound2t64 libgbm1 libxshmfence1
+
+      - name: Install Electron binary
+        run: npm run electron:install
+
+      - name: Desktop release smoke
+        env:
+          LIFEOS_RELEASE_SMOKE_FAST: "1"
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run desktop:release:smoke
+
+      - name: Packaged app launch smoke
+        if: runner.os == 'macOS'
+        run: npm run desktop:artifact:smoke:launch

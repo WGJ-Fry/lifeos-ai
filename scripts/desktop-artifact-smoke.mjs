@@ -1,0 +1,408 @@
+import { spawn } from "node:child_process";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import http from "node:http";
+import { createRequire } from "node:module";
+import os from "node:os";
+import path from "node:path";
+
+const rootDir = process.cwd();
+const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : path.join(rootDir, "release");
+const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
+const require = createRequire(import.meta.url);
+const asar = require("@electron/asar");
+const productName = packageJson.build?.productName || "LifeOS AI";
+
+function fail(message) {
+  console.error(`[FAIL] ${message}`);
+  process.exit(1);
+}
+
+function pass(message) {
+  console.log(`[PASS] ${message}`);
+}
+
+function parseVersion(version) {
+  const match = String(version || "").match(/(\d+)\.(\d+)\.(\d+)/);
+  return match ? match.slice(1).map(Number) : null;
+}
+
+function versionAtLeast(version, minimum) {
+  const actual = parseVersion(version);
+  const required = parseVersion(minimum);
+  if (!actual || !required) return false;
+  for (let index = 0; index < required.length; index += 1) {
+    if (actual[index] > required[index]) return true;
+    if (actual[index] < required[index]) return false;
+  }
+  return true;
+}
+
+function walk(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    return entry.isDirectory() ? walk(fullPath) : [fullPath];
+  });
+}
+
+function sha512(file) {
+  return crypto.createHash("sha512").update(fs.readFileSync(file)).digest("base64");
+}
+
+function sha256(file) {
+  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+}
+
+function findMacAsar() {
+  const matches = walk(releaseDir).filter((file) => file.endsWith(`${productName}.app/Contents/Resources/app.asar`));
+  return matches[0] || "";
+}
+
+function findMacAppBinary() {
+  const matches = walk(releaseDir).filter((file) => file.endsWith(`${productName}.app/Contents/MacOS/${productName}`));
+  return matches[0] || "";
+}
+
+function findMacRendererHelper() {
+  const matches = walk(releaseDir).filter((file) => file.endsWith(`${productName}.app/Contents/Frameworks/${productName} Helper (Renderer).app/Contents/MacOS/${productName} Helper (Renderer)`));
+  return matches[0] || "";
+}
+
+function macAppPathFromBinary(binary) {
+  return binary.slice(0, binary.lastIndexOf(".app/Contents/MacOS/") + 4);
+}
+
+function checkInstallGuide() {
+  const guidePath = path.join(releaseDir, "INSTALL-unsigned-mac.md");
+  if (!fs.existsSync(guidePath)) fail("missing unsigned macOS install guide");
+  const guide = fs.readFileSync(guidePath, "utf8");
+  for (const pattern of [/Move .*\.app.*Applications/i, /Open Anyway|unidentified developer|Gatekeeper/i, /admin password/i, /AI provider/i, /backup/i, /bind the mobile PWA/i, /Export Diagnostics/i]) {
+    if (!pattern.test(guide)) fail(`install guide is missing expected guidance: ${pattern}`);
+  }
+  pass("unsigned macOS install guide covers install, Gatekeeper, first launch, backup, binding, and diagnostics");
+
+  const userGuidePath = path.join(releaseDir, "USER-INSTALL.md");
+  if (!fs.existsSync(userGuidePath)) fail("missing user install guide in release directory");
+  const userGuide = fs.readFileSync(userGuidePath, "utf8");
+  for (const pattern of [/macOS Unsigned Zip/i, /Windows NSIS Installer/i, /Linux AppImage/i, /First Launch/i, /Bind The Phone PWA/i, /Use It Away From Home/i, /Backups/i, /Troubleshooting/i, /SmartScreen/i, /chmod \+x/i, /shasum -a 256 -c SHA256SUMS/i, /Get-FileHash/i, /Do not add the unbound QR page to the home screen/i, /delete the old home-screen icon/i]) {
+    if (!pattern.test(userGuide)) fail(`release user install guide is missing expected guidance: ${pattern}`);
+  }
+  pass("release directory includes user install guide for non-developer setup");
+}
+
+function checkUpdateFeed() {
+  const manifestPath = path.join(releaseDir, "update-feed", "release-manifest.json");
+  if (!fs.existsSync(manifestPath)) fail("missing update-feed/release-manifest.json");
+  const checksumPath = path.join(releaseDir, "SHA256SUMS");
+  if (!fs.existsSync(checksumPath)) fail("missing release/SHA256SUMS");
+  const checksums = fs.readFileSync(checksumPath, "utf8");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  if (manifest.version !== packageJson.version) fail(`release manifest version ${manifest.version} does not match package ${packageJson.version}`);
+  if (!Array.isArray(manifest.artifacts) || manifest.artifacts.length === 0) fail("release manifest has no artifacts");
+  for (const artifact of manifest.artifacts) {
+    const artifactPath = path.join(releaseDir, "update-feed", artifact.fileName || "");
+    const rootArtifactPath = path.join(releaseDir, artifact.fileName || "");
+    const feedPath = path.join(releaseDir, "update-feed", artifact.feedFile || "");
+    if (!fs.existsSync(artifactPath)) fail(`manifest artifact missing from update-feed: ${artifact.fileName}`);
+    if (fs.statSync(artifactPath).size !== artifact.size) fail(`manifest size mismatch: ${artifact.fileName}`);
+    if (sha512(artifactPath) !== artifact.sha512) fail(`manifest sha512 mismatch: ${artifact.fileName}`);
+    if (!fs.existsSync(rootArtifactPath)) fail(`root artifact missing for SHA256SUMS: ${artifact.fileName}`);
+    const artifactSha256 = sha256(rootArtifactPath);
+    if (artifact.sha256 !== artifactSha256) fail(`manifest sha256 mismatch: ${artifact.fileName}`);
+    if (!checksums.includes(`${artifactSha256}  ${artifact.fileName}`)) fail(`SHA256SUMS does not include ${artifact.fileName}`);
+    if (!fs.existsSync(feedPath)) fail(`manifest feed file missing: ${artifact.feedFile}`);
+    const feed = fs.readFileSync(feedPath, "utf8");
+    if (!feed.includes(artifact.fileName) || !feed.includes(artifact.sha512)) fail(`feed does not reference artifact and hash: ${artifact.feedFile}`);
+  }
+  pass(`update feed manifest verifies ${manifest.artifacts.length} artifact(s)`);
+  pass("release SHA256SUMS verifies downloadable artifacts");
+}
+
+function checkUnsignedZip() {
+  if (process.platform !== "darwin") {
+    console.log("[SKIP] unsigned macOS zip check is macOS-only");
+    return;
+  }
+  const zipPath = path.join(releaseDir, `${productName}-${packageJson.version}-${process.env.npm_config_arch || process.arch}-unsigned.zip`);
+  if (!fs.existsSync(zipPath)) fail(`missing unsigned macOS zip: ${path.relative(rootDir, zipPath)}`);
+  if (fs.statSync(zipPath).size < 1024 * 1024) fail("unsigned macOS zip is unexpectedly small");
+  pass(`unsigned macOS zip exists: ${path.relative(rootDir, zipPath)}`);
+}
+
+function checkPackagedAsar() {
+  if (process.platform !== "darwin") {
+    console.log("[SKIP] packaged macOS asar check is macOS-only");
+    return;
+  }
+  const asarPath = findMacAsar();
+  if (!asarPath) fail("packaged macOS app.asar was not found");
+  const entries = new Set(asar.listPackage(asarPath));
+  const requiredEntries = [
+    "/desktop/main.cjs",
+    "/dist/server.cjs",
+    "/dist/index.html",
+    "/package.json",
+  ];
+  const missing = requiredEntries.filter((entry) => !entries.has(entry));
+  if (missing.length) fail(`packaged app.asar is missing: ${missing.join(", ")}`);
+  const desktopMain = asar.extractFile(asarPath, "desktop/main.cjs").toString("utf8");
+  if (!desktopMain.includes("showStartupFailureWindow") || !desktopMain.includes("exportDesktopDiagnosticBundle")) {
+    fail("packaged desktop shell is missing startup failure or diagnostics support");
+  }
+  pass("packaged macOS app.asar contains desktop shell, local core, web UI, and diagnostics support");
+}
+
+function checkPackagedPackageMetadata() {
+  if (process.platform !== "darwin") {
+    console.log("[SKIP] packaged package metadata check is macOS-only");
+    return;
+  }
+  const asarPath = findMacAsar();
+  if (!asarPath) fail("packaged macOS app.asar was not found");
+  const packagedPackage = JSON.parse(asar.extractFile(asarPath, "package.json").toString("utf8"));
+  const allDeps = { ...(packagedPackage.dependencies || {}), ...(packagedPackage.devDependencies || {}) };
+  if (allDeps.vite && !versionAtLeast(allDeps.vite, "8.0.0")) fail("packaged package metadata contains an unsafe Vite version");
+  if (allDeps["@vitejs/plugin-react"] && !versionAtLeast(allDeps["@vitejs/plugin-react"], "6.0.0")) fail("packaged package metadata contains a Vite-incompatible React plugin version");
+  if (allDeps.esbuild && !versionAtLeast(allDeps.esbuild, "0.28.1")) fail("packaged package metadata contains an unsafe esbuild version");
+  if (packagedPackage.overrides?.esbuild && packagedPackage.overrides.esbuild !== "$esbuild") fail("packaged package metadata contains an unsafe transitive esbuild override");
+  pass("packaged macOS app package metadata contains no unsafe Vite/esbuild build tooling");
+}
+
+function checkPackagedMacSignature() {
+  if (process.platform !== "darwin") {
+    console.log("[SKIP] packaged macOS signature check is macOS-only");
+    return;
+  }
+  const binary = findMacAppBinary();
+  if (!binary) fail("packaged macOS app binary was not found");
+  const appPath = macAppPathFromBinary(binary);
+  const result = spawn("codesign", ["--verify", "--deep", "--strict", "--verbose=2", appPath], {
+    cwd: rootDir,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const output = [];
+  result.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  result.stderr.on("data", (chunk) => output.push(chunk.toString()));
+  return new Promise((resolve) => {
+    result.on("exit", (code) => {
+      if (code !== 0) fail(`packaged macOS app signature is invalid\n${output.join("")}`);
+      pass("packaged macOS app has a valid ad-hoc signature");
+      resolve();
+    });
+  });
+}
+
+function checkPackagedMacEntitlements() {
+  if (process.platform !== "darwin") {
+    console.log("[SKIP] packaged macOS entitlement check is macOS-only");
+    return;
+  }
+  const binary = findMacAppBinary();
+  const rendererHelper = findMacRendererHelper();
+  if (!binary) fail("packaged macOS app binary was not found");
+  if (!rendererHelper) fail("packaged macOS renderer helper was not found");
+  const requiredEntitlements = [
+    "com.apple.security.cs.allow-jit",
+    "com.apple.security.cs.allow-unsigned-executable-memory",
+    "com.apple.security.cs.disable-library-validation",
+  ];
+  return Promise.all([
+    readEntitlements(macAppPathFromBinary(binary)),
+    readEntitlements(macAppPathFromBinary(rendererHelper)),
+  ]).then(([appEntitlements, rendererEntitlements]) => {
+    for (const entitlement of requiredEntitlements) {
+      if (!appEntitlements.includes(entitlement)) fail(`packaged macOS app is missing entitlement: ${entitlement}`);
+      if (!rendererEntitlements.includes(entitlement)) fail(`packaged macOS renderer helper is missing entitlement: ${entitlement}`);
+    }
+    pass("packaged macOS app and renderer helper include Electron runtime entitlements");
+  });
+}
+
+function readEntitlements(targetPath) {
+  const result = spawn("codesign", ["-d", "--entitlements", ":-", targetPath], {
+    cwd: rootDir,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const output = [];
+  result.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  result.stderr.on("data", (chunk) => output.push(chunk.toString()));
+  return new Promise((resolve) => {
+    result.on("exit", (code) => {
+      if (code !== 0) fail(`failed to read packaged macOS entitlements: ${targetPath}\n${output.join("")}`);
+      resolve(output.join(""));
+    });
+  });
+}
+
+function outputReportedPort(output) {
+  const text = output.join("");
+  const match = text.match(/Server running on http:\/\/(?:127\.0\.0\.1|localhost):(\d+)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function candidateHealthPorts(port, output) {
+  const reported = outputReportedPort(output);
+  return [...new Set([
+    reported,
+    ...Array.from({ length: 16 }, (_, index) => port + index),
+  ].filter((candidate) => Number.isInteger(candidate) && candidate > 0))];
+}
+
+function waitForHealth(port, child, output) {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const check = () => {
+      if (child.exitCode !== null) {
+        reject(new Error(`packaged app exited early with code ${child.exitCode}\n${output.join("")}`));
+        return;
+      }
+      probeHealthPorts(candidateHealthPorts(port, output)).then(resolve).catch(retry);
+    };
+    const retry = () => {
+      if (Date.now() - startedAt > 20_000) {
+        reject(new Error(`packaged app did not expose health in time\n${output.join("")}`));
+        return;
+      }
+      setTimeout(check, 250);
+    };
+    check();
+  });
+}
+
+function probeHealthPorts(ports) {
+  return new Promise((resolve, reject) => {
+    let index = 0;
+    const probeNext = () => {
+      const port = ports[index++];
+      if (!port) {
+        reject(new Error("health unavailable"));
+        return;
+      }
+      const req = http.get(`http://127.0.0.1:${port}/api/v1/health`, (res) => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          probeNext();
+          return;
+        }
+        let body = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => { body += chunk; });
+        res.on("end", () => {
+          try {
+            const parsed = JSON.parse(body);
+            if (parsed.service === "lifeos-local-core") {
+              resolve({ health: parsed, port });
+              return;
+            }
+          } catch {}
+          probeNext();
+        });
+      });
+      req.setTimeout(1000, () => req.destroy(new Error("timeout")));
+      req.on("error", probeNext);
+    };
+    probeNext();
+  });
+}
+
+function fetchText(port, pathname, options = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.get(`http://127.0.0.1:${port}${pathname}`, options, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => { body += chunk; });
+      res.on("end", () => resolve({ status: res.statusCode || 0, headers: res.headers, body }));
+    });
+    req.setTimeout(2000, () => req.destroy(new Error("timeout")));
+    req.on("error", reject);
+  });
+}
+
+async function launchPackagedMacApp() {
+  if (process.platform !== "darwin") {
+    console.log("[SKIP] packaged app launch smoke is macOS-only");
+    return;
+  }
+  if (process.env.LIFEOS_ARTIFACT_SMOKE_LAUNCH !== "1") {
+    console.log("[SKIP] set LIFEOS_ARTIFACT_SMOKE_LAUNCH=1 to launch the packaged macOS app");
+    return;
+  }
+  const binary = findMacAppBinary();
+  if (!binary) fail("packaged macOS app binary was not found");
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "lifeos-artifact-smoke-"));
+  const port = 7810 + Math.floor(Math.random() * 1000);
+  const child = spawn(binary, [], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
+      LIFEOS_PORT: String(port),
+      LIFEOS_HOST: "127.0.0.1",
+      PUBLIC_BASE_URL: "",
+      APP_URL: "",
+      LIFEOS_ADMIN_PASSWORD: "",
+      LIFEOS_DESKTOP_USER_DATA_DIR: path.join(tempRoot, "userData"),
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const output = [];
+  child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => output.push(chunk.toString()));
+  try {
+    const { health, port: actualPort } = await waitForHealth(port, child, output);
+    if (health.networkMode !== "local") fail("packaged app launch smoke did not start in local mode");
+    pass("packaged macOS app launches and exposes local core health");
+    const pairingToken = "bind_artifact_launch_smoke_123";
+    const pairPage = await fetchText(actualPort, `/mobile/pair?token=${pairingToken}`);
+    if (pairPage.status !== 200) fail(`packaged app mobile pair page returned ${pairPage.status}`);
+    if (!String(pairPage.headers["cache-control"] || "").includes("no-store")) fail("packaged app mobile pair page should be no-store");
+    if (!String(pairPage.headers["set-cookie"] || "").includes(`lifeos_pairing_intent=${pairingToken}`)) {
+      fail("packaged app mobile pair page does not set the 24-hour pairing intent cookie");
+    }
+    if (!pairPage.body.includes(`/manifest.webmanifest?pairingToken=${pairingToken}`)) {
+      fail("packaged app mobile pair page does not inject pairing token into manifest link");
+    }
+    const manifest = await fetchText(actualPort, `/manifest.webmanifest?pairingToken=${pairingToken}`);
+    if (manifest.status !== 200) fail(`packaged app pairing manifest returned ${manifest.status}`);
+    if (!manifest.body.includes(`/mobile/install/${pairingToken}`)) {
+      fail("packaged app pairing manifest does not preserve token in start_url");
+    }
+    const installPathPage = await fetchText(actualPort, `/mobile/install/${pairingToken}`);
+    if (installPathPage.status !== 200) fail(`packaged app mobile install path returned ${installPathPage.status}`);
+    if (!String(installPathPage.headers["set-cookie"] || "").includes(`lifeos_pairing_intent=${pairingToken}`)) {
+      fail("packaged app mobile install path does not set the 24-hour pairing intent cookie");
+    }
+    if (!installPathPage.body.includes(`/manifest.webmanifest?pairingToken=${pairingToken}`)) {
+      fail("packaged app mobile install path does not inject pairing token into manifest link");
+    }
+    const installIntent = await fetchText(actualPort, "/api/v1/mobile/pairing-intent", {
+      headers: { Cookie: `lifeos_pairing_intent=${pairingToken}` },
+    });
+    if (installIntent.status !== 200 || !installIntent.body.includes(pairingToken)) {
+      fail("packaged app mobile chat launch cannot recover the 24-hour pairing intent cookie");
+    }
+    pass("packaged macOS app preserves mobile pairing token through install manifest");
+  } finally {
+    if (child.exitCode === null) {
+      child.kill();
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, 2500);
+        child.once("exit", () => {
+          clearTimeout(timer);
+          resolve();
+        });
+      });
+    }
+    fs.rmSync(tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
+}
+
+checkInstallGuide();
+checkUpdateFeed();
+checkUnsignedZip();
+checkPackagedAsar();
+checkPackagedPackageMetadata();
+await checkPackagedMacSignature();
+await checkPackagedMacEntitlements();
+await launchPackagedMacApp();

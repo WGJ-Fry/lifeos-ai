@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#060a10" />
+    <title>LifeOS AI 离线</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        background: #060a10;
+        color: #f4f4f5;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #060a10;
+        display: grid;
+        place-items: center;
+        padding: max(24px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+      }
+      main {
+        width: min(430px, 100%);
+        border: 1px solid rgba(255,255,255,.08);
+        background: #101722;
+        border-radius: 28px;
+        padding: 24px;
+        box-shadow: 0 24px 70px rgba(0,0,0,.32);
+      }
+      .icon {
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        border-radius: 20px;
+        border: 1px solid rgba(34,211,238,.22);
+        background: rgba(34,211,238,.1);
+        color: #67e8f9;
+        font-weight: 900;
+        margin-bottom: 18px;
+      }
+      h1 { margin: 0; font-size: 24px; letter-spacing: 0; }
+      p { margin: 12px 0 0; color: #a1a1aa; line-height: 1.7; font-size: 14px; }
+      .actions { display: grid; gap: 10px; margin-top: 22px; }
+      a, button {
+        appearance: none;
+        border: 0;
+        border-radius: 14px;
+        padding: 13px 14px;
+        text-align: center;
+        text-decoration: none;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+      a.primary { background: #22d3ee; color: #061016; }
+      a.secondary, button { border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.04); color: #e4e4e7; }
+      .hint {
+        margin-top: 18px;
+        border-top: 1px solid rgba(255,255,255,.06);
+        padding-top: 16px;
+        color: #71717a;
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      .queue {
+        margin-top: 16px;
+        border: 1px solid rgba(34,211,238,.18);
+        background: rgba(34,211,238,.08);
+        border-radius: 16px;
+        padding: 12px;
+        color: #cffafe;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .queue strong { color: #67e8f9; }
+      .queue-source {
+        display: block;
+        margin-top: 6px;
+        color: #67e8f9;
+        opacity: .72;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="icon">AI</div>
+      <h1>当前离线</h1>
+      <p>LifeOS 手机端已经打开离线壳。未同步消息会留在本机队列，网络恢复后会自动补写到电脑端 SQLite。</p>
+      <div id="offline-queue-status" class="queue" hidden></div>
+      <div class="actions">
+        <a class="primary" href="/mobile/chat">返回聊天</a>
+        <a class="secondary" href="/mobile/device">查看设备与离线队列</a>
+        <button type="button" onclick="location.reload()">重新连接</button>
+      </div>
+      <div class="hint">如果你正在异地使用，请确认电脑端仍在运行，并检查 Cloudflare Tunnel、Tailscale 或同局域网连接状态。</div>
+    </main>
+    <script>
+      (function () {
+        var box = document.getElementById("offline-queue-status");
+        if (!box) return;
+        function normalizeQueue(value) {
+          if (!Array.isArray(value)) return [];
+          return value.filter(function (item) { return item && item.message && typeof item.queuedAt === "number"; });
+        }
+        function readLegacyQueue() {
+          try {
+            var raw = localStorage.getItem("lifeos_offline_message_queue");
+            return raw ? normalizeQueue(JSON.parse(raw)) : [];
+          } catch (error) {
+            return [];
+          }
+        }
+        function readIndexedQueue() {
+          return new Promise(function (resolve) {
+            if (!("indexedDB" in window)) {
+              resolve([]);
+              return;
+            }
+            var request = indexedDB.open("lifeos-offline-queue", 1);
+            request.onerror = function () { resolve([]); };
+            request.onupgradeneeded = function () { request.transaction.abort(); resolve([]); };
+            request.onsuccess = function () {
+              var db = request.result;
+              if (!db.objectStoreNames.contains("queues")) {
+                db.close();
+                resolve([]);
+                return;
+              }
+              var transaction = db.transaction("queues", "readonly");
+              var getRequest = transaction.objectStore("queues").get("primary");
+              getRequest.onerror = function () {
+                db.close();
+                resolve([]);
+              };
+              getRequest.onsuccess = function () {
+                var result = getRequest.result;
+                db.close();
+                resolve(normalizeQueue(result && (result.queue || result)));
+              };
+            };
+          });
+        }
+        function renderQueue(queue, source) {
+          if (!Array.isArray(queue) || queue.length === 0) return;
+          var failed = queue.filter(function (item) { return item && item.status === "failed"; }).length;
+          var syncing = queue.filter(function (item) { return item && item.status === "syncing"; }).length;
+          var pending = Math.max(0, queue.length - failed - syncing);
+          box.innerHTML = "本机还有 <strong>" + queue.length + "</strong> 条离线消息：" +
+            pending + " 条待同步、" + syncing + " 条同步中、" + failed + " 条失败。网络恢复后会自动重试，也可以进入设备页单条处理。" +
+            "<span class=\"queue-source\">队列来源：" + source + "</span>";
+          box.hidden = false;
+        }
+        readIndexedQueue().then(function (indexedQueue) {
+          renderQueue(indexedQueue.length ? indexedQueue : readLegacyQueue(), indexedQueue.length ? "IndexedDB" : "localStorage 兼容镜像");
+        }).catch(function () {
+          renderQueue(readLegacyQueue(), "localStorage 兼容镜像");
+        }).catch(function () {
+          box.hidden = true;
+        });
+      })();
+    </script>
+  </body>
+</html>

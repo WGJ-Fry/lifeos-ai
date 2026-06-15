@@ -1,0 +1,234 @@
+import { DatabaseSync } from "node:sqlite";
+import fs from "fs";
+import { db, getBackupPath, getPendingRestore, listBackups } from "./db";
+import { getDevices } from "./devices";
+import { getMemories } from "./memories";
+import { listAuditLogs, redactAuditMetadata } from "./audit";
+
+const previewTables = ["devices", "chat_sessions", "messages", "memories", "audit_logs", "client_state", "app_secrets", "schema_migrations"];
+const exportScopeKeys = ["chat", "memories", "devices", "auditLogs"] as const;
+const sensitiveBackupClientStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
+
+export type DataExportScope = typeof exportScopeKeys[number];
+
+function publicBackupRecord(backup: ReturnType<typeof listBackups>[number]) {
+  return {
+    file: backup.file,
+    size: backup.size,
+    createdAt: backup.createdAt,
+  };
+}
+
+function countRows(database: DatabaseSync, table: string) {
+  try {
+    return (database.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as any)?.count || 0;
+  } catch {
+    return null;
+  }
+}
+
+const sensitiveExportKey = /api[-_]?key|token|password|passphrase|secret|authorization|cookie|hash|ciphertext|auth[-_]?tag|private|path/i;
+const sensitiveShortExportKey = /(^|[-_])iv([-_]|$)/i;
+
+function isSensitiveExportKey(key: string) {
+  return sensitiveExportKey.test(key) || sensitiveShortExportKey.test(key);
+}
+
+export function redactDataExportValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactDataExportValue);
+  if (typeof value === "string") return redactAuditMetadata(value);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, item]) => {
+    if (isSensitiveExportKey(key)) return [key, "[redacted]"];
+    return [key, redactDataExportValue(item)];
+  }));
+}
+
+export function previewBackup(file: string) {
+  const backupPath = getBackupPath(file);
+  if (!backupPath) throw new Error("Backup file not found");
+  const backup = listBackups().find((item) => item.file === file);
+  const backupDb = new DatabaseSync(backupPath);
+  try {
+    const tables = Object.fromEntries(previewTables.map((table) => [table, countRows(backupDb, table)]));
+    const migrations = backupDb.prepare("SELECT version, name, applied_at as appliedAt FROM schema_migrations ORDER BY version ASC").all();
+    const sensitiveClientStateRows = backupDb
+      .prepare("SELECT key FROM client_state")
+      .all()
+      .filter((row: any) => sensitiveBackupClientStateKey.test(String(row.key || ""))).length;
+    return {
+      backup: backup ? publicBackupRecord(backup) : { file, size: 0, createdAt: 0 },
+      tables,
+      migrations,
+      sensitiveData: {
+        appSecretsRows: Number(tables.app_secrets || 0),
+        sensitiveClientStateRows,
+        ordinaryBackupExcludesSecrets: Number(tables.app_secrets || 0) === 0 && sensitiveClientStateRows === 0,
+      },
+      warnings: [
+        "恢复会在下次启动前替换当前 SQLite。",
+        "恢复前系统会自动创建当前数据库备份。",
+        "普通备份不包含 AI Key 和敏感客户端状态；恢复后如需 AI 能力，请在设置中重新配置 Key。",
+      ],
+    };
+  } finally {
+    backupDb.close();
+  }
+}
+
+export function normalizeDataExportScope(input: unknown): DataExportScope[] {
+  if (!input) return [...exportScopeKeys];
+  const values = String(input)
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!values.length) return [...exportScopeKeys];
+  const invalid = values.find((item) => !exportScopeKeys.includes(item as DataExportScope));
+  if (invalid) throw new Error(`Unsupported export scope: ${invalid}`);
+  return Array.from(new Set(values)) as DataExportScope[];
+}
+
+export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys]) {
+  const selectedScopes = new Set(scopes);
+  const exportData: Record<string, unknown> = {
+    exportedAt: new Date().toISOString(),
+    version: "0.1.0",
+    scopes,
+  };
+
+  if (selectedScopes.has("chat")) {
+    const sessions = db.prepare("SELECT id, title, created_at as createdAt, updated_at as updatedAt FROM chat_sessions ORDER BY updated_at DESC").all() as any[];
+    const messages = db.prepare(`
+      SELECT id, session_id as sessionId, role, content_json as contentJson, source_device_id as sourceDeviceId, created_at as createdAt
+      FROM messages ORDER BY created_at ASC
+    `).all().map((row: any) => ({
+      ...row,
+      contentJson: JSON.parse(row.contentJson),
+    }));
+    exportData.chat = {
+      sessions,
+      messages,
+    };
+  }
+
+  if (selectedScopes.has("memories")) {
+    exportData.memories = getMemories(true);
+  }
+
+  if (selectedScopes.has("devices")) {
+    exportData.devices = getDevices(true).map((device) => ({
+      id: device.id,
+      name: device.name,
+      type: device.type,
+      status: device.status,
+      createdAt: device.createdAt,
+      lastSeenAt: device.lastSeenAt,
+      revokedAt: device.revokedAt,
+    }));
+  }
+
+  if (selectedScopes.has("auditLogs")) {
+    exportData.auditLogs = listAuditLogs(1000).map((log) => ({
+      id: log.id,
+      actorType: log.actorType,
+      action: log.action,
+      targetType: log.targetType,
+      targetId: log.targetId,
+      metadata: redactDataExportValue(log.metadata),
+      createdAt: log.createdAt,
+    }));
+  }
+
+  return exportData;
+}
+
+export function previewDataCleanup(options: { auditOlderThanDays?: number; chatOlderThanDays?: number; backupKeepCount?: number }) {
+  const now = Date.now();
+  const result = {
+    auditLogsDeleted: 0,
+    chatSessionsDeleted: 0,
+    messagesDeleted: 0,
+    backupsDeleted: 0,
+  };
+
+  if (Number.isFinite(options.auditOlderThanDays) && Number(options.auditOlderThanDays) > 0) {
+    const cutoff = now - Number(options.auditOlderThanDays) * 24 * 60 * 60 * 1000;
+    result.auditLogsDeleted = (db.prepare("SELECT COUNT(*) as count FROM audit_logs WHERE created_at < ?").get(cutoff) as any)?.count || 0;
+  }
+
+  if (Number.isFinite(options.chatOlderThanDays) && Number(options.chatOlderThanDays) > 0) {
+    const cutoff = now - Number(options.chatOlderThanDays) * 24 * 60 * 60 * 1000;
+    const sessionRows = db.prepare("SELECT id FROM chat_sessions WHERE updated_at < ?").all(cutoff) as Array<{ id: string }>;
+    const sessionIds = sessionRows.map((session) => session.id);
+    result.chatSessionsDeleted = sessionIds.length;
+    if (sessionIds.length > 0) {
+      const countMessages = db.prepare("SELECT COUNT(*) as count FROM messages WHERE session_id = ?");
+      for (const id of sessionIds) {
+        result.messagesDeleted += (countMessages.get(id) as any)?.count || 0;
+      }
+    }
+  }
+
+  if (Number.isFinite(options.backupKeepCount) && Number(options.backupKeepCount) > 0) {
+    result.backupsDeleted = backupsToPrune(Number(options.backupKeepCount)).length;
+  }
+
+  return result;
+}
+
+export function cleanupData(options: { auditOlderThanDays?: number; chatOlderThanDays?: number; backupKeepCount?: number }) {
+  const preview = previewDataCleanup(options);
+  const now = Date.now();
+
+  if (Number.isFinite(options.auditOlderThanDays) && Number(options.auditOlderThanDays) > 0) {
+    const cutoff = now - Number(options.auditOlderThanDays) * 24 * 60 * 60 * 1000;
+    db.prepare("DELETE FROM audit_logs WHERE created_at < ?").run(cutoff);
+  }
+
+  if (Number.isFinite(options.chatOlderThanDays) && Number(options.chatOlderThanDays) > 0) {
+    const cutoff = now - Number(options.chatOlderThanDays) * 24 * 60 * 60 * 1000;
+    const sessionRows = db.prepare("SELECT id FROM chat_sessions WHERE updated_at < ?").all(cutoff) as Array<{ id: string }>;
+    const sessionIds = sessionRows.map((session) => session.id);
+    if (sessionIds.length > 0) {
+      const deleteMessages = db.prepare("DELETE FROM messages WHERE session_id = ?");
+      const deleteSession = db.prepare("DELETE FROM chat_sessions WHERE id = ?");
+      db.exec("BEGIN");
+      try {
+        for (const id of sessionIds) {
+          deleteMessages.run(id);
+          deleteSession.run(id);
+        }
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    }
+  }
+
+  if (Number.isFinite(options.backupKeepCount) && Number(options.backupKeepCount) > 0) {
+    pruneBackupsToCount(Number(options.backupKeepCount));
+  }
+
+  return preview;
+}
+
+function backupsToPrune(keepCount: number) {
+  const backups = listBackups();
+  if (backups.length <= keepCount) return [];
+  const pendingRestore = getPendingRestore();
+  const protectedFiles = new Set([
+    ...backups.slice(0, keepCount).map((backup) => backup.file),
+    pendingRestore?.restoredFrom,
+    pendingRestore?.preRestoreBackup?.file,
+  ].filter(Boolean));
+  return backups.filter((backup) => !protectedFiles.has(backup.file));
+}
+
+function pruneBackupsToCount(keepCount: number) {
+  const backupsToDelete = backupsToPrune(keepCount);
+  for (const backup of backupsToDelete) {
+    fs.rmSync(backup.path, { force: true });
+  }
+  return backupsToDelete;
+}
