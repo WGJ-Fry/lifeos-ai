@@ -6,9 +6,9 @@
 [![Release](https://img.shields.io/github/v/release/WGJ-Fry/lifeos-ai?include_prereleases&label=release)](https://github.com/WGJ-Fry/lifeos-ai/releases)
 [![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-lightgrey)](#许可)
 
-**把你的电脑变成私人 AI 核心，把手机变成随身 AI 管家，还能自动生成你需要的小程序。**
+**把你的电脑变成私人 AI 核心，把手机变成随身 AI 管家，还能为当前问题自动生成解决程序。**
 
-LifeOS AI 是一个本地优先的个人 AI 管家/助手：你可以用 Studio 自动生成离线微应用/小程序；电脑端负责运行本地核心、连接 AI 服务、保存 SQLite 数据、管理设备和安全设置；手机端通过浏览器/PWA 使用已经绑定的个性化 AI。
+LifeOS AI 是一个本地优先的个人 AI 管家/助手：当你遇到具体问题时，Studio 可以自动生成应对问题的离线程序来帮助你解决；电脑端负责运行本地核心、连接 AI 服务、保存 SQLite 数据、管理设备和安全设置；手机端通过浏览器/PWA 使用已经绑定的个性化 AI。
 
 当前仓库已经具备可分发桌面包、移动端 PWA、管理员认证、设备绑定、SQLite 数据、备份恢复、连接向导、URL Scheme 安全控制、AI 多 provider 配置和发布校验。
 
@@ -30,9 +30,9 @@ LifeOS AI 是一个本地优先的个人 AI 管家/助手：你可以用 Studio 
 
 ## 30 秒看懂
 
-LifeOS AI 是一个所有人都可以长期自用的个人 AI 管家，它把自动生成程序、电脑、手机、AI、网络和本地能力连成一个系统：
+LifeOS AI 是一个所有人都可以长期自用的个人 AI 管家，它把问题理解、自动生成程序、电脑、手机、AI、网络和本地能力连成一个系统：
 
-1. **自动生成需要的程序**：在 Studio 里描述想法，AI 自动生成可运行的离线微应用/小程序，并支持继续调试 HTML/CSS/JS。
+1. **自动生成解决问题的程序**：当你有记账、规划、查询、整理、打卡、计算、表单、流程面板等具体需求时，AI 会根据当前问题生成可运行的离线程序来帮你处理，并支持继续调试 HTML/CSS/JS。
 2. **电脑端私有 AI 核心**：连接 Gemini、OpenAI、OpenRouter 或本地模型，统一保存 SQLite 数据、备份、设备和安全设置。
 3. **手机端随身 AI 管家**：扫码绑定后作为 PWA 使用，聊天、离线队列、设备状态和动作确认都在手机上完成。
 4. **VPN/隧道异地连接**：同 Wi-Fi 用 LAN，不在同一局域网时用 Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理。
@@ -42,7 +42,7 @@ LifeOS AI 是一个所有人都可以长期自用的个人 AI 管家，它把自
 
 ## 亮点
 
-- **自动生成微应用/程序**：在 Studio 里描述想法，自动生成可运行的离线微应用，并支持继续调试 HTML/CSS/JS。
+- **自动生成解决程序**：根据用户当前要解决的问题，自动生成可运行的离线程序/微应用来辅助处理，并支持继续调试 HTML/CSS/JS。
 - **个人 AI 管家**：电脑端做私有核心，手机端做随身入口。
 - **本地优先**：聊天、记忆、设备、审计和备份统一进入本机 SQLite。
 - **跨网络使用**：同 Wi-Fi 用 LAN，异地优先走 Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理。
@@ -61,7 +61,7 @@ LifeOS AI 的目标不是再做一个普通聊天窗口，而是把个人 AI 放
 | 随身个人 AI 管家 | 手机扫码绑定后作为 PWA 使用，聊天、查看设备状态、处理离线消息。 |
 | 电脑私有 AI 核心 | 管理 AI provider、API Key、SQLite 数据、备份恢复、审计和安全策略。 |
 | 不同网络连接 | 同 Wi-Fi 使用 LAN，异地优先使用 Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理。 |
-| 自动生成需要的程序 | 在 Studio 工坊里用自然语言描述工具，生成可运行的离线微应用，并继续编辑 HTML/CSS/JS。 |
+| 自动生成解决程序 | 根据当前问题自动生成可运行的离线程序/微应用，用来处理记账、规划、整理、打卡、计算、表单和流程面板等需求。 |
 | 调用本地能力 | 打开导航、网页、电话、短信、邮件、快捷指令等动作前先经过白名单和危险确认。 |
 | 长期自用 | 备份、恢复、诊断包、迁移文件和发布校验让数据与安装包可追踪。 |
 
@@ -119,7 +119,7 @@ npm run release:check
 - 手机端 PWA：扫码绑定、移动聊天、离线队列、设备与连接状态、动作权限中心。
 - 本地后端：Express API、WebSocket 实时连接、SQLite 持久化、迁移文件体系。
 - AI 配置：支持 Gemini、OpenAI、OpenRouter、本地模型预留；API Key 保存在电脑端安全存储或本地加密存储。
-- Studio 工坊：描述想要的功能，自动生成离线微应用/小程序；支持沙箱预览、源码复制、响应式预览、继续细化和本地持久化。
+- Studio 工坊：根据用户当前要解决的问题自动生成离线程序/微应用；支持沙箱预览、源码复制、响应式预览、继续细化和本地持久化。
 - 异地连接：内置 LAN、Tailscale、Cloudflare Tunnel、HTTPS 反向代理连接向导，生成启动环境和手机入口。
 - 安全底座：HttpOnly Cookie、CSRF、登录锁定、绑定限速、设备签名/Token 迁移、危险动作确认、URL Scheme 白名单、审计日志脱敏。
 - 桌面体验：Electron 启动本地核心、失败页、菜单/托盘状态、日志目录、诊断包。
@@ -132,7 +132,7 @@ flowchart LR
   Phone["手机端 PWA<br/>聊天 / 离线队列 / 动作确认"] --> Core["电脑端私有核心<br/>认证 / 绑定 / WebSocket / API"]
   Core --> Data["SQLite 本地数据<br/>聊天 / 记忆 / 设备 / 审计 / 备份"]
   Core --> AI["AI Provider<br/>Gemini / OpenAI / OpenRouter / 本地模型"]
-  Core --> Studio["Studio 工坊<br/>自动生成离线微应用"]
+  Core --> Studio["Studio 工坊<br/>按问题生成解决程序"]
   Core --> Network["连接向导<br/>LAN / Tailscale / Cloudflare Tunnel"]
   Core --> Actions["本地动作<br/>URL Scheme 白名单 / 二次确认"]
 ```
@@ -265,15 +265,15 @@ release/update-feed/release-manifest.json
 [![Release](https://img.shields.io/github/v/release/WGJ-Fry/lifeos-ai?include_prereleases&label=release)](https://github.com/WGJ-Fry/lifeos-ai/releases)
 [![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-lightgrey)](#license)
 
-**Turn your desktop into a private AI core, your phone into an always-available personal AI assistant, and your ideas into generated apps.**
+**Turn your desktop into a private AI core, your phone into an always-available personal AI assistant, and your current problems into generated solution apps.**
 
-LifeOS AI is a local-first personal AI assistant with a Studio workshop for generating offline micro apps. The desktop app runs the local backend, connects to AI providers, stores SQLite data, manages devices and security settings, and serves the mobile experience. The phone uses a browser/PWA after pairing.
+LifeOS AI is a local-first personal AI assistant with a Studio workshop that generates runnable offline programs for the problem you are trying to solve. The desktop app runs the local backend, connects to AI providers, stores SQLite data, manages devices and security settings, and serves the mobile experience. The phone uses a browser/PWA after pairing.
 
 ## Understand It In 30 Seconds
 
-LifeOS AI is a personal AI assistant designed for long-term everyday use. It connects app generation, your desktop, phone, AI providers, network access, and local capabilities into one system:
+LifeOS AI is a personal AI assistant designed for long-term everyday use. It connects problem understanding, generated solution apps, your desktop, phone, AI providers, network access, and local capabilities into one system:
 
-1. **AI-generated apps and tools**: describe an idea in Studio, generate a runnable offline micro app, then keep refining HTML/CSS/JS.
+1. **AI-generated solution apps**: when you need help with accounting, planning, searching, organizing, habit tracking, calculators, forms, or workflow panels, AI generates a runnable offline program for that problem and lets you keep refining HTML/CSS/JS.
 2. **Desktop private AI core**: connect Gemini, OpenAI, OpenRouter, or local models while keeping SQLite data, backups, devices, and security settings on your computer.
 3. **Mobile personal AI companion**: pair your phone as a PWA for chat, offline queue, device state, and local-action confirmations.
 4. **VPN/tunnel remote access**: use LAN on the same Wi-Fi, or Tailscale, Cloudflare Tunnel, or a trusted HTTPS reverse proxy away from home.
@@ -283,7 +283,7 @@ Start in five minutes: download the desktop app, set an admin password, configur
 
 ## Highlights
 
-- **AI-generated micro apps**: describe what you need in Studio, generate a runnable offline micro app, then refine HTML/CSS/JS in the sandbox.
+- **AI-generated solution apps**: generate runnable offline programs from the problem the user needs to solve, then refine HTML/CSS/JS in the sandbox.
 - **Personal AI assistant**: the desktop runs the private core; the phone becomes the daily companion.
 - **Local-first data**: chats, memories, devices, audits, and backups live in local SQLite.
 - **Away-from-home access**: use LAN on the same Wi-Fi, or Tailscale, Cloudflare Tunnel, or a trusted HTTPS reverse proxy remotely.
@@ -302,7 +302,7 @@ LifeOS AI is not just another chat box. It is a long-lived personal AI system: y
 | Personal AI on your phone | Pair the mobile PWA, chat, view device state, and keep offline messages queued. |
 | Private desktop AI core | Manage AI providers, API keys, SQLite data, backup/restore, audits, and safety settings. |
 | Remote access | Use LAN on the same Wi-Fi, or Tailscale, Cloudflare Tunnel, or a trusted HTTPS reverse proxy away from home. |
-| Generate small tools | Describe a workflow in Studio, generate an offline micro app, then refine HTML/CSS/JS. |
+| Generate solution apps | Turn the current problem into a runnable offline program for accounting, planning, organizing, habit tracking, calculators, forms, and workflow panels. |
 | Safer local actions | Open maps, web pages, phone, SMS, mail, and shortcuts only through allowlists and confirmations. |
 | Long-term use | Backups, restore tasks, diagnostics, migrations, and release checks make the system maintainable. |
 
@@ -352,7 +352,7 @@ The only warning is that `LIFEOS_UPDATE_URL` is not configured, so packaged apps
 - Mobile PWA: QR pairing, mobile chat, offline queue, device/connection status, action permission center.
 - Local backend: Express API, WebSocket realtime, SQLite persistence, migration files.
 - AI configuration: Gemini, OpenAI, OpenRouter, and local-model-ready provider model.
-- Studio workshop: describe a tool or workflow and generate a sandboxed offline micro app, with source editing and responsive preview.
+- Studio workshop: generate sandboxed offline solution apps from the user's current problem, with source editing and responsive preview.
 - Remote connectivity: LAN, Tailscale, Cloudflare Tunnel, and trusted HTTPS reverse-proxy guide with generated launch commands and mobile URLs.
 - Security baseline: HttpOnly cookies, CSRF, login lockout, pairing rate limits, device signature/token migration, dangerous action confirmation, URL Scheme allowlist, redacted audit logs.
 - Desktop app: Electron local core startup, startup failure page, tray/menu status, logs folder, diagnostic bundle.

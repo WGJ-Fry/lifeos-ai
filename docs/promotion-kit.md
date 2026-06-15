@@ -8,23 +8,23 @@ LifeOS AI 是一个本地优先的个人 AI 管家：电脑端运行私有核心
 
 ## 短介绍
 
-LifeOS AI 把电脑端做成你的个人 AI 核心，用来连接 AI、网络、本地数据和安全设置；手机端通过 PWA 扫码绑定后，成为随时可用的私人 AI 管家。它支持 SQLite 本地存储、AI 多 provider 配置、VPN/隧道连接向导、自动生成离线微应用/程序、备份恢复、离线队列、设备绑定、URL Scheme 白名单和危险动作确认。
+LifeOS AI 把电脑端做成你的个人 AI 核心，用来连接 AI、网络、本地数据和安全设置；手机端通过 PWA 扫码绑定后，成为随时可用的私人 AI 管家。它支持 SQLite 本地存储、AI 多 provider 配置、VPN/隧道连接向导、根据当前问题自动生成解决程序、备份恢复、离线队列、设备绑定、URL Scheme 白名单和危险动作确认。
 
 ## 更完整介绍
 
 LifeOS AI 是一个本地优先的个人 AI 管家/助手。它把“电脑端”和“手机端”分成两个角色：电脑端是私有核心，负责保存数据、连接 AI provider、管理手机设备、生成备份、做安全自检，并通过 LAN、Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理提供连接入口；手机端是日常入口，扫码绑定后像 App 一样添加到主屏幕，用来聊天、查看连接状态、处理离线消息和确认本地动作。
 
-它还内置 Studio 工坊：你可以描述一个想要的小工具或工作流，让 AI 生成一个可运行的离线微应用/程序，再继续调整 HTML/CSS/JS。对于需要打开导航、网页、电话、短信、邮件、快捷指令等本地能力的动作，LifeOS AI 使用 URL Scheme 白名单、危险动作二次确认和审计日志，避免任意 scheme 注入。
+它还内置 Studio 工坊：当用户遇到具体问题时，AI 可以把问题转成可运行的离线程序，用来辅助处理记账、规划、整理、打卡、计算、表单、流程面板等需求，并继续调整 HTML/CSS/JS。对于需要打开导航、网页、电话、短信、邮件、快捷指令等本地能力的动作，LifeOS AI 使用 URL Scheme 白名单、危险动作二次确认和审计日志，避免任意 scheme 注入。
 
 ## 英文短介绍
 
-LifeOS AI is a local-first personal AI assistant. The desktop app runs the private core for AI providers, local data, device management, VPN/tunnel connectivity, generated micro apps, backups, and security; the phone connects as a paired mobile PWA companion for everyday use.
+LifeOS AI is a local-first personal AI assistant. The desktop app runs the private core for AI providers, local data, device management, VPN/tunnel connectivity, generated solution apps, backups, and security; the phone connects as a paired mobile PWA companion for everyday use.
 
 ## Longer English Description
 
 LifeOS AI is a local-first personal AI assistant with a desktop private core and a mobile PWA companion. The desktop app stores SQLite data, manages AI providers and keys, pairs phones, creates backups, runs safety checks, and helps expose the service through LAN, Tailscale, Cloudflare Tunnel, or a trusted HTTPS reverse proxy. The phone becomes the everyday assistant: chat, offline queue, device state, connection status, and local-action confirmations.
 
-The Studio workshop lets you describe a small tool or workflow and generate a runnable offline micro app, then refine its HTML/CSS/JS. For local actions such as maps, web pages, phone, SMS, mail, and shortcuts, LifeOS AI uses a URL Scheme allowlist, dangerous-action confirmation, and redacted audit logs.
+The Studio workshop turns the user's current problem into a runnable offline program. It can help with accounting, planning, organizing, habit tracking, calculators, forms, and workflow panels, then let the user refine HTML/CSS/JS. For local actions such as maps, web pages, phone, SMS, mail, and shortcuts, LifeOS AI uses a URL Scheme allowlist, dangerous-action confirmation, and redacted audit logs.
 
 ## GitHub 仓库描述
 
@@ -61,7 +61,7 @@ LifeOS AI 0.0.0 - Desktop core + mobile personal AI assistant
 ```markdown
 LifeOS AI 0.0.0 is the first public desktop release.
 
-LifeOS AI turns your desktop into a private AI core and your phone into an always-available personal AI assistant. The desktop app manages AI providers, local SQLite data, device pairing, VPN/tunnel access, generated micro apps, backups, diagnostics, and safer local actions. The phone connects as a paired PWA for chat, offline queue, device status, and action permissions.
+LifeOS AI turns your desktop into a private AI core and your phone into an always-available personal AI assistant. The desktop app manages AI providers, local SQLite data, device pairing, VPN/tunnel access, generated solution apps, backups, diagnostics, and safer local actions. The phone connects as a paired PWA for chat, offline queue, device status, and action permissions.
 
 Downloads:
 
@@ -93,7 +93,7 @@ Notes:
 - SQLite 本地数据
 - AI 多 provider 配置
 - Tailscale / Cloudflare Tunnel / 局域网连接向导
-- 描述想法后自动生成离线微应用/小程序
+- 根据当前问题自动生成可运行的解决程序
 - 备份、恢复、恢复任务取消
 - 离线消息队列
 - 导航、网页、电话、短信、邮件、快捷指令等 URL Scheme 白名单和危险动作确认
@@ -126,7 +126,7 @@ https://github.com/WGJ-Fry/lifeos-ai
 - 查看设备与连接状态
 - 确认导航、网页、电话、短信、邮件、快捷指令等本地动作
 
-另外还有 Studio 工坊：可以描述自己想要的小工具或工作流，让 AI 自动生成可运行的离线微应用/程序，然后继续调试 HTML/CSS/JS。
+另外还有 Studio 工坊：当你遇到具体问题时，AI 可以自动生成一个可运行的离线程序来辅助解决，然后继续调试 HTML/CSS/JS。
 
 当前已经有 macOS / Windows / Linux 安装包。macOS 包已 Developer ID 签名和 Apple 公证；Windows 包暂未 Authenticode 签名，可能会有 SmartScreen 提示。
 
@@ -139,7 +139,7 @@ https://github.com/WGJ-Fry/lifeos-ai
 ```text
 I built LifeOS AI, a local-first personal AI assistant.
 
-The desktop app runs the private core: AI providers, local SQLite data, device pairing, VPN/tunnel access, generated micro apps, backups, diagnostics, and safer local actions. The phone works as a paired mobile PWA companion for everyday use.
+The desktop app runs the private core: AI providers, local SQLite data, device pairing, VPN/tunnel access, generated solution apps, backups, diagnostics, and safer local actions. The phone works as a paired mobile PWA companion for everyday use.
 
 Current release includes:
 - macOS / Windows / Linux desktop builds
@@ -147,7 +147,7 @@ Current release includes:
 - SQLite local storage
 - Multi-provider AI configuration
 - Tailscale / Cloudflare Tunnel / LAN connection guide
-- AI-generated offline micro apps from natural-language descriptions
+- AI-generated runnable solution apps from the user's current problem
 - Backup and restore
 - Offline message queue
 - URL Scheme allowlist for navigation, web, phone, SMS, mail, shortcuts, and dangerous-action confirmation
@@ -180,7 +180,7 @@ The phone handles:
 - device and connection status
 - confirmation for local actions such as maps, web pages, phone, SMS, mail, and shortcuts
 
-There is also a Studio workshop for generated micro apps: describe a tool or workflow, generate a runnable offline app, then refine its HTML/CSS/JS.
+There is also a Studio workshop for generated solution apps: explain the current problem, generate a runnable offline program that helps solve it, then refine its HTML/CSS/JS.
 
 The current release includes macOS / Windows / Linux desktop builds. The macOS build is Developer ID signed and Apple notarized. The Windows build is installable but not Authenticode signed yet, so SmartScreen may warn.
 
@@ -257,7 +257,7 @@ LifeOS AI is a local-first personal AI assistant: your desktop runs the private 
 
 ## Short Description
 
-LifeOS AI turns your desktop into a private AI core for providers, local SQLite data, VPN/tunnel access, generated micro apps, backups, device pairing, diagnostics, and security. Your phone connects as a paired PWA companion for chat, offline queue, device status, and safer local actions.
+LifeOS AI turns your desktop into a private AI core for providers, local SQLite data, VPN/tunnel access, generated solution apps, backups, device pairing, diagnostics, and security. Your phone connects as a paired PWA companion for chat, offline queue, device status, and safer local actions.
 
 ## Links
 

@@ -73,7 +73,7 @@ AI Key 不会保存到手机端，也不会通过普通 API 返回给前端。
 你可以从这几个入口开始：
 
 - 手机聊天：把手机当随身 AI 管家。
-- Studio 工坊：描述想要的小工具，让 AI 生成离线微应用。
+- Studio 工坊：告诉 AI 当前要解决的问题，让它生成可运行的离线程序来辅助处理。
 - 备份恢复：创建第一次备份。
 - 本地动作：配置导航、网页、电话、短信、邮件、快捷指令等动作白名单。
 
@@ -180,7 +180,7 @@ Do not expose the local service directly to a public IP. Before public/tunnel mo
 Good first places to try:
 
 - Mobile chat: use the phone as your personal AI companion.
-- Studio workshop: describe a tool and generate an offline micro app.
+- Studio workshop: explain the current problem and let AI generate a runnable offline program to help solve it.
 - Backup and restore: create your first backup.
 - Local actions: configure allowlisted maps, web, phone, SMS, mail, and shortcuts.
 
