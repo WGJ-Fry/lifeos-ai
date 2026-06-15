@@ -149,9 +149,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.ok(manifest.shortcuts?.every((shortcut) => shortcut.icons?.some((icon) => icon.src === "/icons/icon-192.png" && icon.type === "image/png")));
   assert.ok(manifest.screenshots?.length >= 2);
   const screenshotSources = manifest.screenshots.map((screenshot) => screenshot.src);
-  assert.deepEqual(screenshotSources, ["/screenshots/mobile-chat.svg", "/screenshots/mobile-device.svg"]);
+  assert.deepEqual(screenshotSources, ["/screenshots/real-mobile-chat.jpg", "/screenshots/real-mobile-device.jpg"]);
   assert.ok(manifest.screenshots.every((screenshot) => screenshot.sizes === "390x844"));
-  assert.ok(manifest.screenshots.every((screenshot) => screenshot.type === "image/svg+xml"));
+  assert.ok(manifest.screenshots.every((screenshot) => screenshot.type === "image/jpeg"));
   assert.ok(manifest.screenshots.every((screenshot) => screenshot.form_factor === "narrow"));
   assert.ok(manifest.screenshots.every((screenshot) => screenshot.label));
 
@@ -173,10 +173,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   for (const screenshot of manifest.screenshots) {
     const screenshotResponse = await request(port, screenshot.src);
     assert.equal(screenshotResponse.status, 200);
-    assert.match(screenshotResponse.headers.get("content-type") || "", /svg|image/);
-    const svg = await screenshotResponse.text();
-    assert.match(svg, /<svg/);
-    assert.match(svg, new RegExp(screenshot.label));
+    assert.match(screenshotResponse.headers.get("content-type") || "", /jpeg|image/);
+    const bytes = new Uint8Array(await screenshotResponse.arrayBuffer());
+    assert.equal(bytes[0], 0xff);
+    assert.equal(bytes[1], 0xd8);
+    assert.equal(bytes[bytes.length - 2], 0xff);
+    assert.equal(bytes[bytes.length - 1], 0xd9);
   }
 
   for (const icon of ["/icons/icon-192.png", "/icons/icon-512.png"]) {
@@ -189,7 +191,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.equal(serviceWorkerResponse.status, 200);
   assert.match(serviceWorkerResponse.headers.get("content-type") || "", /javascript/);
   const serviceWorker = await serviceWorkerResponse.text();
-  assert.match(serviceWorker, /lifeos-ai-shell-v3/);
+  assert.match(serviceWorker, /lifeos-ai-shell-v\d+/);
   assert.match(serviceWorker, /SHELL_ASSETS/);
   assert.match(serviceWorker, /extractBuildAssets/);
   assert.match(serviceWorker, /cacheBuildAssets/);
@@ -202,8 +204,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serviceWorker, /\/mobile\/actions/);
   assert.match(serviceWorker, /OFFLINE_FALLBACK/);
   assert.match(serviceWorker, /\/offline\.html/);
-  assert.match(serviceWorker, /\/screenshots\/mobile-chat\.svg/);
-  assert.match(serviceWorker, /\/screenshots\/mobile-device\.svg/);
+  assert.match(serviceWorker, /\/screenshots\/real-mobile-chat\.jpg/);
+  assert.match(serviceWorker, /\/screenshots\/real-mobile-device\.jpg/);
   assert.match(serviceWorker, /\/icons\/icon-192\.png/);
   assert.match(serviceWorker, /\/icons\/icon-512\.png/);
   assert.match(serviceWorker, /lifeos-offline-queue/);

@@ -306,7 +306,7 @@ function checkAssets() {
     else fail("PWA service worker should pre-cache Vite build assets for offline startup");
     if (sw.includes("lifeos-offline-queue") && sw.includes("LIFEOS_SYNC_OFFLINE_QUEUE")) pass("PWA service worker supports background offline queue sync");
     else warn("PWA service worker does not expose offline queue sync hooks");
-    if (sw.includes("lifeos-ai-shell-v3") && sw.includes("LIFEOS_SKIP_WAITING")) pass("PWA service worker supports immediate update activation");
+    if (/lifeos-ai-shell-v\d+/.test(sw) && sw.includes("LIFEOS_SKIP_WAITING")) pass("PWA service worker supports immediate update activation");
     else warn("PWA service worker does not support immediate update activation");
   } else {
     fail("missing PWA service worker: public/sw.js");

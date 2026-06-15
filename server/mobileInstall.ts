@@ -88,16 +88,16 @@ export function mobileManifest(pairingToken = "") {
     ],
     screenshots: [
       {
-        src: "/screenshots/mobile-chat.svg",
+        src: "/screenshots/real-mobile-chat.jpg",
         sizes: "390x844",
-        type: "image/svg+xml",
+        type: "image/jpeg",
         form_factor: "narrow",
         label: "手机端 AI 聊天",
       },
       {
-        src: "/screenshots/mobile-device.svg",
+        src: "/screenshots/real-mobile-device.jpg",
         sizes: "390x844",
-        type: "image/svg+xml",
+        type: "image/jpeg",
         form_factor: "narrow",
         label: "设备与连接",
       },

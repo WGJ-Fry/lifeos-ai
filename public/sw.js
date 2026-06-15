@@ -1,4 +1,4 @@
-const CACHE_NAME = "lifeos-ai-shell-v3";
+const CACHE_NAME = "lifeos-ai-shell-v4";
 const OFFLINE_FALLBACK = "/offline.html";
 const SHELL_ASSETS = [
   "/",
@@ -11,8 +11,8 @@ const SHELL_ASSETS = [
   "/icon.svg",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
-  "/screenshots/mobile-chat.svg",
-  "/screenshots/mobile-device.svg",
+  "/screenshots/real-mobile-chat.jpg",
+  "/screenshots/real-mobile-device.jpg",
 ];
 
 function extractBuildAssets(html) {
