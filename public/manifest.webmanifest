@@ -41,32 +41,32 @@
       "sizes": "390x844",
       "type": "image/jpeg",
       "form_factor": "narrow",
-      "label": "手机端 AI 聊天"
+      "label": "Mobile AI Chat"
     },
     {
       "src": "/screenshots/real-mobile-device.jpg",
       "sizes": "390x844",
       "type": "image/jpeg",
       "form_factor": "narrow",
-      "label": "设备与连接"
+      "label": "Device & Connection"
     }
   ],
   "shortcuts": [
     {
-      "name": "手机端 AI",
+      "name": "Mobile AI",
       "short_name": "AI",
       "url": "/mobile/chat",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "绑定电脑",
-      "short_name": "绑定",
+      "name": "Pair Computer",
+      "short_name": "Pair",
       "url": "/mobile/pair",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "本地能力",
-      "short_name": "能力",
+      "name": "Local Actions",
+      "short_name": "Actions",
       "url": "/mobile/actions",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }

@@ -46,7 +46,7 @@ export type AiProviderResponse = {
 const providerNamePattern: Array<[AiProviderId, RegExp]> = [
   ["openrouter", /openrouter/i],
   ["openai", /openai|gpt/i],
-  ["local", /local|ollama|lm studio|本地/i],
+  ["local", /local|ollama|lm studio|local/i],
   ["gemini", /gemini|google/i],
 ];
 
@@ -72,7 +72,7 @@ export function resolveAiModel(providerId: AiProviderId, modelEngine: unknown) {
   if (providerId === "gemini" && engine.includes("1.5")) return "gemini-1.5-pro";
   if (providerId === "openai" && /GPT-4o|gpt-4o/i.test(engine)) return "gpt-4o";
   if (providerId === "openrouter" && /Claude|claude/i.test(engine)) return "anthropic/claude-3.5-sonnet";
-  if (providerId === "local" && !/local|本地|ollama|lm studio/i.test(engine)) return engine;
+  if (providerId === "local" && !/local|local|ollama|lm studio/i.test(engine)) return engine;
   return selectedModel;
 }
 
@@ -244,6 +244,6 @@ export function sendMissingAiConfig(res: express.Response, providerId: AiProvide
     provider: status.provider,
     envVar: status.envVar,
     setupPath: "/admin/settings",
-    message: `请先在电脑管理端配置 ${status.provider}，或设置 ${status.envVar} 后重启 LifeOS AI。`,
+    message: `Configure ${status.provider} in the desktop admin console, or set ${status.envVar} and restart LifeOS AI.`,
   });
 }

@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type VoiceState = "speaking" | "listening" | "processing";
 
@@ -19,6 +20,8 @@ export default function VoiceModeOverlay({
   onSetRecognitionText,
   onSubmitCommand,
 }: VoiceModeOverlayProps) {
+  const { t } = useI18n();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 50, filter: "blur(10px)" }}
@@ -29,7 +32,7 @@ export default function VoiceModeOverlay({
       <div className="absolute inset-0 bg-gradient-to-t from-indigo-500/10 via-transparent to-transparent opacity-50" />
 
       <div className="text-center relative z-10">
-        <h3 className="text-zinc-400 font-bold tracking-widest text-xs uppercase">LIFE OS · 智能助理实时语音中枢</h3>
+        <h3 className="text-zinc-400 font-bold tracking-widest text-xs uppercase">{t("chat.voice.title")}</h3>
         <p className="text-[10px] text-zinc-650 font-mono mt-1 text-zinc-500">VOICE OVER INTERFACE v1.4.2</p>
       </div>
 
@@ -74,9 +77,9 @@ export default function VoiceModeOverlay({
             }`}
           />
           <div className="absolute text-white font-bold text-sm tracking-widest animate-pulse pointer-events-none">
-            {voiceState === "listening" ? "正在聆听..." :
-              voiceState === "processing" ? "处理中..." :
-              "正在回复..."}
+            {voiceState === "listening" ? t("chat.voice.listening") :
+              voiceState === "processing" ? t("chat.voice.processing") :
+              t("chat.voice.speaking")}
           </div>
         </div>
 
@@ -111,12 +114,12 @@ export default function VoiceModeOverlay({
       </div>
 
       <div className="relative z-10 w-full max-w-sm px-6 text-center mb-6">
-        <span className="text-zinc-500 text-[10px] font-bold font-mono tracking-widest block mb-2 uppercase">语音实时转译 / Live Transcript</span>
+        <span className="text-zinc-500 text-[10px] font-bold font-mono tracking-widest block mb-2 uppercase">{t("chat.voice.transcript")}</span>
         <div className="min-h-[56px] max-h-[80px] overflow-y-auto bg-white/[0.02] border border-white/[0.04] p-3.5 rounded-[20px] flex items-center justify-center text-sm font-semibold max-w-[345px] mx-auto text-zinc-300 transition-all duration-300 hide-scrollbar">
           {voiceRecognitionText ? (
             <span className="text-zinc-200 text-sm font-medium leading-relaxed break-all">“ {voiceRecognitionText} ”</span>
           ) : (
-            <span className="text-zinc-650 italic text-zinc-500 text-xs">“ 正在等待语音输入，或在下方直接键入命令 ”</span>
+            <span className="text-zinc-650 italic text-zinc-500 text-xs">{t("chat.voice.waiting")}</span>
           )}
         </div>
       </div>
@@ -125,7 +128,7 @@ export default function VoiceModeOverlay({
         <div className="bg-[#18181b]/50 border border-white/[0.08] px-3.5 py-2.5 rounded-2xl flex items-center gap-2">
           <input
             type="text"
-            placeholder="键入指令模拟语音输入..."
+            placeholder={t("chat.voice.placeholder")}
             className="bg-transparent text-xs font-semibold text-zinc-300 outline-none flex-1 placeholder-zinc-550 min-w-0"
             onKeyDown={(event) => {
               if (event.key === "Enter" && event.currentTarget.value.trim()) {
@@ -143,12 +146,12 @@ export default function VoiceModeOverlay({
 
       <div className="flex flex-col items-center gap-6 relative z-10 w-full px-8">
         <p className="text-zinc-500 max-w-[300px] text-center text-xs leading-relaxed font-semibold">
-          在上方键入或点击光球：一句话操办。助理管家支持直达日历备忘、任务清单等组件，也可以随时帮您打造新功能。
+          {t("chat.voice.help")}
         </p>
         <button
           onClick={onClose}
           className="w-14 h-14 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center hover:scale-105 transition-all active:scale-95 border border-white/[0.08]"
-          title="返回桌面"
+          title={t("chat.voice.back")}
         >
           <div className="w-4 h-4 bg-zinc-300 rounded-sm" />
         </button>

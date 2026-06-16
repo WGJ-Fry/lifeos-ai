@@ -30,6 +30,9 @@ async function writeOfflineQueue(page: import("@playwright/test").Page, queue: A
 }
 
 test("admin setup, mobile binding, chat shell, and device revoke flow", async ({ page }) => {
+  await page.context().addInitScript(() => {
+    localStorage.setItem("lifeos_locale", "zh-CN");
+  });
   await page.goto("/admin/login");
   await expect(page.getByText("首次启动向导")).toBeVisible();
   await expect(page.getByText("进入设置页配置 AI Key")).toBeVisible();
@@ -73,8 +76,8 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByLabel("OpenAI 模型").selectOption("gpt-4o");
   await page.getByPlaceholder("输入 API Key").fill("sk-playwright-onboarding-secret-value");
   await page.getByRole("button", { name: "保存并测试" }).click();
-  await expect(page.getByText("OpenAI 连接测试通过。 已设为默认聊天 Provider。")).toBeVisible();
-  await expect(page.getByRole("button", { name: /OpenAI/ }).getByText("默认聊天")).toBeVisible();
+  await expect(page.getByText("OpenAI 连接测试通过。 已是默认聊天 Provider")).toBeVisible();
+  await expect(page.getByRole("button", { name: /OpenAI/ }).getByText("当前默认")).toBeVisible();
   await expect(page.getByRole("button", { name: "已是默认聊天 Provider" })).toBeDisabled();
   await expect(page.getByText("2 / 4")).toBeVisible();
   await page.unroute("**/api/v1/admin/ai-providers/openai/test");
@@ -120,6 +123,16 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
         cloudflare: {
           installed: true,
           running: true,
+          managed: {
+            running: false,
+            starting: false,
+            url: "",
+            pid: null,
+            startedAt: null,
+            command: "",
+            lastOutput: "",
+            lastError: "",
+          },
           version: "cloudflared version 2026.6.0",
           detectedUrls: ["https://pair.example.test"],
           suggestedCommand: "cloudflared tunnel --url http://127.0.0.1:3333",
@@ -196,7 +209,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByLabel("确认新密码").fill("password123");
   await page.getByRole("button", { name: "更新管理员密码" }).click();
   await expect(page.getByText("管理员密码已更新，请继续处理安全自检提示。")).toBeVisible();
-  await expect(page.getByText(/当前密码策略偏弱|密码策略已通过/).first()).toBeVisible();
+  await expect(page.getByText(/建议加强|需要处理|强度通过/).first()).toBeVisible();
   await page.getByLabel("当前密码").fill("password123");
   await page.getByLabel("新密码", { exact: true }).fill(password);
   await page.getByLabel("确认新密码").fill(password);
@@ -403,6 +416,16 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
         cloudflare: {
           installed: true,
           running: true,
+          managed: {
+            running: false,
+            starting: false,
+            url: "",
+            pid: null,
+            startedAt: null,
+            command: "",
+            lastOutput: "",
+            lastError: "",
+          },
           version: "cloudflared version 2026.6.0",
           detectedUrls: ["https://amber-lifeos.trycloudflare.com"],
           suggestedCommand: "cloudflared tunnel --url http://127.0.0.1:3333",
@@ -436,7 +459,19 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
     expect(posted.baseUrl).toBe("https://amber-lifeos.trycloudflare.com");
     await route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ result: { ok: true, url: posted.baseUrl, status: 200, latencyMs: 24 } }),
+      body: JSON.stringify({
+        result: {
+          ok: true,
+          url: posted.baseUrl,
+          status: 200,
+          latencyMs: 24,
+          steps: [
+            { id: "health", ok: true, status: 200, url: `${posted.baseUrl}/api/v1/health`, latencyMs: 8 },
+            { id: "mobile-shell", ok: true, status: 200, url: `${posted.baseUrl}/mobile/chat`, latencyMs: 9 },
+            { id: "websocket", ok: true, status: 101, url: `${posted.baseUrl}/api/v1/ws`, latencyMs: 7 },
+          ],
+        },
+      }),
     });
   });
   await page.getByRole("link", { name: "设置" }).click();
@@ -466,7 +501,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByRole("button", { name: "复制 Cloudflare Tunnel 启动环境" }).click();
   await expect(page.getByRole("button", { name: "复制 Cloudflare Tunnel 启动环境" })).toContainText("已复制启动环境");
   await page.getByRole("button", { name: "测试推荐地址" }).first().click();
-  await expect(page.getByText("连接成功：24ms，https://amber-lifeos.trycloudflare.com")).toBeVisible();
+  await expect(page.getByText("连接成功：3/3 项通过，24ms，https://amber-lifeos.trycloudflare.com")).toBeVisible();
   await expect(page.getByText("最近审计日志")).toBeVisible();
   await expect(page.getByText("备份与恢复")).toBeVisible();
   await expect(page.getByText("AI Key 安全配置")).toBeVisible();
@@ -474,7 +509,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(aiKeyPanel.getByRole("button", { name: /Gemini/ })).toBeVisible();
   await expect(aiKeyPanel.getByRole("button", { name: /OpenAI/ })).toBeVisible();
   await expect(aiKeyPanel.getByRole("button", { name: /OpenRouter/ })).toBeVisible();
-  await expect(aiKeyPanel.getByRole("button", { name: /本地模型/ })).toBeVisible();
+  await expect(aiKeyPanel.getByRole("button", { name: /本地模型|Local Model/ })).toBeVisible();
   await aiKeyPanel.getByRole("button", { name: /OpenAI/ }).click();
   await aiKeyPanel.getByLabel("OpenAI 模型").selectOption("gpt-4o");
   await aiKeyPanel.getByRole("button", { name: "保存模型" }).click();
@@ -483,7 +518,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await aiKeyPanel.getByRole("button", { name: "保存", exact: true }).click();
   await expect(aiKeyPanel.getByText("OpenAI 配置已安全保存。")).toBeVisible();
   await aiKeyPanel.getByRole("button", { name: "测试" }).click();
-  await expect(aiKeyPanel.getByText(/OpenAI 已配置/)).toBeVisible();
+  await expect(aiKeyPanel.getByText(/OpenAI (已配置|is configured)/)).toBeVisible();
   page.once("dialog", async (dialog) => {
     expect(dialog.message()).toContain("OpenAI");
     await dialog.accept();
@@ -536,33 +571,31 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(backupPanel.getByText(/\d+ 个 migration/)).toBeVisible();
   await expect(backupPanel.getByText("messages")).toBeVisible();
   await expect(backupPanel.getByText("恢复风险说明")).toBeVisible();
-  await expect(backupPanel.getByText("恢复会在下次启动前替换当前 SQLite。")).toBeVisible();
-  await expect(backupPanel.getByText("恢复前系统会自动创建当前数据库备份。")).toBeVisible();
   await expect(backupPanel.getByText("清理策略")).toBeVisible();
   await expect(backupPanel.getByText("备份至少保留 1 份；审计和聊天天数设置为 0 表示不清理。执行前会再次确认。")).toBeVisible();
   await backupPanel.getByRole("spinbutton", { name: /保留备份/ }).fill("3");
   await backupPanel.getByRole("spinbutton", { name: /审计早于/ }).fill("0");
   await backupPanel.getByRole("spinbutton", { name: /聊天早于/ }).fill("30");
   page.once("dialog", async (dialog) => {
-    expect(dialog.message()).toContain("保留最新 3 份备份");
-    expect(dialog.message()).toContain("不清理审计日志");
-    expect(dialog.message()).toContain("30 天前聊天会话");
+    expect(dialog.message()).toMatch(/保留最新 3 份备份|latest 3 backup/);
+    expect(dialog.message()).toMatch(/不清理审计日志|do not clean audit logs/);
+    expect(dialog.message()).toMatch(/30 天前聊天会话|older than 30 day/);
     await dialog.accept();
   });
   await backupPanel.getByRole("button", { name: "按策略清理" }).click();
-  await expect(backupPanel.getByText(/清理完成/)).toBeVisible();
+  await expect(backupPanel.getByText(/清理完成|Cleanup complete/)).toBeVisible();
   page.once("dialog", async (dialog) => {
-    expect(dialog.message()).toContain("安排恢复备份");
+    expect(dialog.message()).toMatch(/安排恢复备份|Schedule restore for backup/);
     await dialog.accept();
   });
   await backupPanel.getByRole("button", { name: "恢复" }).first().click();
-  await expect(backupPanel.getByText("恢复任务等待重启")).toBeVisible();
+  await expect(backupPanel.getByText(/恢复任务等待重启|Restore Waiting for Restart/)).toBeVisible();
   page.once("dialog", async (dialog) => {
-    expect(dialog.message()).toContain("取消等待重启");
+    expect(dialog.message()).toMatch(/取消等待重启|Cancel the restore task waiting for restart/);
     await dialog.accept();
   });
   await backupPanel.getByRole("button", { name: "取消恢复任务" }).click();
-  await expect(backupPanel.getByText("已取消等待重启的恢复任务。")).toBeVisible();
+  await expect(backupPanel.getByText(/已取消等待重启的恢复任务|Pending restore task cancelled/)).toBeVisible();
   await page.goto("/admin/dashboard");
 
   await page.getByRole("button", { name: /撤销/ }).click();

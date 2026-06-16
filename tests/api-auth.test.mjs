@@ -5,6 +5,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import { createServer } from "node:net";
 import test from "node:test";
 import WebSocket from "ws";
 
@@ -117,8 +118,20 @@ async function waitForServer(port, child, output) {
   throw new Error("server did not become healthy");
 }
 
+async function getOpenPort() {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      server.close(() => resolve(port));
+    });
+  });
+}
+
 test("admin auth protects APIs and device binding enables mobile access", async (t) => {
-  const port = 3210 + Math.floor(Math.random() * 1000);
+  const port = await getOpenPort();
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-auth-test-"));
   const child = spawn(process.execPath, ["dist/server.cjs"], {
     cwd: rootDir,
@@ -203,10 +216,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(diagnostics.ai.accessToken, undefined);
   assert.equal(diagnostics.network.host, "127.0.0.1");
   assert.equal(diagnostics.storage.dataDirConfigured, true);
-  assert.equal(diagnostics.storage.dataDir, "已配置自定义数据目录");
+  assert.equal(diagnostics.storage.dataDir, "Custom data directory configured");
   assert.equal(diagnostics.storage.backupRetentionCount, process.env.LIFEOS_BACKUP_RETENTION_COUNT || "20");
   assert.equal(diagnostics.storage.backupSchedule.enabled, false);
-  assert.equal(diagnostics.storage.recommendations.some((item) => item.includes("自动备份")), true);
+  assert.equal(diagnostics.storage.recommendations.some((item) => item.includes("scheduled backups")), true);
   assert.equal(typeof diagnostics.release.manifestAvailable, "boolean");
   assert.equal(typeof diagnostics.release.checksumAvailable, "boolean");
   assert.equal(typeof diagnostics.release.artifactCount, "number");
@@ -254,6 +267,17 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof networkDiagnostics.cloudflare.installed, "boolean");
   assert.equal(typeof networkDiagnostics.tailscale.installed, "boolean");
   assert.match(networkDiagnostics.cloudflare.suggestedCommand, /cloudflared tunnel --url/);
+  assert.equal(typeof networkDiagnostics.cloudflare.managed.running, "boolean");
+
+  const blockedCloudflareTunnelStatus = await request(port, "/api/v1/admin/cloudflare-tunnel");
+  assert.equal(blockedCloudflareTunnelStatus.status, 401);
+  const cloudflareTunnelStatus = await request(port, "/api/v1/admin/cloudflare-tunnel", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(typeof cloudflareTunnelStatus.tunnel.running, "boolean");
+  assert.equal(typeof cloudflareTunnelStatus.diagnostics.recommendedBaseUrl, "string");
+  const blockedCloudflareTunnelStart = await request(port, "/api/v1/admin/cloudflare-tunnel/start", { method: "POST" });
+  assert.equal(blockedCloudflareTunnelStart.status, 401);
+  const blockedCloudflareTunnelStop = await request(port, "/api/v1/admin/cloudflare-tunnel/stop", { method: "POST" });
+  assert.equal(blockedCloudflareTunnelStop.status, 401);
 
   const blockedConnectionTest = await request(port, "/api/v1/admin/network-diagnostics/test-url", {
     method: "POST",
@@ -285,6 +309,12 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: JSON.stringify({ mode: "cloudflare", label: "Unsafe", baseUrl: "file:///etc/passwd" }),
   });
   assert.equal(invalidDesktopConnectionConfig.status, 400);
+  const insecureDesktopConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ mode: "configured", label: "Insecure public", baseUrl: "http://public.example.com" }),
+  });
+  assert.equal(insecureDesktopConnectionConfig.status, 400);
   const desktopConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
     method: "PUT",
     headers: adminHeaders,
@@ -304,6 +334,18 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const networkDiagnosticsAfterDesktopConfig = await request(port, "/api/v1/admin/network-diagnostics", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(networkDiagnosticsAfterDesktopConfig.desktopRuntimeConfig.label, "Cloudflare Smoke");
   assert.equal(networkDiagnosticsAfterDesktopConfig.desktopRuntimeConfig.publicBaseUrl, "https://desktop-config.example.com/mobile");
+  const tailscaleHttpsConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      mode: "tailscale",
+      label: "Tailscale HTTPS Serve",
+      baseUrl: "https://lifeos-mac.tailnet.example.ts.net",
+    }),
+  }).then((res) => res.json());
+  assert.equal(tailscaleHttpsConnectionConfig.config.mode, "tailscale");
+  assert.equal(tailscaleHttpsConnectionConfig.config.host, "127.0.0.1");
+  assert.equal(tailscaleHttpsConnectionConfig.config.publicBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
 
   const blockedDiagnosticBundle = await request(port, "/api/v1/admin/diagnostic-bundle");
   assert.equal(blockedDiagnosticBundle.status, 401);
@@ -326,7 +368,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(savedAiKey.ai.secureStorage.current, "local_aes_gcm");
   assert.equal(savedAiKey.ai.secureStorage.systemAvailable, false);
   assert.equal(savedAiKey.ai.secureStorage.fallbackActive, true);
-  assert.equal(savedAiKey.ai.secureStorage.fallbackLabel, "本地 AES-GCM 加密文件");
+  assert.equal(savedAiKey.ai.secureStorage.fallbackLabel, "Local AES-GCM encrypted file");
   assert.equal(savedAiKey.ai.apiKey, undefined);
   assert.equal(JSON.stringify(savedAiKey).includes(testAiKey), false);
 
@@ -399,7 +441,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(testedOpenAi.ok, true);
-  assert.match(testedOpenAi.message, /已配置/);
+  assert.match(testedOpenAi.message, /is configured/);
   assert.equal(JSON.stringify(testedOpenAi).includes(openAiKey), false);
   const activeOpenAi = await request(port, "/api/v1/admin/ai-providers/openai/active", {
     method: "PUT",
@@ -499,9 +541,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof backupPreview.preview.migrations[0].version, "number");
   assert.equal(typeof backupPreview.preview.migrations[0].name, "string");
   assert.equal(typeof backupPreview.preview.migrations[0].appliedAt, "number");
-  assert.ok(backupPreview.preview.warnings.includes("恢复会在下次启动前替换当前 SQLite。"));
-  assert.ok(backupPreview.preview.warnings.includes("恢复前系统会自动创建当前数据库备份。"));
-  assert.ok(backupPreview.preview.warnings.includes("普通备份不包含 AI Key 和敏感客户端状态；恢复后如需 AI 能力，请在设置中重新配置 Key。"));
+  assert.ok(backupPreview.preview.warnings.includes("Restore will replace the current SQLite database before the next startup."));
+  assert.ok(backupPreview.preview.warnings.includes("The system will automatically create a backup of the current database before restore."));
+  assert.ok(backupPreview.preview.warnings.includes("Ordinary backups do not include AI Keys or sensitive client state. Reconfigure keys in Settings after restore if AI features are needed."));
 
   const downloadedBackup = await request(port, `/api/v1/backups/${encodeURIComponent(backup.backup.file)}/download`, { headers: adminHeaders });
   assert.equal(downloadedBackup.status, 200);
@@ -699,7 +741,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof diagnosticExportAudit.metadata.releaseArtifactCount, "number");
   assert.equal(diagnosticExportAudit.metadata.securityOverall, "warning");
   assert.equal(diagnosticExportAudit.metadata.publicMode, false);
-  const desktopConnectionConfigAudit = auditAfterExports.logs.find((log) => log.action === "desktop_connection_config_saved");
+  const desktopConnectionConfigAudit = auditAfterExports.logs.find((log) => log.action === "desktop_connection_config_saved" && log.targetId === "cloudflare");
   assert.equal(desktopConnectionConfigAudit.targetType, "network");
   assert.equal(desktopConnectionConfigAudit.targetId, "cloudflare");
   assert.equal(desktopConnectionConfigAudit.metadata.publicBaseUrlConfigured, true);
@@ -739,7 +781,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(openAiModelAudit.metadata.provider, "OpenAI");
   assert.equal(openAiModelAudit.metadata.model, "gpt-4o");
   const localModelAudit = findConfigAudit("ai_provider_model_updated", "local");
-  assert.equal(localModelAudit.metadata.provider, "本地模型");
+  assert.equal(localModelAudit.metadata.provider, "Local Model");
   assert.equal(localModelAudit.metadata.model, "custom-local-model:latest");
   const auditJson = JSON.stringify(auditAfterExports);
   assert.equal(auditJson.includes(testAiKey), false);
@@ -763,8 +805,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: JSON.stringify({ baseUrl: "https://phone.example.test/some/path" }),
   }).then((res) => res.json());
   assert.match(binding.token, /^bind_/);
-  assert.equal(binding.baseUrl, "https://phone.example.test");
-  assert.equal(binding.pairingUrl, `https://phone.example.test/mobile/install/${encodeURIComponent(binding.token)}`);
+  assert.equal(binding.baseUrl, "https://phone.example.test/some/path");
+  assert.equal(binding.pairingUrl, `https://phone.example.test/some/path/mobile/install/${encodeURIComponent(binding.token)}`);
 
   const invalidPairingBaseUrl = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",
@@ -792,6 +834,34 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     "X-LifeOS-Device-ID": credential.device.id,
     "X-LifeOS-Device-Token": credential.accessToken,
   };
+  const unauthConnectivityReport = await request(port, "/api/v1/devices/me/connectivity-report", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ ok: true }),
+  });
+  assert.equal(unauthConnectivityReport.status, 401);
+  const connectivityReport = await request(port, "/api/v1/devices/me/connectivity-report", {
+    method: "POST",
+    headers: deviceHeaders,
+    body: JSON.stringify({
+      ok: true,
+      currentBase: "https://phone.example.test/lifeos",
+      latencyMs: 42,
+      steps: [
+        { id: "health", ok: true, latencyMs: 12, status: 200 },
+        { id: "websocket", ok: true, latencyMs: 30, status: 101 },
+      ],
+    }),
+  }).then((res) => res.json().then((body) => ({ status: res.status, body })));
+  assert.equal(connectivityReport.status, 200);
+  assert.equal(connectivityReport.body.report.ok, true);
+  assert.equal(connectivityReport.body.report.currentBaseUrl, "https://phone.example.test/lifeos");
+  assert.equal(connectivityReport.body.report.healthOk, true);
+  assert.equal(connectivityReport.body.report.websocketOk, true);
+  const devicesAfterConnectivityReport = await request(port, "/api/v1/devices", { headers: adminHeaders }).then((res) => res.json());
+  const reportedDevice = devicesAfterConnectivityReport.devices.find((device) => device.id === credential.device.id);
+  assert.equal(reportedDevice.connectivityReport.ok, true);
+  assert.equal(reportedDevice.connectivityReport.currentBaseUrl, "https://phone.example.test/lifeos");
 
   const selfRevokeBinding = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",
@@ -1347,4 +1417,98 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, signatureCredential.accessToken, new Set(["signature credential"]));
   assertSecretNotLeaked(publicResponses, rotated.accessToken, new Set(["rotated token"]));
   assertSecretNotLeaked(publicResponses, adminRequestedRotation.accessToken, new Set(["admin requested rotation"]));
+});
+
+test("public base path serves API, mobile shell, and realtime websocket", async (t) => {
+  const port = await getOpenPort();
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-auth-base-path-test-"));
+  const child = spawn(process.execPath, ["dist/server.cjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      LIFEOS_PORT: String(port),
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_HOST: "127.0.0.1",
+      LIFEOS_ALLOW_PUBLIC: "1",
+      PUBLIC_BASE_URL: "https://remote.example.test/lifeos",
+      APP_URL: "",
+      GEMINI_API_KEY: "",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const childOutput = [];
+  child.stdout.on("data", (chunk) => childOutput.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => childOutput.push(chunk.toString()));
+
+  t.after(async () => {
+    child.kill();
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  await waitForServer(port, child, childOutput);
+
+  const prefixedHealth = await request(port, "/lifeos/api/v1/health").then((res) => res.json());
+  assert.equal(prefixedHealth.ok, true);
+  assert.equal(prefixedHealth.publicBaseUrl, "https://remote.example.test/lifeos");
+
+  const mobileShell = await request(port, "/lifeos/mobile/chat");
+  assert.equal(mobileShell.status, 200);
+  const mobileHtml = await mobileShell.text();
+  assert.match(mobileHtml, /<div id="root"><\/div>/);
+  assert.match(mobileHtml, /\.\/assets\//);
+  const firstAsset = mobileHtml.match(/\.\/assets\/[^"]+\.js/)?.[0]?.replace("./", "/lifeos/");
+  assert.ok(firstAsset);
+  const prefixedAsset = await request(port, firstAsset);
+  assert.equal(prefixedAsset.status, 200);
+
+  const prefixedManifest = await request(port, "/lifeos/manifest.webmanifest?pairingToken=bind_base_path_manifest_123").then((res) => res.json());
+  assert.equal(prefixedManifest.id, "/lifeos/mobile/chat");
+  assert.equal(prefixedManifest.start_url, "/lifeos/mobile/install/bind_base_path_manifest_123");
+  assert.equal(prefixedManifest.scope, "/lifeos/");
+  assert.ok(prefixedManifest.icons.every((icon) => icon.src.startsWith("/lifeos/")));
+  assert.ok(prefixedManifest.screenshots.every((screenshot) => screenshot.src.startsWith("/lifeos/")));
+
+  const setupResponse = await request(port, "/lifeos/api/v1/admin/setup", {
+    method: "POST",
+    body: JSON.stringify({ password: "base-path-password-12345" }),
+  });
+  assert.equal(setupResponse.status, 200);
+  const adminHeaders = cookieHeader(setupResponse);
+
+  const binding = await request(port, "/lifeos/api/v1/devices/bind/start", {
+    method: "POST",
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(binding.baseUrl, "https://remote.example.test/lifeos");
+  assert.match(binding.pairingUrl, /^https:\/\/remote\.example\.test\/lifeos\/mobile\/install\/bind_/);
+
+  const credential = await request(port, "/lifeos/api/v1/devices/bind/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: binding.token, deviceName: "Base Path Phone", deviceType: "mobile" }),
+  }).then((res) => res.json());
+
+  await new Promise((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/lifeos/api/v1/ws`);
+    const timer = setTimeout(() => {
+      ws.close();
+      reject(new Error("base-path websocket auth timed out"));
+    }, 3000);
+    ws.on("open", () => {
+      ws.send(JSON.stringify({
+        type: "auth",
+        deviceId: credential.device.id,
+        accessToken: credential.accessToken,
+      }));
+    });
+    ws.on("message", (raw) => {
+      const event = JSON.parse(raw.toString());
+      if (event.type === "auth.ok") {
+        clearTimeout(timer);
+        ws.close();
+        resolve();
+      }
+    });
+    ws.on("error", reject);
+  });
 });

@@ -3,15 +3,18 @@ import type React from "react";
 import { AlertTriangle, ArrowRight, CheckCircle2, DatabaseBackup, KeyRound, Loader2, ShieldAlert, Smartphone, Sparkles } from "lucide-react";
 import { completeOnboarding, createBackup, getBackupSchedule, getConfigDiagnostics, getOnboardingStatus, listAiProviders, listBackups, listDevices, saveAiProviderKey, testAiProvider, updateActiveAiProvider, updateAiProviderModel, updateBackupSchedule } from "../../services/lifeosApi";
 import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
+import LanguageSwitcher from "../../i18n/LanguageSwitcher";
+import { useI18n } from "../../i18n/I18nProvider";
 
 const providerLabels: Record<AiProviderId, string> = {
   gemini: "Google Gemini",
   openai: "OpenAI",
   openrouter: "OpenRouter",
-  local: "本地模型",
+  local: "Local Model",
 };
 
 export default function AdminOnboardingPage() {
+  const { t } = useI18n();
   const [diagnostics, setDiagnostics] = useState<ConfigDiagnostics | null>(null);
   const [providers, setProviders] = useState<AiProviderStatus[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<AiProviderId>("gemini");
@@ -44,7 +47,7 @@ export default function AdminOnboardingPage() {
   };
 
   useEffect(() => {
-    refresh().catch((error) => setStatus(error.message || "加载初始化向导失败"));
+    refresh().catch((error) => setStatus(error.message || t("onboarding.loadFailed")));
   }, []);
 
   useEffect(() => {
@@ -53,7 +56,7 @@ export default function AdminOnboardingPage() {
 
   const handleSaveAiKey = async () => {
     if (!apiKey.trim()) {
-      setStatus("请输入 AI Key 或本地模型端点。");
+      setStatus(t("onboarding.enterAiKey"));
       return;
     }
     setBusy("ai");
@@ -66,10 +69,10 @@ export default function AdminOnboardingPage() {
       await updateActiveAiProvider(selectedProvider);
       const result = await testAiProvider(selectedProvider);
       setApiKey("");
-      setStatus(`${result.message} 已设为默认聊天 Provider。`);
+      setStatus(`${result.message} ${t("onboarding.alreadyDefault")}`);
       await refresh();
     } catch (error: any) {
-      setStatus(error.message || "AI 配置失败");
+      setStatus(error.message || t("onboarding.aiFailed"));
     } finally {
       setBusy(null);
     }
@@ -80,10 +83,10 @@ export default function AdminOnboardingPage() {
     setStatus(null);
     try {
       const result = await updateActiveAiProvider(selectedProvider);
-      setStatus(`${result.provider.provider} 已设为默认聊天 Provider。`);
+      setStatus(`${result.provider.provider} ${t("onboarding.alreadyDefault")}`);
       await refresh();
     } catch (error: any) {
-      setStatus(error.message || "设置默认 Provider 失败");
+      setStatus(error.message || t("onboarding.defaultProviderFailed"));
     } finally {
       setBusy(null);
     }
@@ -94,10 +97,10 @@ export default function AdminOnboardingPage() {
     setStatus(null);
     try {
       const result = await createBackup();
-      setStatus(`已创建初始备份：${result.backup.file}`);
+      setStatus(t("onboarding.backupCreated", { file: result.backup.file }));
       await refresh();
     } catch (error: any) {
-      setStatus(error.message || "创建初始备份失败");
+      setStatus(error.message || t("onboarding.backupFailed"));
     } finally {
       setBusy(null);
     }
@@ -109,10 +112,10 @@ export default function AdminOnboardingPage() {
     try {
       const result = await updateBackupSchedule({ enabled: true, intervalHours: 24 });
       setBackupSchedule(result.schedule);
-      setStatus("已开启每日自动备份。之后 LifeOS AI 会定期创建 SQLite 快照。");
+      setStatus(t("onboarding.dailyBackupStatus"));
       await refresh();
     } catch (error: any) {
-      setStatus(error.message || "开启自动备份失败");
+      setStatus(error.message || t("onboarding.dailyBackupFailed"));
     } finally {
       setBusy(null);
     }
@@ -124,10 +127,10 @@ export default function AdminOnboardingPage() {
     try {
       const result = await completeOnboarding();
       setOnboarding(result.onboarding);
-      setStatus("首次启动向导已完成。");
+      setStatus(t("onboarding.doneStatus"));
       window.location.href = result.onboarding.nextPath || "/admin/dashboard";
     } catch (error: any) {
-      setStatus(error.message || "还有初始化步骤未完成。");
+      setStatus(error.message || t("onboarding.doneFailed"));
       await refresh().catch(() => null);
     } finally {
       setBusy(null);
@@ -138,17 +141,20 @@ export default function AdminOnboardingPage() {
     <div className="min-h-screen bg-[#060a10] p-5 text-zinc-100">
       <main className="mx-auto flex min-h-[calc(100vh-40px)] max-w-5xl flex-col justify-center">
         <div className="mb-8">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-bold text-cyan-200">
-            <Sparkles className="h-3.5 w-3.5" />
-            首次启动向导
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-xs font-bold text-cyan-200">
+              <Sparkles className="h-3.5 w-3.5" />
+              {t("onboarding.badge")}
+            </div>
+            <LanguageSwitcher compact />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">把 LifeOS AI 配到可用状态</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t("onboarding.title")}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
-            管理员密码已经设置完成。接下来配置 AI Key、创建初始备份，并绑定手机端。也可以先进入控制台，之后从系统设置继续完成。
+            {t("onboarding.description")}
           </p>
           <div className="mt-5 max-w-xl rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
             <div className="flex items-center justify-between text-xs font-bold text-zinc-400">
-              <span>初始化进度</span>
+              <span>{t("onboarding.progress")}</span>
               <span>{completedSteps} / 4</span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
@@ -156,10 +162,10 @@ export default function AdminOnboardingPage() {
             </div>
             {onboarding?.completed ? (
               <div className="mt-3 text-xs font-bold text-emerald-300">
-                基础配置已完成{onboarding.completedAt ? `，完成时间：${new Date(onboarding.completedAt).toLocaleString()}` : ""}。
+                {onboarding.completedAt ? t("onboarding.completedAt", { time: new Date(onboarding.completedAt).toLocaleString() }) : t("onboarding.completed")}
               </div>
             ) : (
-              <div className="mt-3 text-xs text-zinc-500">完成 AI、备份、手机绑定和安全自检后，电脑端和手机端都会进入长期可用状态。</div>
+              <div className="mt-3 text-xs text-zinc-500">{t("onboarding.progressHint")}</div>
             )}
           </div>
         </div>
@@ -181,19 +187,19 @@ export default function AdminOnboardingPage() {
                 </div>
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-bold">启动安全自检</h2>
+                    <h2 className="font-bold">{t("onboarding.securityCheck")}</h2>
                     <span className="rounded-full border border-white/[0.08] bg-[#060a10]/50 px-2.5 py-1 text-[11px] font-bold text-zinc-200">
-                      {securityRiskCount ? `${securityRiskCount} 项需要处理` : "全部通过"}
+                      {securityRiskCount ? t("onboarding.securityTodo", { count: securityRiskCount }) : t("onboarding.securityPassed")}
                     </span>
                   </div>
                   <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-300/80">
-                    开启公网或异地访问前，请先确认管理员密码、HTTPS/可信隧道、备份和 AI Key 状态。这里的检查不会暴露密钥或本地路径。
+                    {t("onboarding.securityDescription")}
                   </p>
                 </div>
               </div>
               <a href="/admin/settings" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-[#060a10]/55 px-4 py-3 text-sm font-bold text-zinc-100 hover:bg-white/[0.08]">
                 <ShieldAlert className="h-4 w-4" />
-                处理安全项
+                {t("onboarding.handleSecurity")}
               </a>
             </div>
             <div className="mt-4 grid gap-2 md:grid-cols-2">
@@ -208,7 +214,7 @@ export default function AdminOnboardingPage() {
                           ? "bg-amber-500/15 text-amber-100"
                           : "bg-emerald-500/15 text-emerald-100"
                     }`}>
-                      {item.status === "critical" ? "风险" : item.status === "warning" ? "提示" : "OK"}
+                      {item.status === "critical" ? t("common.risk") : item.status === "warning" ? t("common.warning") : t("common.ok")}
                     </span>
                   </div>
                   <div className="mt-2 leading-relaxed text-zinc-300">{item.message}</div>
@@ -224,9 +230,9 @@ export default function AdminOnboardingPage() {
 
         <div className="grid gap-4 lg:grid-cols-3">
           <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-            <StepHeader done={aiConfigured} icon={<KeyRound className="h-5 w-5" />} title="1. 配置 AI Key" />
+            <StepHeader done={aiConfigured} icon={<KeyRound className="h-5 w-5" />} title={t("onboarding.aiTitle")} />
             <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-              推荐先配置 Gemini、OpenAI 或 OpenRouter。密钥只保存在电脑端安全/加密存储。
+              {t("onboarding.aiDescription")}
             </p>
             <div className="mt-5 grid grid-cols-2 gap-2">
               {providers.map((provider) => (
@@ -238,7 +244,7 @@ export default function AdminOnboardingPage() {
                 >
                   <span className="block truncate">{providerLabels[provider.id]}</span>
                   <span className={`mt-1 block text-[10px] ${provider.configured ? "text-emerald-300" : "text-zinc-500"}`}>
-                    {provider.active ? "默认聊天" : provider.configured ? "已配置" : "待配置"}
+                    {provider.active ? t("onboarding.activeDefault") : provider.configured ? t("onboarding.securityPassed") : t("common.warning")}
                   </span>
                 </button>
               ))}
@@ -247,22 +253,22 @@ export default function AdminOnboardingPage() {
               <>
                 <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-zinc-400">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="font-bold text-zinc-200">默认聊天 Provider</span>
+                    <span className="font-bold text-zinc-200">{t("onboarding.defaultProvider")}</span>
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${activeProvider.active ? "bg-emerald-500/15 text-emerald-200" : "bg-white/[0.06] text-zinc-400"}`}>
-                      {activeProvider.active ? "当前默认" : "未设为默认"}
+                      {activeProvider.active ? t("onboarding.activeDefault") : t("onboarding.notDefault")}
                     </span>
                   </div>
-                  <p className="mt-2">首次保存并测试会自动设为默认；环境变量已配置的 Provider 可直接设为默认。</p>
+                  <p className="mt-2">{t("onboarding.providerHint")}</p>
                 </div>
                 <div className="mt-4">
-                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-zinc-500">{providerLabels[selectedProvider]} 模型</label>
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-zinc-500">{t("onboarding.modelLabel", { provider: providerLabels[selectedProvider] })}</label>
                   {selectedProvider === "local" ? (
                     <>
                       <input
                         value={selectedModel}
                         onChange={(event) => setSelectedModel(event.target.value)}
                         list="lifeos-onboarding-local-models"
-                        aria-label={`${providerLabels[selectedProvider]} 模型`}
+                        aria-label={t("onboarding.modelLabel", { provider: providerLabels[selectedProvider] })}
                         disabled={busy === "ai"}
                         placeholder="llama3.1"
                         className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
@@ -275,7 +281,7 @@ export default function AdminOnboardingPage() {
                     <select
                       value={selectedModel}
                       onChange={(event) => setSelectedModel(event.target.value)}
-                      aria-label={`${providerLabels[selectedProvider]} 模型`}
+                      aria-label={t("onboarding.modelLabel", { provider: providerLabels[selectedProvider] })}
                       disabled={busy === "ai"}
                       className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
                     >
@@ -290,7 +296,7 @@ export default function AdminOnboardingPage() {
               onChange={(event) => setApiKey(event.target.value)}
               type="password"
               disabled={busy === "ai" || activeProvider?.source === "environment"}
-              placeholder={activeProvider?.id === "local" ? "http://127.0.0.1:11434/v1" : activeProvider?.source === "environment" ? `${activeProvider.envVar} 环境变量已配置` : "输入 API Key"}
+              placeholder={activeProvider?.id === "local" ? "http://127.0.0.1:11434/v1" : activeProvider?.source === "environment" ? t("onboarding.envConfigured", { envVar: activeProvider.envVar }) : t("onboarding.apiKeyPlaceholder")}
               className="mt-5 w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
             />
             <button
@@ -299,7 +305,7 @@ export default function AdminOnboardingPage() {
               className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
             >
               {busy === "ai" ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-              保存并测试
+              {t("onboarding.saveAndTest")}
             </button>
             <button
               onClick={handleSetDefaultProvider}
@@ -307,26 +313,26 @@ export default function AdminOnboardingPage() {
               className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200 disabled:opacity-50"
             >
               {busy === "ai-default" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {activeProvider?.active ? "已是默认聊天 Provider" : "设为默认聊天 Provider"}
+              {activeProvider?.active ? t("onboarding.alreadyDefault") : t("onboarding.setDefault")}
             </button>
           </section>
 
           <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-            <StepHeader done={hasBackup} icon={<DatabaseBackup className="h-5 w-5" />} title="2. 创建初始备份" />
+            <StepHeader done={hasBackup} icon={<DatabaseBackup className="h-5 w-5" />} title={t("onboarding.backupTitle")} />
             <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-              首次使用前先创建一个 SQLite 快照，之后升级、恢复和清理数据时有回退点。
+              {t("onboarding.backupDescription")}
             </p>
             <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
-              <div>数据目录：{diagnostics?.storage.dataDir || "-"}</div>
-              <div>备份保留：最近 {diagnostics?.storage.backupRetentionCount || "20"} 份</div>
-              <div>已有备份：{backups.length} 份</div>
+              <div>{t("onboarding.dataDir", { value: diagnostics?.storage.dataDir || "-" })}</div>
+              <div>{t("onboarding.retention", { count: diagnostics?.storage.backupRetentionCount || "20" })}</div>
+              <div>{t("onboarding.backupCount", { count: backups.length })}</div>
               <div>
-                自动备份：{backupSchedule?.enabled
-                  ? `已开启，每 ${backupSchedule.intervalHours} 小时`
-                  : "未开启"}
+                {backupSchedule?.enabled
+                  ? t("onboarding.backupScheduleOn", { hours: backupSchedule.intervalHours })
+                  : t("onboarding.backupScheduleOff")}
               </div>
-              {backupSchedule?.nextRunAt ? <div>下次自动备份：{new Date(backupSchedule.nextRunAt).toLocaleString()}</div> : null}
-              <div className="mt-2 truncate text-emerald-300">{latestBackup?.file || "尚未创建初始备份"}</div>
+              {backupSchedule?.nextRunAt ? <div>{t("onboarding.nextBackup", { time: new Date(backupSchedule.nextRunAt).toLocaleString() })}</div> : null}
+              <div className="mt-2 truncate text-emerald-300">{latestBackup?.file || t("onboarding.noInitialBackup")}</div>
             </div>
             <div className="mt-5 grid gap-3">
               <button
@@ -335,7 +341,7 @@ export default function AdminOnboardingPage() {
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200 disabled:opacity-50"
               >
                 {busy === "backup" ? <Loader2 className="h-4 w-4 animate-spin" /> : <DatabaseBackup className="h-4 w-4" />}
-                创建备份
+                {t("onboarding.createBackup")}
               </button>
               <button
                 onClick={handleEnableDailyBackup}
@@ -343,20 +349,20 @@ export default function AdminOnboardingPage() {
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-200 disabled:opacity-50"
               >
                 {busy === "backup-schedule" ? <Loader2 className="h-4 w-4 animate-spin" /> : <DatabaseBackup className="h-4 w-4" />}
-                {backupSchedule?.enabled ? "每日自动备份已开启" : "开启每日自动备份"}
+                {backupSchedule?.enabled ? t("onboarding.dailyBackupEnabled") : t("onboarding.enableDailyBackup")}
               </button>
             </div>
           </section>
 
           <section className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
-            <StepHeader done={hasDevice} icon={<Smartphone className="h-5 w-5" />} title="3. 绑定手机端" />
+            <StepHeader done={hasDevice} icon={<Smartphone className="h-5 w-5" />} title={t("onboarding.mobileTitle")} />
             <p className="mt-3 text-sm leading-relaxed text-zinc-400">
-              手机端是日常使用入口。进入绑定页后会生成二维码，手机扫码后会创建 WebCrypto 签名设备。
+              {t("onboarding.mobileDescription")}
             </p>
             <div className="mt-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
-              <div>已绑定设备：{devices.filter((device) => device.status !== "revoked").length} 台</div>
-              <div className="mt-2">{hasDevice ? "手机端已可作为日常入口使用。" : "建议先完成 AI Key 和备份，再绑定手机。"}</div>
-              <div className="mt-2">如果手机和电脑不在同一局域网，先打开连接向导配置局域网、Cloudflare Tunnel 或 Tailscale。</div>
+              <div>{t("onboarding.boundDevices", { count: devices.filter((device) => device.status !== "revoked").length })}</div>
+              <div className="mt-2">{hasDevice ? t("onboarding.mobileReady") : t("onboarding.mobileTodo")}</div>
+              <div className="mt-2">{t("onboarding.remoteHint")}</div>
             </div>
             <div className="mt-5 grid gap-3">
               <a
@@ -364,14 +370,14 @@ export default function AdminOnboardingPage() {
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-200"
               >
                 <Smartphone className="h-4 w-4" />
-                打开手机绑定
+                {t("onboarding.openPairing")}
               </a>
               <a
                 href="/admin/settings#mobile-connect"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 text-sm font-bold text-zinc-200"
               >
                 <ArrowRight className="h-4 w-4" />
-                打开连接向导
+                {t("onboarding.openConnectionGuide")}
               </a>
             </div>
           </section>
@@ -379,7 +385,7 @@ export default function AdminOnboardingPage() {
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <a href="/admin/settings" className="text-sm font-bold text-zinc-400 hover:text-cyan-200">
-            进入系统设置继续配置
+            {t("onboarding.continueSettings")}
           </a>
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
@@ -388,10 +394,10 @@ export default function AdminOnboardingPage() {
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#061016] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {busy === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              完成首次启动向导
+              {t("onboarding.finish")}
             </button>
             <a href="/admin/dashboard" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-3 text-sm font-bold text-zinc-200">
-              先进入控制台
+              {t("onboarding.enterDashboard")}
               <ArrowRight className="h-4 w-4" />
             </a>
           </div>

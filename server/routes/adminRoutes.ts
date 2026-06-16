@@ -5,9 +5,11 @@ import { aiProviders, deleteAiApiKey, getAiConfigStatus, getAiProviderStatus, li
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
-import { getNetworkDiagnostics, testConnectionUrl } from "../networkDiagnostics";
+import { getNetworkDiagnostics, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
+import { getManagedCloudflareTunnelStatus, startManagedCloudflareTunnel, stopManagedCloudflareTunnel } from "../cloudflareTunnel";
 import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
+import { getRemoteValidationReport, saveRemoteValidationReport } from "../remoteValidationReport";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
@@ -43,7 +45,14 @@ function aiStatusAuditMetadata(status: ReturnType<typeof getAiProviderStatus>) {
 }
 
 function getDataDirDiagnosticLabel() {
-  return process.env.LIFEOS_DATA_DIR ? "已配置自定义数据目录" : "默认数据目录";
+  return process.env.LIFEOS_DATA_DIR ? "Custom data directory configured" : "Default data directory";
+}
+
+function getAdminNetworkDiagnostics() {
+  return {
+    ...getNetworkDiagnostics(),
+    remoteValidationReport: getRemoteValidationReport(),
+  };
 }
 
 export function registerAdminRoutes(app: express.Express) {
@@ -91,12 +100,12 @@ export function registerAdminRoutes(app: express.Express) {
         recommendations: aiStatus.configured
           ? [
             aiStatus.source === "environment"
-              ? "AI 服务由环境变量配置。更换环境变量后需要重启 LifeOS AI。"
-              : `AI Key 已保存到${aiStatus.secureStorage.label}。`,
+              ? "AI service is configured by environment variables. Restart LifeOS AI after changing them."
+              : `AI Key has been saved to ${aiStatus.secureStorage.label}.`,
           ]
           : [
-            aiStatus.secureStorage.systemAvailable ? "桌面版会优先使用系统安全存储保存 AI Key。" : "当前环境会使用本地 AES-GCM 加密保存 AI Key。",
-            "也可以在 .env.local 中设置 GEMINI_API_KEY、OPENAI_API_KEY、OPENROUTER_API_KEY 或 LOCAL_MODEL_BASE_URL 后重启 LifeOS AI。",
+            aiStatus.secureStorage.systemAvailable ? "The desktop app will prefer system secure storage for AI Keys." : "This environment will store AI Keys with local AES-GCM encryption.",
+            "You can also set GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, or LOCAL_MODEL_BASE_URL in .env.local and restart LifeOS AI.",
           ],
       },
       network: {
@@ -105,8 +114,8 @@ export function registerAdminRoutes(app: express.Express) {
         publicAccessAllowed: process.env.LIFEOS_ALLOW_PUBLIC === "1",
         publicAccessWarning,
         recommendations: publicAccessWarning
-          ? ["仅通过可信 HTTPS 隧道或受控反向代理暴露服务。", "公网/LAN 模式必须显式设置 LIFEOS_ALLOW_PUBLIC=1。", "只有在可信代理后才设置 LIFEOS_TRUST_PROXY=1。"]
-          : ["当前仅本机监听，适合桌面端单机使用。"],
+          ? ["Expose the service only through a trusted HTTPS tunnel or controlled reverse proxy.", "Public/LAN mode must explicitly set LIFEOS_ALLOW_PUBLIC=1.", "Set LIFEOS_TRUST_PROXY=1 only behind a trusted proxy."]
+          : ["Currently listening on localhost only, suitable for desktop-only use."],
       },
       storage: {
         dataDir: getDataDirDiagnosticLabel(),
@@ -118,34 +127,130 @@ export function registerAdminRoutes(app: express.Express) {
           nextRunAt: backupSchedule.nextRunAt,
         },
         recommendations: backupSchedule.enabled
-          ? ["升级、恢复或开启公网访问前确认最近一次 SQLite 备份可用。"]
-          : ["升级、恢复或开启公网访问前先创建 SQLite 备份。", "长期使用建议开启自动备份计划。"],
+          ? ["Before upgrade, restore, or public access, confirm the latest SQLite backup is usable."]
+          : ["Create a SQLite backup before upgrade, restore, or public access.", "Enable scheduled backups for long-term use."],
       },
       release: {
         ...getReleaseDiagnostics(),
-        recommendations: ["发布给普通用户时同时提供安装包、USER-INSTALL.md、SHA256SUMS 和 release-manifest.json。"],
+        recommendations: ["When publishing for regular users, provide installers, USER-INSTALL.md, SHA256SUMS, and release-manifest.json."],
       },
       securityCheck: getSecurityDiagnostics(),
     });
   });
 
   app.get("/api/v1/admin/network-diagnostics", requireAdmin, (_req, res) => {
-    res.json(getNetworkDiagnostics());
+    res.json(getAdminNetworkDiagnostics());
   });
 
   app.post("/api/v1/admin/network-diagnostics/test-url", requireAdmin, async (req, res) => {
     const baseUrl = String(req.body?.baseUrl || "").trim();
+    const persist = Boolean(req.body?.persist);
+    const label = String(req.body?.label || "").trim();
     if (!baseUrl) return res.status(400).json({ error: "baseUrl is required" });
     try {
       const result = await testConnectionUrl(baseUrl);
+      const remoteValidationReport = persist
+        ? saveRemoteValidationReport({ label, baseUrl, result }, { type: "admin", id: "owner" })
+        : getRemoteValidationReport();
       insertAuditLog("network_connection_tested", "network", baseUrl, {
         ok: result.ok,
         status: result.status,
         latencyMs: result.latencyMs,
+        persisted: persist,
+        baseUrl: remoteValidationReport?.baseUrl,
       });
-      res.json({ result });
+      res.json({ result, remoteValidationReport });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Connection test failed" });
+    }
+  });
+
+  app.get("/api/v1/admin/cloudflare-tunnel", requireAdmin, (_req, res) => {
+    res.json({ tunnel: getManagedCloudflareTunnelStatus(), diagnostics: getAdminNetworkDiagnostics() });
+  });
+
+  app.post("/api/v1/admin/cloudflare-tunnel/start", requireAdmin, async (req, res) => {
+    const port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000");
+    try {
+      const tunnel = await startManagedCloudflareTunnel(port);
+      if (!tunnel.url) throw new Error("Cloudflare Tunnel did not return a public URL");
+      const config = saveDesktopRuntimeConfig({
+        mode: "cloudflare",
+        label: "Cloudflare Tunnel",
+        baseUrl: tunnel.url,
+      });
+      process.env.PUBLIC_BASE_URL = tunnel.url;
+      insertAuditLog("cloudflare_tunnel_started", "network", tunnel.url, {
+        pid: tunnel.pid,
+        url: tunnel.url,
+        configMode: config.mode,
+        publicBaseUrlConfigured: Boolean(config.publicBaseUrl),
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({
+        tunnel,
+        config,
+        diagnostics: getAdminNetworkDiagnostics(),
+        message: "Cloudflare Tunnel started. The public HTTPS address has been saved for mobile pairing.",
+      });
+    } catch (error: any) {
+      insertAuditLog("cloudflare_tunnel_start_failed", "network", "cloudflare", {
+        error: error?.message || "Cloudflare Tunnel start failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "Cloudflare Tunnel start failed", tunnel: getManagedCloudflareTunnelStatus() });
+    }
+  });
+
+  app.post("/api/v1/admin/cloudflare-tunnel/stop", requireAdmin, (req, res) => {
+    const tunnel = stopManagedCloudflareTunnel();
+    insertAuditLog("cloudflare_tunnel_stopped", "network", "cloudflare", {
+      stoppedAt: Date.now(),
+    }, (req as any).actor?.type, (req as any).actor?.id);
+    res.json({ tunnel, diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Tunnel stopped." });
+  });
+
+  app.post("/api/v1/admin/tailscale-serve/start", requireAdmin, (req, res) => {
+    const port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000");
+    try {
+      const serve = startTailscaleHttpsServe(port);
+      const config = saveDesktopRuntimeConfig({
+        mode: "tailscale",
+        label: "Tailscale HTTPS Serve",
+        baseUrl: serve.url,
+      });
+      process.env.PUBLIC_BASE_URL = serve.url;
+      insertAuditLog("tailscale_https_serve_started", "network", serve.url, {
+        command: serve.command,
+        url: serve.url,
+        configMode: config.mode,
+        publicBaseUrlConfigured: Boolean(config.publicBaseUrl),
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({
+        serve,
+        config,
+        diagnostics: getAdminNetworkDiagnostics(),
+        message: "Tailscale HTTPS Serve started. The stable Tailnet HTTPS address has been saved for mobile pairing.",
+      });
+    } catch (error: any) {
+      insertAuditLog("tailscale_https_serve_start_failed", "network", "tailscale", {
+        error: error?.message || "Tailscale HTTPS Serve start failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "Tailscale HTTPS Serve start failed", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/tailscale-serve/stop", requireAdmin, (req, res) => {
+    try {
+      const serve = stopTailscaleHttpsServe();
+      insertAuditLog("tailscale_https_serve_stopped", "network", serve.url || "tailscale", {
+        command: serve.command,
+        url: serve.url,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ serve, diagnostics: getAdminNetworkDiagnostics(), message: "Tailscale HTTPS Serve stopped." });
+    } catch (error: any) {
+      insertAuditLog("tailscale_https_serve_stop_failed", "network", "tailscale", {
+        error: error?.message || "Tailscale HTTPS Serve stop failed",
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.status(400).json({ error: error.message || "Tailscale HTTPS Serve stop failed", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 
@@ -168,7 +273,7 @@ export function registerAdminRoutes(app: express.Express) {
       res.json({
         config,
         restartRequired: true,
-        message: "桌面连接配置已保存。退出并重新打开 LifeOS AI 后生效。",
+        message: "Desktop connection configuration saved. Quit and reopen LifeOS AI for it to take effect.",
       });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Desktop connection configuration is invalid" });
@@ -192,9 +297,9 @@ export function registerAdminRoutes(app: express.Express) {
       provider: status,
       message: status.enabled
         ? status.configured
-          ? `${status.provider} 已配置。`
-          : `${status.provider} 尚未配置 Key。`
-        : `${status.provider} 配置已保存。`,
+          ? `${status.provider} is configured.`
+          : `${status.provider}  has no key configured.`
+        : `${status.provider}  configuration saved.`,
     });
   });
 

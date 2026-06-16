@@ -1,5 +1,6 @@
 import { Paperclip, Mic, Send, X } from "lucide-react";
 import type { RefObject } from "react";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type ChatInputBarProps = {
   input: string;
@@ -24,6 +25,8 @@ export default function ChatInputBar({
   onOpenVoiceMode,
   onSend,
 }: ChatInputBarProps) {
+  const { t } = useI18n();
+
   return (
     <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5 bg-gradient-to-t from-[#09090b] via-[#09090b]/95 to-transparent z-20 pt-16">
       <div className={`flex flex-col bg-[#18181b]/90 backdrop-blur-md rounded-[28px] border transition-all duration-300 shadow-2xl relative ${(input.trim() || attachedImage) ? "border-indigo-500/40 shadow-[0_4px_30px_rgba(99,102,241,0.15)]" : "border-white/[0.08]"}`}>
@@ -55,7 +58,7 @@ export default function ChatInputBar({
               onSend();
             }
           }}
-          placeholder="发送指令，或召唤新应用..."
+          placeholder={t("chat.input.placeholder")}
           rows={1}
           className="flex-1 bg-transparent pt-4 pb-2 px-5 outline-none text-[15px] font-medium text-zinc-100 placeholder-zinc-500 w-full resize-none min-h-[48px] max-h-[120px] hide-scrollbar leading-relaxed"
         />

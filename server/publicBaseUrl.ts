@@ -29,3 +29,22 @@ export function getConfiguredPublicOrigin() {
     return "";
   }
 }
+
+export function getConfiguredPublicBasePath() {
+  const baseUrl = getConfiguredPublicBaseUrl();
+  if (!baseUrl) return "";
+  try {
+    const pathname = new URL(baseUrl).pathname.replace(/\/+$/, "");
+    return pathname === "/" ? "" : pathname;
+  } catch {
+    return "";
+  }
+}
+
+export function stripConfiguredPublicBasePath(pathname: string) {
+  const basePath = getConfiguredPublicBasePath();
+  if (!basePath) return pathname || "/";
+  if (pathname === basePath) return "/";
+  if (pathname.startsWith(`${basePath}/`)) return pathname.slice(basePath.length) || "/";
+  return pathname || "/";
+}

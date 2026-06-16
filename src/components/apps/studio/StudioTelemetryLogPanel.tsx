@@ -1,3 +1,5 @@
+import { useI18n } from "../../../i18n/I18nProvider";
+
 export type StudioTelemetryLog = {
   time: string;
   text: string;
@@ -19,6 +21,8 @@ export default function StudioTelemetryLogPanel({
   onReset: () => void;
   onToggle: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className={`${compact ? "border-t" : "mt-2 rounded-xl border"} flex shrink-0 flex-col overflow-hidden border-white/[0.06] bg-[#0c0c0f] text-zinc-300`}>
       <div
@@ -41,7 +45,7 @@ export default function StudioTelemetryLogPanel({
               {compact ? "RESET" : "RESET LOGS"}
             </button>
           ) : null}
-          <span className={compact ? "text-[9px]" : ""}>{showConsole ? (compact ? "▼" : "▼ 收起") : compact ? "▲" : "▲ 展开"}</span>
+          <span className={compact ? "text-[9px]" : ""}>{showConsole ? (compact ? "▼" : t("studio.telemetry.collapse")) : compact ? "▲" : t("studio.telemetry.expand")}</span>
         </div>
       </div>
 

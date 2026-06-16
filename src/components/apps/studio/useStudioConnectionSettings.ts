@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSyncedClientState } from "../../../hooks/useSyncedClientState";
+import { useI18n } from "../../../i18n/I18nProvider";
 import { type AiProviderId, saveAiProviderKey, testAiProvider } from "../../../services/lifeosApi";
 import { clearSensitiveLocalStorageResidue } from "../../../services/sensitiveLocalStorage";
 
@@ -13,24 +14,25 @@ export type StudioProxyNode = {
 };
 
 const defaultProxyNodes: StudioProxyNode[] = [
-  { id: "cn-hk", name: "亚太高速 CN2 专线 (Hong Kong)", type: "IEPL专线", delay: 24, status: "active", speed: "124 Mbps" },
-  { id: "cn-sg", name: "亚太直连智能中转 (Singapore)", type: "BGP智能", delay: 38, status: "active", speed: "80 Mbps" },
-  { id: "cn-jp", name: "东京 BGP 高速直连 (Tokyo)", type: "BGP直连", delay: 45, status: "active", speed: "150 Mbps" },
-  { id: "cn-us", name: "美国西海岸 NTT 中转 (Silicon Valley)", type: "NTT隧道", delay: 140, status: "active", speed: "210 Mbps" },
-  { id: "cn-local", name: "本地 127.0.0.1 代理回路", type: "Loopback", delay: 2, status: "active", speed: "1000 Mbps" },
+  { id: "cn-hk", name: "Asia CN2 Express (Hong Kong)", type: "IEPL", delay: 24, status: "active", speed: "124 Mbps" },
+  { id: "cn-sg", name: "Asia Smart Relay (Singapore)", type: "BGP Smart", delay: 38, status: "active", speed: "80 Mbps" },
+  { id: "cn-jp", name: "Tokyo BGP Direct (Tokyo)", type: "BGP Direct", delay: 45, status: "active", speed: "150 Mbps" },
+  { id: "cn-us", name: "US West NTT Relay (Silicon Valley)", type: "NTT Tunnel", delay: 140, status: "active", speed: "210 Mbps" },
+  { id: "cn-local", name: "Local 127.0.0.1 Proxy Loop", type: "Loopback", delay: 2, status: "active", speed: "1000 Mbps" },
 ];
 
 function summarizeProxySubscriptionUrl(value: string) {
   try {
     const parsed = new URL(value);
-    return parsed.host || "订阅链接";
+    return parsed.host || "subscription";
   } catch {
-    return "订阅链接";
+    return "subscription";
   }
 }
 
 export function useStudioConnectionSettings() {
-  const [byokProvider, setByokProvider] = useSyncedClientState("lifeos_byok_provider", "Google Gemini (推荐)");
+  const { t } = useI18n();
+  const [byokProvider, setByokProvider] = useSyncedClientState("lifeos_byok_provider", "Google Gemini");
   const [byokKey, setByokKey] = useState("");
   const [proxyEnabled, setProxyEnabled] = useSyncedClientState("lifeos_proxy_enabled", false);
   const [proxyUrl, setProxyUrl] = useState("");
@@ -43,6 +45,7 @@ export function useStudioConnectionSettings() {
   const [isPinging, setIsPinging] = useState(false);
   const [isSyncingSub, setIsSyncingSub] = useState(false);
   const [subSyncResult, setSubSyncResult] = useState("");
+  const [subSyncSucceeded, setSubSyncSucceeded] = useState(false);
 
   const handleProviderChange = (value: string) => {
     setByokProvider(value);
@@ -59,6 +62,7 @@ export function useStudioConnectionSettings() {
   const handleProxyUrlChange = (value: string) => {
     setProxyUrl(value);
     setSubSyncResult("");
+    setSubSyncSucceeded(false);
   };
 
   useEffect(() => {
@@ -68,29 +72,29 @@ export function useStudioConnectionSettings() {
   const providerIdFromLabel = (label: string): AiProviderId => {
     if (/openrouter/i.test(label)) return "openrouter";
     if (/openai|gpt/i.test(label)) return "openai";
-    if (/local|本地/i.test(label)) return "local";
+    if (/local|\u672c\u5730/i.test(label)) return "local";
     return "gemini";
   };
 
   const testApiConnection = async () => {
     if (!byokKey.trim()) {
       setApiTestStatus("error");
-      setApiTestResult("请输入合法的 API Key 后再发起检查。密码框内容为空！");
+      setApiTestResult(t("studio.connection.emptyApiKey"));
       return;
     }
     setApiTestStatus("testing");
-    setApiTestResult("正在把配置写入电脑端安全存储，并检查 " + byokProvider + " 的后端状态...");
+    setApiTestResult(t("studio.connection.testingProvider", { provider: byokProvider }));
 
     try {
       const providerId = providerIdFromLabel(byokProvider);
       await saveAiProviderKey(providerId, byokKey.trim());
       const result = await testAiProvider(providerId);
       setApiTestStatus("success");
-      setApiTestResult(result.message + " 密钥仅保存在电脑端安全存储，不再写入手机或浏览器 localStorage。");
+      setApiTestResult(t("studio.connection.testSuccess", { message: result.message }));
       setByokKey("");
     } catch (error) {
       setApiTestStatus("error");
-      setApiTestResult(error instanceof Error ? error.message : "连接测试失败，请检查密钥或本地模型端点。");
+      setApiTestResult(error instanceof Error ? error.message : t("studio.connection.testFailed"));
     }
   };
 
@@ -114,23 +118,26 @@ export function useStudioConnectionSettings() {
 
   const syncSubscription = () => {
     if (!proxyUrl.trim()) {
-      setSubSyncResult("未检测到合法的订阅 URL 链接。请输入后再试。");
+      setSubSyncResult(t("studio.connection.subscriptionMissing"));
+      setSubSyncSucceeded(false);
       return;
     }
     setIsSyncingSub(true);
-    setSubSyncResult("正在拉取 " + summarizeProxySubscriptionUrl(proxyUrl) + " 的订阅文件配置...");
+    setSubSyncSucceeded(false);
+    setSubSyncResult(t("studio.connection.subscriptionFetching", { host: summarizeProxySubscriptionUrl(proxyUrl) }));
 
     setTimeout(() => {
       const importedNodes: StudioProxyNode[] = [
-        { id: "sub-ali01", name: "阿里云专线加速 01 (Hong Kong)", type: "IEPL中继", delay: 18, status: "active", speed: "150 Mbps" },
-        { id: "sub-ali02", name: "阿里云专线加速 02 (Singapore)", type: "IEPL中继", delay: 35, status: "active", speed: "180 Mbps" },
-        { id: "sub-tx01", name: "腾讯云三网优管家 01 (Tokyo)", type: "CN2高级", delay: 42, status: "active", speed: "200 Mbps" },
+        { id: "sub-ali01", name: "Aliyun Express 01 (Hong Kong)", type: "IEPL Relay", delay: 18, status: "active", speed: "150 Mbps" },
+        { id: "sub-ali02", name: "Aliyun Express 02 (Singapore)", type: "IEPL Relay", delay: 35, status: "active", speed: "180 Mbps" },
+        { id: "sub-tx01", name: "Tencent Smart Route 01 (Tokyo)", type: "CN2 Premium", delay: 42, status: "active", speed: "200 Mbps" },
       ];
 
       setProxyNodes([...importedNodes, ...proxyNodes.filter((node) => !node.id.startsWith("sub-"))]);
       setSelectedNodeId("sub-ali01");
       setIsSyncingSub(false);
-      setSubSyncResult("成功同步订阅！节点装载完成：已成功捕获并解析 3 个企业级高速专线节点，已默认切换至最低延迟物理专线。");
+      setSubSyncSucceeded(true);
+      setSubSyncResult(t("studio.connection.subscriptionSuccess"));
       setProxyEnabled(true);
       setProxyUrl("");
     }, 1800);
@@ -154,6 +161,7 @@ export function useStudioConnectionSettings() {
     routeMode,
     selectedNodeId,
     setProxyEnabled,
+    subSyncSucceeded,
     subSyncResult,
     syncSubscription,
     testAllPings,

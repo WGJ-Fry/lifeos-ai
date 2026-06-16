@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#060a10" />
-    <title>LifeOS AI 离线</title>
+    <title>LifeOS AI Offline</title>
     <style>
       :root {
         color-scheme: dark;
@@ -89,15 +89,15 @@
   <body>
     <main>
       <div class="icon">AI</div>
-      <h1>当前离线</h1>
-      <p>LifeOS 手机端已经打开离线壳。未同步消息会留在本机队列，网络恢复后会自动补写到电脑端 SQLite。</p>
+      <h1>You are offline</h1>
+      <p>LifeOS mobile has opened the offline shell. Unsynced messages stay in the local queue and will be written back to desktop SQLite after the network returns.</p>
       <div id="offline-queue-status" class="queue" hidden></div>
       <div class="actions">
-        <a class="primary" href="/mobile/chat">返回聊天</a>
-        <a class="secondary" href="/mobile/device">查看设备与离线队列</a>
-        <button type="button" onclick="location.reload()">重新连接</button>
+        <a class="primary" href="/mobile/chat">Back to Chat</a>
+        <a class="secondary" href="/mobile/device">Device & Offline Queue</a>
+        <button type="button" onclick="location.reload()">Reconnect</button>
       </div>
-      <div class="hint">如果你正在异地使用，请确认电脑端仍在运行，并检查 Cloudflare Tunnel、Tailscale 或同局域网连接状态。</div>
+      <div class="hint">If you are using LifeOS remotely, make sure the desktop core is still running and check Cloudflare Tunnel, Tailscale, or same-LAN connectivity.</div>
     </main>
     <script>
       (function () {
@@ -150,15 +150,15 @@
           var failed = queue.filter(function (item) { return item && item.status === "failed"; }).length;
           var syncing = queue.filter(function (item) { return item && item.status === "syncing"; }).length;
           var pending = Math.max(0, queue.length - failed - syncing);
-          box.innerHTML = "本机还有 <strong>" + queue.length + "</strong> 条离线消息：" +
-            pending + " 条待同步、" + syncing + " 条同步中、" + failed + " 条失败。网络恢复后会自动重试，也可以进入设备页单条处理。" +
-            "<span class=\"queue-source\">队列来源：" + source + "</span>";
+          box.innerHTML = "This device still has <strong>" + queue.length + "</strong> offline message(s): " +
+            pending + " pending, " + syncing + " syncing, " + failed + " failed. They will retry after the network returns, or you can handle them one by one on the device page." +
+            "<span class=\"queue-source\">Queue source: " + source + "</span>";
           box.hidden = false;
         }
         readIndexedQueue().then(function (indexedQueue) {
-          renderQueue(indexedQueue.length ? indexedQueue : readLegacyQueue(), indexedQueue.length ? "IndexedDB" : "localStorage 兼容镜像");
+          renderQueue(indexedQueue.length ? indexedQueue : readLegacyQueue(), indexedQueue.length ? "IndexedDB" : "localStorage compatibility mirror");
         }).catch(function () {
-          renderQueue(readLegacyQueue(), "localStorage 兼容镜像");
+          renderQueue(readLegacyQueue(), "localStorage compatibility mirror");
         }).catch(function () {
           box.hidden = true;
         });

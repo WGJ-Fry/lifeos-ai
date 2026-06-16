@@ -1,4 +1,5 @@
 import { Settings2, Sparkles, User } from "lucide-react";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type MobileChatHeaderProps = {
   onOpenStudio: () => void;
@@ -6,6 +7,8 @@ type MobileChatHeaderProps = {
 };
 
 export default function MobileChatHeader({ onOpenStudio, onOpenProfile }: MobileChatHeaderProps) {
+  const { t } = useI18n();
+
   return (
     <div className="px-5 py-4 bg-[#09090b]/80 backdrop-blur-2xl flex items-center justify-between sticky top-0 z-20 border-b border-white/[0.04]">
       <div className="flex items-center space-x-3">
@@ -27,7 +30,7 @@ export default function MobileChatHeader({ onOpenStudio, onOpenProfile }: Mobile
         <button
           onClick={onOpenStudio}
           className="w-10 h-10 flex items-center justify-center rounded-full bg-white/[0.03] hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-colors border border-white/[0.05]"
-          title="进入后端"
+          title={t("chat.mobileHeader.openBackend")}
         >
           <Settings2 className="w-[18px] h-[18px]" />
         </button>

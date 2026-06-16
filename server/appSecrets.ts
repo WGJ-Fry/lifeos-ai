@@ -37,7 +37,7 @@ export const aiProviders = [
   },
   {
     id: "local",
-    name: "本地模型",
+    name: "Local Model",
     envVar: "LOCAL_MODEL_BASE_URL",
     secretId: "ai.local_model.endpoint",
     enabled: true,
@@ -90,14 +90,14 @@ function getPreferredSecretStorage(): SecretStorageKind {
 }
 
 function getSecretStorageLabel(storage: SecretStorageKind) {
-  return storage === "electron_safe_storage" ? getSystemSecureStoreName() : "本地 AES-GCM 加密文件";
+  return storage === "electron_safe_storage" ? getSystemSecureStoreName() : "Local AES-GCM encrypted file";
 }
 
 function getSystemSecureStoreName(platform = process.platform) {
   if (platform === "darwin") return "macOS Keychain";
-  if (platform === "win32") return "Windows 系统凭据";
+  if (platform === "win32") return "Windows system credential store";
   if (platform === "linux") return "Linux Secret Service";
-  return "系统安全存储";
+  return "System secure storage";
 }
 
 function getSecretStorageStatus(row?: { secret_storage?: SecretStorageKind } | null) {
@@ -110,7 +110,7 @@ function getSecretStorageStatus(row?: { secret_storage?: SecretStorageKind } | n
     label: getSecretStorageLabel(current || preferred),
     systemAvailable,
     systemName: getSystemSecureStoreName(),
-    fallbackLabel: "本地 AES-GCM 加密文件",
+    fallbackLabel: "Local AES-GCM encrypted file",
     fallbackActive: current === "local_aes_gcm" || (!current && !systemAvailable),
     migrationRecommended: Boolean(current === "local_aes_gcm" && systemAvailable),
   };

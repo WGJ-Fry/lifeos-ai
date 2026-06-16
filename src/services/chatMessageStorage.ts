@@ -7,7 +7,7 @@ export const defaultChatMessages: Message[] = [
     role: "model",
     parts: [
       {
-        text: "早上好。我是 JARVIS 全能智能设计工坊系统。\n你可以随时将任意代码（tsx、vue、py、html 等）或 UI 截图拖入窗口，我将自动重定义或临时创造全新的交互控件！",
+        text: "Good morning. I am JARVIS, your intelligent design workshop system.\nDrop code (tsx, vue, py, html, and more) or UI screenshots into the window at any time, and I can redefine or create new interactive controls for you.",
       },
     ],
   },

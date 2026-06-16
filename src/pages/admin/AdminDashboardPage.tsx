@@ -4,11 +4,14 @@ import { Activity, AlertTriangle, Brain, DatabaseBackup, Download, Eye, KeyRound
 import { BoundDevice, ChatSession, MemoryRecord, backupDownloadUrl, createBackup, getHealth, listBackups, listChatSessions, listDevices, listMemories, logoutAdmin, previewBackup, requestDeviceTokenRotation, restoreBackup, revokeDevice } from "../../services/lifeosApi";
 import type { BackupPreview } from "../../services/lifeosApi";
 import { buildRestoreConfirmMessage } from "../../services/backupRestoreUi";
+import LanguageSwitcher from "../../i18n/LanguageSwitcher";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type Health = Awaited<ReturnType<typeof getHealth>>;
 type BackupItem = Awaited<ReturnType<typeof listBackups>>["backups"][number];
 
 export default function AdminDashboardPage() {
+  const { t } = useI18n();
   const [health, setHealth] = useState<Health | null>(null);
   const [devices, setDevices] = useState<BoundDevice[]>([]);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -29,7 +32,7 @@ export default function AdminDashboardPage() {
       setMemories(memoryData.memories);
       setBackups(backupData.backups);
     } catch (err: any) {
-      setError(err.message || "加载控制台状态失败");
+      setError(err.message || "Failed to load console status");
     }
   };
 
@@ -47,7 +50,7 @@ export default function AdminDashboardPage() {
       setBackupPreview(result.preview);
       return result.preview;
     } catch (err: any) {
-      setError(err.message || "读取备份预览失败");
+      setError(err.message || t("dashboard.backupPreviewFailed"));
       return null;
     } finally {
       setBusyBackupFile(null);
@@ -62,10 +65,10 @@ export default function AdminDashboardPage() {
     setBusyBackupFile(`restore-${backup.file}`);
     try {
       const result = await restoreBackup(backup.file);
-      window.alert(`已安排下次启动恢复。\n恢复前备份：${result.restore.preRestoreBackup.file}\n请重启 LifeOS AI 让恢复生效。`);
+      window.alert(t("dashboard.restoreAlert", { file: result.restore.preRestoreBackup.file }));
       await refresh();
     } catch (err: any) {
-      setError(err.message || "安排恢复失败");
+      setError(err.message || t("dashboard.restoreFailed"));
     } finally {
       setBusyBackupFile(null);
     }
@@ -77,24 +80,25 @@ export default function AdminDashboardPage() {
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">LifeOS Local Core</h1>
-            <p className="text-sm text-zinc-400 mt-1">电脑端 AI 基站控制台</p>
+            <p className="text-sm text-zinc-400 mt-1">{t("dashboard.subtitle")}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <LanguageSwitcher compact />
             <a href="/admin/chat" className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-bold hover:bg-white/[0.06]">
               <MessageSquareText className="w-4 h-4" />
-              会话历史
+              {t("dashboard.chatHistory")}
             </a>
             <a href="/admin/memory" className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-bold hover:bg-white/[0.06]">
               <Brain className="w-4 h-4" />
-              记忆
+              {t("dashboard.memory")}
             </a>
             <a href="/admin/settings" className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-bold hover:bg-white/[0.06]">
               <Settings className="w-4 h-4" />
-              设置
+              {t("common.settings")}
             </a>
             <button onClick={refresh} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-bold">
               <RefreshCw className="w-4 h-4" />
-              刷新
+              {t("common.refresh")}
             </button>
             <button
               onClick={async () => {
@@ -104,11 +108,11 @@ export default function AdminDashboardPage() {
               className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-bold"
             >
               <LogOut className="w-4 h-4" />
-              退出
+              {t("common.logout")}
             </button>
             <a href="/admin/devices/pair" className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-sm font-bold text-[#061016]">
               <Plus className="w-4 h-4" />
-              绑定手机
+              {t("dashboard.bindPhone")}
             </a>
           </div>
         </header>
@@ -118,7 +122,7 @@ export default function AdminDashboardPage() {
             {error}
             {error.includes("authentication") || error.includes("Authentication") ? (
               <a href="/admin/login" className="ml-3 font-bold text-cyan-200 underline">
-                去登录
+                {t("dashboard.loginLink")}
               </a>
             ) : null}
           </div>
@@ -129,9 +133,9 @@ export default function AdminDashboardPage() {
             <div className="flex gap-3">
               <AlertTriangle className={`mt-0.5 h-4 w-4 flex-shrink-0 ${health.publicSetupRisk ? "text-red-300" : "text-amber-300"}`} />
               <div className="min-w-0 flex-1">
-                <div className="font-bold">{health.publicSetupRisk ? "公网/异地访问存在待处理风险" : "当前服务可能被局域网或公网访问"}</div>
+                <div className="font-bold">{health.publicSetupRisk ? t("dashboard.publicRiskTitle") : t("dashboard.publicAccessTitle")}</div>
                 <div className={`mt-1 ${health.publicSetupRisk ? "text-red-100/75" : "text-amber-100/75"}`}>
-                  LIFEOS_HOST={health.host || "-"}{health.publicBaseUrl ? `，PUBLIC_BASE_URL=${health.publicBaseUrl}` : ""}。{health.publicSetupRisk ? "请先处理下面的安全自检项，再长期开放给手机异地访问。" : "安全自检已通过，仍建议只通过可信隧道暴露服务。"}
+                  LIFEOS_HOST={health.host || "-"}{health.publicBaseUrl ? `, PUBLIC_BASE_URL=${health.publicBaseUrl}` : ""}. {health.publicSetupRisk ? t("dashboard.publicRiskBody") : t("dashboard.publicSafeBody")}
                 </div>
                 {health.publicRisk?.items?.length ? (
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -140,7 +144,7 @@ export default function AdminDashboardPage() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="font-bold text-zinc-100">{item.label}</div>
                           <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${item.status === "critical" ? "bg-red-500/15 text-red-100" : "bg-amber-500/15 text-amber-100"}`}>
-                            {item.status === "critical" ? "必须处理" : "建议处理"}
+                            {item.status === "critical" ? t("dashboard.mustFix") : t("dashboard.shouldFix")}
                           </span>
                         </div>
                         <div className="mt-1 text-xs leading-relaxed text-zinc-300">{item.message}</div>
@@ -152,11 +156,11 @@ export default function AdminDashboardPage() {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <a href="/admin/settings" className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-zinc-100">
                     <Settings className="h-3.5 w-3.5" />
-                    打开安全设置
+                    {t("dashboard.openSecuritySettings")}
                   </a>
                   <a href="/admin/settings#backup-schedule" className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-100">
                     <DatabaseBackup className="h-3.5 w-3.5" />
-                    开启自动备份
+                    {t("dashboard.enableAutoBackup")}
                   </a>
                   <button
                     onClick={async () => {
@@ -166,7 +170,7 @@ export default function AdminDashboardPage() {
                     className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-100"
                   >
                     <DatabaseBackup className="h-3.5 w-3.5" />
-                    立即创建备份
+                    {t("dashboard.createBackupNow")}
                   </button>
                 </div>
               </div>
@@ -175,10 +179,10 @@ export default function AdminDashboardPage() {
         )}
 
         <section className="grid md:grid-cols-4 gap-4 mb-6">
-          <Metric icon={<Server className="w-5 h-5" />} label="服务状态" value={health?.ok ? "Online" : "Unknown"} tone="cyan" />
-          <Metric icon={<Smartphone className="w-5 h-5" />} label="已绑定设备" value={String(health?.deviceCount ?? "-")} tone="blue" />
-          <Metric icon={<Wifi className="w-5 h-5" />} label="在线设备" value={String(health?.onlineDeviceCount ?? "-")} tone="green" />
-          <Metric icon={<MessageSquareText className="w-5 h-5" />} label="网络模式" value={health?.networkMode === "lan" ? "LAN" : "Local"} tone={health?.networkMode === "lan" ? "amber" : "cyan"} />
+          <Metric icon={<Server className="w-5 h-5" />} label={t("dashboard.serviceStatus")} value={health?.ok ? "Online" : "Unknown"} tone="cyan" />
+          <Metric icon={<Smartphone className="w-5 h-5" />} label={t("dashboard.boundDevices")} value={String(health?.deviceCount ?? "-")} tone="blue" />
+          <Metric icon={<Wifi className="w-5 h-5" />} label={t("dashboard.onlineDevices")} value={String(health?.onlineDeviceCount ?? "-")} tone="green" />
+          <Metric icon={<MessageSquareText className="w-5 h-5" />} label={t("dashboard.networkMode")} value={health?.networkMode === "lan" ? "LAN" : "Local"} tone={health?.networkMode === "lan" ? "amber" : "cyan"} />
         </section>
 
         <section className="grid md:grid-cols-3 gap-4 mb-6">
@@ -188,8 +192,8 @@ export default function AdminDashboardPage() {
                 <MessageSquareText className="w-5 h-5" />
               </div>
               <div>
-                <div className="font-bold">查看长期会话</div>
-                <div className="text-sm text-zinc-500 mt-1">浏览 SQLite 中保存的手机端与电脑端聊天记录。</div>
+                <div className="font-bold">{t("dashboard.viewLongChats")}</div>
+                <div className="text-sm text-zinc-500 mt-1">{t("dashboard.viewLongChatsBody")}</div>
               </div>
             </div>
           </a>
@@ -199,8 +203,8 @@ export default function AdminDashboardPage() {
                 <Brain className="w-5 h-5" />
               </div>
               <div>
-                <div className="font-bold">管理长期记忆</div>
-                <div className="text-sm text-zinc-500 mt-1">{memories.length} 条记忆会优先进入聊天上下文。</div>
+                <div className="font-bold">{t("dashboard.manageMemory")}</div>
+                <div className="text-sm text-zinc-500 mt-1">{t("dashboard.memoryContext", { count: memories.length })}</div>
               </div>
             </div>
           </a>
@@ -210,8 +214,8 @@ export default function AdminDashboardPage() {
                 <KeyRound className="w-5 h-5" />
               </div>
               <div>
-                <div className="font-bold">AI Key {health?.aiConfigured ? "已配置" : "未配置"}</div>
-                <div className="text-sm text-zinc-500 mt-1">未配置时，设备绑定和历史记录可用，AI 回复会失败。</div>
+                <div className="font-bold">{health?.aiConfigured ? t("dashboard.aiKeyConfigured") : t("dashboard.aiKeyMissing")}</div>
+                <div className="text-sm text-zinc-500 mt-1">{t("dashboard.aiKeyMissingBody")}</div>
               </div>
             </div>
           </div>
@@ -221,7 +225,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
             <div className="font-bold flex items-center gap-2">
               <DatabaseBackup className="w-4 h-4 text-emerald-300" />
-              数据库备份
+              {t("dashboard.databaseBackups")}
             </div>
             <button
               onClick={async () => {
@@ -231,11 +235,11 @@ export default function AdminDashboardPage() {
               className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200"
             >
               <Plus className="w-3.5 h-3.5" />
-              创建备份
+              {t("backup.create")}
             </button>
           </div>
           {backups.length === 0 ? (
-            <div className="p-6 text-sm text-zinc-400">还没有备份。建议在升级、恢复或长期外网使用前创建一次备份。</div>
+            <div className="p-6 text-sm text-zinc-400">{t("dashboard.noBackups")}</div>
           ) : (
             <div className="divide-y divide-white/[0.06]">
               {backups.slice(0, 5).map((backup) => (
@@ -247,20 +251,20 @@ export default function AdminDashboardPage() {
                   <div className="flex items-center gap-3">
                     <a href={backupDownloadUrl(backup.file)} className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-cyan-200">
                       <Download className="h-3.5 w-3.5" />
-                      下载
+                      {t("dashboard.download")}
                     </a>
                     <button
                       onClick={() => loadBackupPreview(backup)}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-zinc-300 hover:text-zinc-100"
                     >
                       <Eye className="h-3.5 w-3.5" />
-                      {busyBackupFile === `preview-${backup.file}` ? "读取中" : "预览"}
+                      {busyBackupFile === `preview-${backup.file}` ? t("common.reading") : t("common.preview")}
                     </button>
                     <button
                       onClick={() => restoreWithPreview(backup)}
                       className="text-xs font-bold text-amber-300 hover:text-amber-200"
                     >
-                      {busyBackupFile === `restore-${backup.file}` ? "安排中" : "恢复"}
+                      {busyBackupFile === `restore-${backup.file}` ? t("dashboard.scheduling") : t("dashboard.restore")}
                     </button>
                   </div>
                 </div>
@@ -271,13 +275,13 @@ export default function AdminDashboardPage() {
             <div className="border-t border-white/[0.06] bg-[#0b111a] p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <div className="font-bold text-zinc-100">恢复前预览：{backupPreview.backup.file}</div>
+                  <div className="font-bold text-zinc-100">{t("dashboard.preRestorePreview", { file: backupPreview.backup.file })}</div>
                   <div className="mt-1 text-xs text-zinc-500">
-                    大小：{(backupPreview.backup.size / 1024).toFixed(1)} KB · 创建时间：{backupPreview.backup.createdAt ? new Date(backupPreview.backup.createdAt).toLocaleString() : "未知"}
+                    {t("dashboard.backupMeta", { size: (backupPreview.backup.size / 1024).toFixed(1), time: backupPreview.backup.createdAt ? new Date(backupPreview.backup.createdAt).toLocaleString() : t("dashboard.unknown") })}
                   </div>
                 </div>
                 <div className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-xs font-bold text-zinc-300">
-                  {backupPreview.migrations.length} 个 migration
+                  {t("dashboard.migrationCount", { count: backupPreview.migrations.length })}
                 </div>
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -290,15 +294,15 @@ export default function AdminDashboardPage() {
               </div>
               {backupPreview.sensitiveData ? (
                 <div className={`mt-3 rounded-2xl border p-3 text-xs leading-relaxed ${backupPreview.sensitiveData.ordinaryBackupExcludesSecrets ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
-                  <div className="font-bold">{backupPreview.sensitiveData.ordinaryBackupExcludesSecrets ? "普通备份已排除敏感密钥" : "备份仍包含敏感数据"}</div>
+                  <div className="font-bold">{backupPreview.sensitiveData.ordinaryBackupExcludesSecrets ? t("dashboard.ordinaryBackupSafe") : t("dashboard.backupHasSensitive")}</div>
                   <div className="mt-1">
-                    AI Key 记录：{backupPreview.sensitiveData.appSecretsRows}，敏感客户端状态：{backupPreview.sensitiveData.sensitiveClientStateRows}。
-                    {backupPreview.sensitiveData.ordinaryBackupExcludesSecrets ? "恢复后需要在设置里重新配置 AI Key。" : "请改用加密备份或重新创建安全备份。"}
+                    {t("dashboard.sensitiveRows", { keys: backupPreview.sensitiveData.appSecretsRows, states: backupPreview.sensitiveData.sensitiveClientStateRows })}
+                    {backupPreview.sensitiveData.ordinaryBackupExcludesSecrets ? t("dashboard.reconfigureAiKeyAfterRestore") : t("dashboard.useEncryptedBackup")}
                   </div>
                 </div>
               ) : null}
               <div className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
-                <div className="font-bold">恢复风险说明</div>
+                <div className="font-bold">{t("dashboard.restoreRisk")}</div>
                 <ul className="mt-1 list-disc space-y-1 pl-4">
                   {backupPreview.warnings.map((warning) => (
                     <li key={warning}>{warning}</li>
@@ -313,14 +317,14 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
             <div className="font-bold flex items-center gap-2">
               <Activity className="w-4 h-4 text-cyan-300" />
-              已绑定设备
+              {t("dashboard.boundDevices")}
             </div>
-            <div className="text-xs text-zinc-500">每 5 秒自动刷新</div>
+            <div className="text-xs text-zinc-500">{t("dashboard.autoRefresh")}</div>
           </div>
 
           {devices.length === 0 ? (
             <div className="p-10 text-center text-sm text-zinc-400">
-              还没有绑定手机。点击右上角“绑定手机”生成二维码。
+              {t("dashboard.noDevices")}
             </div>
           ) : (
             <div className="divide-y divide-white/[0.06]">
@@ -329,12 +333,22 @@ export default function AdminDashboardPage() {
                   <div className="min-w-0">
                     <div className="font-bold truncate">{device.name}</div>
                     <div className="text-xs text-zinc-500 mt-1">
-                      {device.type} · 最后在线 {new Date(device.lastSeenAt).toLocaleString()}
+                      {device.type} · {t("dashboard.lastSeen", { time: new Date(device.lastSeenAt).toLocaleString() })}
                     </div>
+                    {device.connectivityReport ? (
+                      <div className={`mt-2 text-xs leading-relaxed ${device.connectivityReport.ok ? "text-emerald-300" : "text-amber-300"}`}>
+                        {t(device.connectivityReport.ok ? "dashboard.mobileConnectivityOk" : "dashboard.mobileConnectivityFail", {
+                          time: new Date(device.connectivityReport.createdAt).toLocaleString(),
+                          url: device.connectivityReport.currentBaseUrl,
+                        })}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-xs text-zinc-600">{t("dashboard.mobileConnectivityMissing")}</div>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`text-xs font-bold rounded-full px-2.5 py-1 border ${device.status === "online" ? "bg-emerald-500/10 border-emerald-400/20 text-emerald-300" : "bg-white/[0.03] border-white/[0.08] text-zinc-400"}`}>
-                      {device.status === "online" ? "在线" : "离线"}
+                      {device.status === "online" ? t("dashboard.online") : t("dashboard.offline")}
                     </span>
                     <button
                       disabled={busyDeviceId === device.id}
@@ -343,7 +357,7 @@ export default function AdminDashboardPage() {
                         try {
                           const result = await requestDeviceTokenRotation(device.id);
                           if (!result.delivered) {
-                            window.alert("这台设备当前不在线，刷新凭证请求未送达。可以等设备上线后再试，或直接撤销后重新绑定。");
+                            window.alert(t("dashboard.deviceOfflineRotate"));
                           }
                         } finally {
                           setBusyDeviceId(null);
@@ -352,7 +366,7 @@ export default function AdminDashboardPage() {
                       }}
                       className="text-xs font-bold text-cyan-300 hover:text-cyan-200 disabled:opacity-50"
                     >
-                      刷新凭证
+                      {t("dashboard.refreshCredential")}
                     </button>
                     <button
                       onClick={async () => {
@@ -361,7 +375,7 @@ export default function AdminDashboardPage() {
                       }}
                       className="text-xs font-bold text-red-300 hover:text-red-200"
                     >
-                      撤销
+                      {t("dashboard.revoke")}
                     </button>
                   </div>
                 </div>

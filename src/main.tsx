@@ -2,9 +2,13 @@ import {StrictMode, Suspense, lazy} from 'react';
 import {createRoot} from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { clearSensitiveLocalStorageResidue } from './services/sensitiveLocalStorage';
+import { I18nProvider, useI18n } from './i18n/I18nProvider';
+import { getLifeOSBasePath } from './services/lifeosApi';
 import './index.css';
 
 clearSensitiveLocalStorageResidue();
+
+const lifeosBasePath = getLifeOSBasePath();
 
 const App = lazy(() => import('./App.tsx'));
 const AdminChatPage = lazy(() => import('./pages/admin/AdminChatPage.tsx'));
@@ -20,11 +24,12 @@ const MobileDevicePage = lazy(() => import('./pages/mobile/MobileDevicePage.tsx'
 const MobilePairPage = lazy(() => import('./pages/mobile/MobilePairPage.tsx'));
 
 function RouteFallback() {
+  const { t } = useI18n();
   return (
     <div className="min-h-screen bg-[#060a10] text-zinc-100 flex items-center justify-center">
       <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 text-sm font-bold text-zinc-300">
         <div className="w-2 h-2 rounded-full bg-cyan-300 animate-pulse" />
-        正在载入 LifeOS...
+        {t("common.loadingLifeos")}
       </div>
     </div>
   );
@@ -32,27 +37,29 @@ function RouteFallback() {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route path="/" element={<Navigate to={window.innerWidth < 700 ? "/mobile/chat" : "/admin/login"} replace />} />
-          <Route path="/chat" element={<App />} />
-          <Route path="/mobile/actions" element={<MobileActionsPage />} />
-          <Route path="/mobile/chat" element={<MobileChatPage />} />
-          <Route path="/mobile/device" element={<MobileDevicePage />} />
-          <Route path="/mobile/install/:token" element={<MobilePairPage />} />
-          <Route path="/mobile/pair" element={<MobilePairPage />} />
-          <Route path="/admin/login" element={<AdminLoginPage />} />
-          <Route path="/admin/onboarding" element={<AdminOnboardingPage />} />
-          <Route path="/admin/chat" element={<AdminChatPage />} />
-          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-          <Route path="/admin/memory" element={<AdminMemoryPage />} />
-          <Route path="/admin/settings" element={<AdminSettingsPage />} />
-          <Route path="/admin/devices/pair" element={<DevicePairPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+    <I18nProvider>
+      <BrowserRouter basename={lifeosBasePath || undefined}>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            <Route path="/" element={<Navigate to={window.innerWidth < 700 ? "/mobile/chat" : "/admin/login"} replace />} />
+            <Route path="/chat" element={<App />} />
+            <Route path="/mobile/actions" element={<MobileActionsPage />} />
+            <Route path="/mobile/chat" element={<MobileChatPage />} />
+            <Route path="/mobile/device" element={<MobileDevicePage />} />
+            <Route path="/mobile/install/:token" element={<MobilePairPage />} />
+            <Route path="/mobile/pair" element={<MobilePairPage />} />
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/admin/onboarding" element={<AdminOnboardingPage />} />
+            <Route path="/admin/chat" element={<AdminChatPage />} />
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/memory" element={<AdminMemoryPage />} />
+            <Route path="/admin/settings" element={<AdminSettingsPage />} />
+            <Route path="/admin/devices/pair" element={<DevicePairPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </I18nProvider>
   </StrictMode>,
 );
 
@@ -65,7 +72,7 @@ if ("serviceWorker" in navigator && (import.meta as any).env?.PROD) {
   });
 
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js")
+    navigator.serviceWorker.register(`${lifeosBasePath}/sw.js`, { scope: `${lifeosBasePath || "/"}` })
       .then((registration) => {
         registration.waiting?.postMessage({ type: "LIFEOS_SKIP_WAITING" });
         registration.addEventListener("updatefound", () => {

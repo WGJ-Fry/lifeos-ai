@@ -22,11 +22,11 @@ export function formatBackupTableSummary(tables: BackupPreview["tables"]) {
 }
 
 export function buildRestoreConfirmMessage(backupFile: string, preview: Pick<BackupPreview, "tables">) {
-  return `安排恢复备份 ${backupFile}？\n\n备份预览：\n${formatBackupTableSummary(preview.tables)}\n\n系统会先创建恢复前备份，然后在下次启动前替换当前 SQLite。`;
+  return `Schedule restore for backup ${backupFile}?\n\nBackup preview:\n${formatBackupTableSummary(preview.tables)}\n\nThe system will create a pre-restore backup first, then replace the current SQLite database before the next startup.`;
 }
 
 export function formatCleanupSummary(cleanup: CleanupPreview) {
-  return `预计删除 ${cleanup.backupsDeleted} 个备份、${cleanup.auditLogsDeleted} 条审计、${cleanup.chatSessionsDeleted} 个会话、${cleanup.messagesDeleted} 条消息。`;
+  return `Estimated cleanup: ${cleanup.backupsDeleted} backup(s), ${cleanup.auditLogsDeleted} audit log(s), ${cleanup.chatSessionsDeleted} chat session(s), ${cleanup.messagesDeleted} message(s).`;
 }
 
 export function buildCleanupPolicyOptions(input: CleanupPolicyInput): CleanupPolicyResult {
@@ -34,10 +34,10 @@ export function buildCleanupPolicyOptions(input: CleanupPolicyInput): CleanupPol
   const auditOlderThanDays = Number(input.auditOlderThanDays);
   const chatOlderThanDays = Number(input.chatOlderThanDays);
   if (!Number.isFinite(backupKeepCount) || backupKeepCount < 1) {
-    return { ok: false, error: "备份保留数量至少为 1。" };
+    return { ok: false, error: "Backup retention count must be at least 1." };
   }
   if (!Number.isFinite(auditOlderThanDays) || auditOlderThanDays < 0 || !Number.isFinite(chatOlderThanDays) || chatOlderThanDays < 0) {
-    return { ok: false, error: "清理天数不能小于 0。设置为 0 表示不清理该类数据。" };
+    return { ok: false, error: "Cleanup days cannot be below 0. Use 0 to skip cleanup for that data type." };
   }
   return {
     ok: true,
@@ -60,7 +60,7 @@ export function buildCleanupConfirmMessage({
   chatOlderThanDays: number;
   cleanup: CleanupPreview;
 }) {
-  const auditLabel = auditOlderThanDays > 0 ? `${auditOlderThanDays} 天前审计日志` : "不清理审计日志";
-  const chatLabel = chatOlderThanDays > 0 ? `${chatOlderThanDays} 天前聊天会话` : "不清理聊天会话";
-  return `清理旧数据？将保留最新 ${backupKeepCount} 份备份；审计策略：${auditLabel}；聊天策略：${chatLabel}。\n\n${formatCleanupSummary(cleanup)}`;
+  const auditLabel = auditOlderThanDays > 0 ? `audit logs older than ${auditOlderThanDays} day(s)` : "do not clean audit logs";
+  const chatLabel = chatOlderThanDays > 0 ? `chat sessions older than ${chatOlderThanDays} day(s)` : "do not clean chat sessions";
+  return `Clean old data? The latest ${backupKeepCount} backup(s) will be kept; audit policy: ${auditLabel}; chat policy: ${chatLabel}.\n\n${formatCleanupSummary(cleanup)}`;
 }

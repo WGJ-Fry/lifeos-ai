@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { AppWindow, ChevronDown, ChevronUp } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useI18n } from "../../i18n/I18nProvider";
 import type { CustomApp } from "../../types";
 
 export default function ChatWidgetBox({
@@ -15,6 +16,7 @@ export default function ChatWidgetBox({
   initialExpanded?: boolean;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const [isExpanded, setIsExpanded] = useState(initialExpanded);
 
   useEffect(() => {
@@ -22,13 +24,13 @@ export default function ChatWidgetBox({
   }, [initialExpanded]);
 
   let displayName = widgetName;
-  if (widgetName === "tasks") displayName = "任务管理器";
-  else if (widgetName === "notes") displayName = "随笔备忘";
-  else if (widgetName === "calendar") displayName = "日历视图";
-  else if (widgetName === "calculator") displayName = "计算器";
-  else if (widgetName === "timer") displayName = "番茄时钟";
-  else if (widgetName === "navigation") displayName = "快捷导航";
-  else if (widgetName === "launcher") displayName = "本地能力";
+  if (widgetName === "tasks") displayName = t("chat.widget.tasks");
+  else if (widgetName === "notes") displayName = t("chat.widget.notes");
+  else if (widgetName === "calendar") displayName = t("chat.widget.calendar");
+  else if (widgetName === "calculator") displayName = t("chat.widget.calculator");
+  else if (widgetName === "timer") displayName = t("chat.widget.timer");
+  else if (widgetName === "navigation") displayName = t("chat.widget.navigation");
+  else if (widgetName === "launcher") displayName = t("chat.widget.launcher");
   else {
     const customApp = customApps.find((app) => app.name.toLowerCase() === widgetName.toLowerCase() || app.id === widgetName);
     if (customApp) displayName = customApp.name;

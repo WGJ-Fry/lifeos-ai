@@ -16,10 +16,12 @@ import { resolveChatStateChanges } from "./services/chatStateChanges";
 import { loadMemoriesForChat, loadRuntimeSettings } from "./services/chatRuntimeSettings";
 import { useChatPersistence } from "./hooks/useChatPersistence";
 import { useOfflineQueueSync } from "./hooks/useOfflineQueueSync";
+import { useI18n } from "./i18n/I18nProvider";
 
 const StudioApp = lazy(() => import("./components/apps/StudioApp"));
 
 export default function App() {
+  const { locale, t } = useI18n();
   const [messages, setMessages] = useState<Message[]>(() => {
     return loadStoredChatMessages();
   });
@@ -106,6 +108,7 @@ export default function App() {
         memories,
         proxyNode,
         routeMode,
+        locale,
       });
       
       const { widgetToShow, widgetArgs } = handleChatStateChanges(data.stateChanges);
@@ -116,15 +119,16 @@ export default function App() {
 
       // Speak back TTS
       setVoiceState("speaking");
-      const cleanText = (data.text || "配置已同步完毕。").replace(/[\*\#\_\`\[\]\(\)]/g, "");
+      const cleanText = (data.text || t("chat.configSynced")).replace(/[\*\#\_\`\[\]\(\)]/g, "");
       const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = locale;
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
 
       const voices = window.speechSynthesis?.getVoices() || [];
-      const zhVoice = voices.find(v => v.lang.includes("zh") || v.name.includes("Chinese") || v.name.includes("Google"));
-      if (zhVoice) {
-        utterance.voice = zhVoice;
+      const preferredVoice = voices.find(v => v.lang.toLowerCase().startsWith(locale.toLowerCase().slice(0, 2))) || voices.find(v => v.name.includes("Google"));
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
       }
 
       utterance.onend = () => {
@@ -146,7 +150,7 @@ export default function App() {
 
     } catch (err) {
       console.error(err);
-      const errorMessage: Message = { role: "model", parts: [{ text: err instanceof Error ? err.message : "网络好像不太通畅，请稍后再试。" }] };
+      const errorMessage: Message = { role: "model", parts: [{ text: err instanceof Error ? err.message : t("chat.networkError") }] };
       setMessages((prev) => [...prev, errorMessage]);
       void persistMessageToCore(errorMessage);
       setVoiceState("listening");
@@ -172,7 +176,7 @@ export default function App() {
       const rec = new SpeechRecognition();
       rec.continuous = false;
       rec.interimResults = false;
-      rec.lang = "zh-CN";
+      rec.lang = locale;
 
       rec.onstart = () => {
         setVoiceState("listening");
@@ -273,6 +277,7 @@ export default function App() {
         memories,
         proxyNode,
         routeMode,
+        locale,
       });
       
       const { widgetToShow, widgetArgs } = handleChatStateChanges(data.stateChanges);
@@ -282,7 +287,7 @@ export default function App() {
       void persistMessageToCore(modelMessage);
     } catch (err) {
       console.error(err);
-      const errorMessage: Message = { role: "model", parts: [{ text: err instanceof Error ? err.message : "网络好像不太通畅，请稍后再试。" }] };
+      const errorMessage: Message = { role: "model", parts: [{ text: err instanceof Error ? err.message : t("chat.networkError") }] };
       setMessages((prev) => [...prev, errorMessage]);
       void persistMessageToCore(errorMessage);
     } finally {
@@ -315,7 +320,7 @@ export default function App() {
       
       const readyMessage: Message = {
         role: "model",
-        parts: [{ text: `让您久等啦，您需要的 **${data.appName}** 已经为您准备妥当了，请过目。您现在随时可以使用它啦，还有什么需要我效劳的吗？` }],
+        parts: [{ text: t("chat.appReady", { appName: data.appName }) }],
         widget: appId
       };
       setMessages(prev => [...prev, readyMessage]);
@@ -329,7 +334,7 @@ export default function App() {
       setCustomApps(prev => prev.filter(a => a.id !== appId));
       const failureMessage: Message = {
         role: "model",
-        parts: [{ text: e instanceof Error ? e.message : `非常抱歉，在为您打理 **${appName}** 这个需求时，似乎遇到了一点小波折（网络错误）。不过别担心，请稍后再试，我会时刻准备着为您服务。` }]
+        parts: [{ text: e instanceof Error ? e.message : t("chat.appFailed", { appName }) }]
       };
       setMessages(prev => [...prev, failureMessage]);
       void persistMessageToCore(failureMessage);
@@ -355,7 +360,7 @@ export default function App() {
           >
             <Suspense fallback={
               <div className="w-full h-full max-w-6xl bg-[#111113] border border-white/[0.08] rounded-[32px] flex items-center justify-center text-sm font-bold text-zinc-400">
-                正在载入 Studio 控制台...
+                {t("common.loadingStudio")}
               </div>
             }>
               <StudioApp 
@@ -369,7 +374,7 @@ export default function App() {
                   setTimeout(() => {
                     const openAppMessage: Message = {
                       role: "model",
-                      parts: [{ text: `为您调出该功能应用：` }],
+                      parts: [{ text: t("chat.openApp") }],
                       widget: id
                     };
                     setMessages(prev => [...prev, openAppMessage]);
@@ -402,8 +407,8 @@ export default function App() {
             onClose={() => setShowSettings(false)}
             saveStatus={saveStatus}
             onSave={() => {
-              setSaveStatus("正在连接与应用配置...");
-              setTimeout(() => setSaveStatus("配置已保存，网络连接畅通"), 1000);
+              setSaveStatus(t("chat.configSaving"));
+              setTimeout(() => setSaveStatus(t("chat.configSaved")), 1000);
               setTimeout(() => {
                 setSaveStatus(null);
                 setShowSettings(false);

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, StickyNote, ChevronRight, ChevronLeft, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSyncedClientState } from "../../hooks/useSyncedClientState";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type NoteItem = {
   id: number;
@@ -10,9 +11,10 @@ type NoteItem = {
 };
 
 export default function NotesApp() {
+  const { t } = useI18n();
   const [notes, setNotes] = useSyncedClientState<NoteItem[]>("lifeos_notes", [
-    { id: 1, title: "LifeOS 构想", content: "一个可以将日常软件无缝切换，基于对话动态生成能力的操作系统。这会改变个人工作流的范式。" },
-    { id: 2, title: "购物清单", content: "咖啡豆、燕麦奶、全麦面包" }
+    { id: 1, title: t("apps.notes.defaultTitle1"), content: t("apps.notes.defaultContent1") },
+    { id: 2, title: t("apps.notes.defaultTitle2"), content: t("apps.notes.defaultContent2") }
   ]);
   const [activeId, setActiveId] = useState<number | null>(null);
 
@@ -35,10 +37,10 @@ export default function NotesApp() {
          <div className="flex items-center justify-between mb-5 mt-1">
            <h3 className="font-semibold text-lg flex items-center gap-2">
             <StickyNote className="w-5 h-5 text-indigo-400" />
-            快速笔记
+            {t("apps.notes.title")}
            </h3>
            <button onClick={() => {
-              const newNote = { id: Date.now(), title: "新建笔记", content: "" };
+              const newNote = { id: Date.now(), title: t("apps.notes.newTitle"), content: "" };
               setNotes([newNote, ...notes]);
               setActiveId(newNote.id);
            }} className="text-zinc-300 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] p-2 rounded-full transition-colors shadow-sm">
@@ -77,7 +79,7 @@ export default function NotesApp() {
           <>
             <div className="flex items-center justify-between p-4 border-b border-white/[0.05] bg-[#0a0a0a]/50">
                <button onClick={() => setActiveId(null)} className="flex items-center text-zinc-400 hover:text-white text-[13px] font-bold transition-colors bg-white/[0.05] hover:bg-white/[0.1] px-4 py-2 rounded-full">
-                 <ChevronLeft className="w-[18px] h-[18px] mr-1" /> 返回列表
+                 <ChevronLeft className="w-[18px] h-[18px] mr-1" /> {t("apps.notes.back")}
                </button>
                <button 
                  onClick={() => {
@@ -86,7 +88,7 @@ export default function NotesApp() {
                  }} 
                  className="flex items-center text-red-400 hover:text-red-300 text-[12px] font-bold transition-colors bg-red-500/10 hover:bg-red-500/20 px-3.5 py-1.5 rounded-full"
                >
-                 <Trash2 className="w-3.5 h-3.5 mr-1" /> 删除笔记
+                 <Trash2 className="w-3.5 h-3.5 mr-1" /> {t("apps.notes.delete")}
                </button>
             </div>
             <div className="flex-1 p-6 flex flex-col bg-[#111113]">
@@ -95,13 +97,13 @@ export default function NotesApp() {
                 value={activeNote.title} 
                 onChange={(e) => updateNote(activeId!, 'title', e.target.value)}
                 className="bg-transparent border-none outline-none text-2xl font-bold mb-4 text-zinc-100 px-1" 
-                placeholder="标题"
+                placeholder={t("apps.notes.titlePlaceholder")}
               />
               <textarea 
                  value={activeNote.content}
                  onChange={(e) => updateNote(activeId!, 'content', e.target.value)}
                  className="flex-1 bg-transparent px-1 border-none outline-none resize-none text-[15px] leading-[1.8] text-zinc-400 font-medium placeholder-zinc-600 hide-scrollbar"
-                 placeholder="开始输入..."
+                 placeholder={t("apps.notes.contentPlaceholder")}
               />
             </div>
           </>

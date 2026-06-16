@@ -1,3 +1,5 @@
+import { apiUrl } from "./lifeosApi";
+
 const PAIRING_INTENT_KEY = "lifeos_pending_pairing_intent";
 const PAIRING_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
 const INSTALL_PATH_PREFIX = "/mobile/install/";
@@ -94,9 +96,9 @@ export function setPairingManifestToken(token: string) {
   const normalized = extractPairingToken(token);
   const manifest = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
   if (!manifest) return () => {};
-  const previousHref = manifest.getAttribute("href") || "/manifest.webmanifest";
+  const previousHref = manifest.getAttribute("href") || apiUrl("/manifest.webmanifest");
   if (normalized) {
-    manifest.setAttribute("href", `/manifest.webmanifest?pairingToken=${encodeURIComponent(normalized)}`);
+    manifest.setAttribute("href", `${apiUrl("/manifest.webmanifest")}?pairingToken=${encodeURIComponent(normalized)}`);
   }
   return () => {
     manifest.setAttribute("href", previousHref);

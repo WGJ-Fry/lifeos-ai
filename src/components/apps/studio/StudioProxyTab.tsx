@@ -1,5 +1,6 @@
 import { Check, FolderSync, Globe, RefreshCw, Server, Signal, SlidersHorizontal } from "lucide-react";
 import { motion } from "motion/react";
+import { useI18n } from "../../../i18n/I18nProvider";
 import { StudioProxyNode } from "./useStudioConnectionSettings";
 
 type RouteMode = "rule" | "global" | "direct" | string;
@@ -12,6 +13,7 @@ type StudioProxyTabProps = {
   proxyNodes: StudioProxyNode[];
   isSyncingSub: boolean;
   isPinging: boolean;
+  subSyncSucceeded: boolean;
   subSyncResult: string;
   onToggleProxy: () => void;
   onProxyUrlChange: (value: string) => void;
@@ -30,6 +32,7 @@ export default function StudioProxyTab({
   proxyNodes,
   isSyncingSub,
   isPinging,
+  subSyncSucceeded,
   subSyncResult,
   onToggleProxy,
   onProxyUrlChange,
@@ -39,7 +42,13 @@ export default function StudioProxyTab({
   onRouteModeChange,
   onTestAllPings,
 }: StudioProxyTabProps) {
+  const { t } = useI18n();
   const selectedNode = proxyNodes.find((node) => node.id === selectedNodeId);
+  const routeModes = [
+    { value: "rule", label: t("studio.proxy.routeRule") },
+    { value: "global", label: t("studio.proxy.routeGlobal") },
+    { value: "direct", label: t("studio.proxy.routeDirect") },
+  ];
 
   return (
     <motion.div
@@ -56,8 +65,8 @@ export default function StudioProxyTab({
             <div className="flex items-center gap-2">
               <Globe className="w-5 h-5 text-indigo-400" />
               <div className="text-left">
-                <h3 className="text-lg font-bold text-white leading-none">网络代理与直连 (PROXY / VPN)</h3>
-                <p className="text-[11px] text-zinc-500 font-medium mt-1">智能绕过推断中转，避免大模型因封控拒绝访问</p>
+                <h3 className="text-lg font-bold text-white leading-none">{t("studio.proxy.title")}</h3>
+                <p className="text-[11px] text-zinc-500 font-medium mt-1">{t("studio.proxy.subtitle")}</p>
               </div>
             </div>
             <button
@@ -71,8 +80,8 @@ export default function StudioProxyTab({
           <div className="space-y-4">
             <div className="bg-[#111113] p-5 rounded-2xl border border-white/[0.05]">
               <div className="flex justify-between items-center mb-3">
-                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider text-left">Clash / V2Ray / SSR 订阅连接导入</label>
-                <span className="text-[10px] text-zinc-500">支持加密 YAML / JSON / Base64</span>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider text-left">{t("studio.proxy.subscription")}</label>
+                <span className="text-[10px] text-zinc-500">{t("studio.proxy.supportsFormats")}</span>
               </div>
               <div className="flex gap-2.5">
                 <input
@@ -91,12 +100,12 @@ export default function StudioProxyTab({
                   {isSyncingSub ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      正在拉取...
+                      {t("studio.proxy.syncing")}
                     </>
                   ) : (
                     <>
                       <FolderSync className="w-3.5 h-3.5" />
-                      导入/更新节点
+                      {t("studio.proxy.importNodes")}
                     </>
                   )}
                 </button>
@@ -107,17 +116,17 @@ export default function StudioProxyTab({
                   initial={{ opacity: 0, y: 5 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={`mt-3 p-3 rounded-xl border text-xs font-mono leading-relaxed text-left ${
-                    subSyncResult.includes("成功") ? "bg-indigo-500/5 border-indigo-500/10 text-indigo-300" : "bg-white/[0.02] border-white/[0.05] text-zinc-500"
+                    subSyncSucceeded ? "bg-indigo-500/5 border-indigo-500/10 text-indigo-300" : "bg-white/[0.02] border-white/[0.05] text-zinc-500"
                   }`}
                 >
                   <div className="flex gap-2 items-start">
-                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${subSyncResult.includes("成功") ? "bg-indigo-400 animate-pulse" : "bg-zinc-500"}`} />
+                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${subSyncSucceeded ? "bg-indigo-400 animate-pulse" : "bg-zinc-500"}`} />
                     <span>{subSyncResult}</span>
                   </div>
                 </motion.div>
               )}
 
-              {subSyncResult && subSyncResult.includes("成功") && proxyNodes.length > 0 && (
+              {subSyncResult && subSyncSucceeded && proxyNodes.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -126,10 +135,10 @@ export default function StudioProxyTab({
                   <div className="text-xs font-bold text-zinc-400 mb-3 flex items-center justify-between">
                     <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
                       <Server className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-                      请手动选择连接的节点 / Select Target Node
+                      {t("studio.proxy.selectNode")}
                     </span>
                     <span className="text-[10px] text-zinc-500 font-mono">
-                      当前选中: {selectedNode?.name || "未连接"}
+                      {t("studio.proxy.currentSelected", { name: selectedNode?.name || t("studio.proxy.notConnected") })}
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -192,16 +201,12 @@ export default function StudioProxyTab({
                   <div className="flex justify-between items-center mb-3">
                     <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
                       <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-400" />
-                      系统分流路由策略
+                      {t("studio.proxy.routeStrategy")}
                     </span>
                     <span className="text-[10px] text-zinc-500 font-mono">PROXY RULESET</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2 bg-[#050505] p-1.5 rounded-xl border border-white/[0.05]">
-                    {[
-                      { value: "rule", label: "分流模式 (Rule)" },
-                      { value: "global", label: "全局代理 (Global)" },
-                      { value: "direct", label: "直接连接 (Direct)" },
-                    ].map((mode) => (
+                    {routeModes.map((mode) => (
                       <button
                         key={mode.value}
                         type="button"
@@ -222,7 +227,7 @@ export default function StudioProxyTab({
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
                       <Server className="w-3.5 h-3.5 text-indigo-400" />
-                      可用中继加速节点 ({proxyNodes.length})
+                      {t("studio.proxy.availableNodes", { count: String(proxyNodes.length) })}
                     </span>
                     <button
                       type="button"
@@ -231,7 +236,7 @@ export default function StudioProxyTab({
                       className="px-3 py-1 bg-white/[0.05] hover:bg-white/[0.1] disabled:opacity-50 text-[10px] font-bold text-zinc-300 rounded-lg border border-white/[0.05] transition-all flex items-center gap-1.5 w-24 justify-center"
                     >
                       <RefreshCw className={`w-3 h-3 ${isPinging ? "animate-spin" : ""}`} />
-                      {isPinging ? "测速中..." : "测延迟"}
+                      {isPinging ? t("studio.proxy.pinging") : t("studio.proxy.testLatency")}
                     </button>
                   </div>
 
@@ -265,7 +270,7 @@ export default function StudioProxyTab({
                               <div className="text-xs font-bold text-zinc-200 truncate">{node.name}</div>
                               <div className="text-[10px] text-zinc-500 flex gap-2 items-center mt-1">
                                 <span className="px-1.5 py-0.2 bg-white/[0.03] rounded border border-white/[0.05] shrink-0">{node.type}</span>
-                                <span className="truncate">下行速率: {node.speed}</span>
+                                <span className="truncate">{t("studio.proxy.downlink", { speed: node.speed })}</span>
                               </div>
                             </div>
                           </div>

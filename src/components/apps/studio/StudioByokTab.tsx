@@ -1,5 +1,6 @@
 import { Activity, AlertCircle, CheckCircle2, LockKeyhole, RefreshCw } from "lucide-react";
 import { motion } from "motion/react";
+import { useI18n } from "../../../i18n/I18nProvider";
 
 type ApiTestStatus = "idle" | "testing" | "success" | "error";
 
@@ -22,6 +23,8 @@ export default function StudioByokTab({
   onKeyChange,
   onTestConnection,
 }: StudioByokTabProps) {
+  const { t } = useI18n();
+
   return (
     <motion.div
       key="byok"
@@ -36,24 +39,24 @@ export default function StudioByokTab({
           <div className="flex justify-between items-center mb-5">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <LockKeyhole className="w-5 h-5 text-indigo-400" />
-              大语言模型枢纽 (BYOK)
+              {t("studio.byok.title")}
             </h3>
-            <span className="text-xs text-indigo-400/80 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20 font-medium text-[11px]">离线沙盒自锁已启用</span>
+            <span className="text-xs text-indigo-400/80 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20 font-medium text-[11px]">{t("studio.byok.sandboxEnabled")}</span>
           </div>
 
           <div className="bg-[#111113] p-5 rounded-2xl border border-white/[0.05] flex flex-col gap-4">
             <div>
-              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">模型供应商 / API Provider</label>
+              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">{t("studio.byok.provider")}</label>
               <div className="relative">
                 <select
                   value={provider}
                   onChange={(event) => onProviderChange(event.target.value)}
                   className="w-full bg-[#050505] border border-white/[0.1] text-zinc-200 rounded-xl px-4 py-3 appearance-none outline-none focus:border-indigo-500/50 transition-colors font-medium text-sm"
                 >
-                  <option value="Google Gemini (推荐)">Google Gemini (推荐)</option>
+                  <option value="Google Gemini">Google Gemini ({t("studio.byok.recommended")})</option>
                   <option value="OpenAI">OpenAI (GPT Engine)</option>
-                  <option value="OpenRouter">OpenRouter (多模型路由)</option>
-                  <option value="本地模型">本地模型 (OpenAI-Compatible)</option>
+                  <option value="OpenRouter">OpenRouter ({t("studio.byok.multiModelRoute")})</option>
+                  <option value="Local Model">{t("studio.byok.localModel")} (OpenAI-Compatible)</option>
                 </select>
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
                   <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -65,22 +68,22 @@ export default function StudioByokTab({
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider">密钥 API Key</label>
-                <span className="text-[10px] text-zinc-500 font-medium">保存在电脑端安全存储</span>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider">{t("studio.byok.apiKey")}</label>
+                <span className="text-[10px] text-zinc-500 font-medium">{t("studio.byok.secureStorage")}</span>
               </div>
               <div className="relative">
                 <input
                   type="password"
                   value={apiKey}
                   onChange={(event) => onKeyChange(event.target.value)}
-                  placeholder={provider.includes("本地") ? "http://127.0.0.1:11434/v1" : provider.includes("Gemini") ? "AIzaSy..." : "sk-........................"}
+                  placeholder={/local|\u672c\u5730/i.test(provider) ? "http://127.0.0.1:11434/v1" : provider.includes("Gemini") ? "AIzaSy..." : "sk-........................"}
                   className="w-full bg-[#050505] border border-white/[0.1] text-zinc-200 rounded-xl px-4 py-3 outline-none focus:border-indigo-500/50 transition-colors font-mono text-xs placeholder:text-zinc-700 pr-12"
                 />
                 <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center justify-center">
                   {apiKey ? (
-                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="秘钥已输入" />
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title={t("studio.byok.keyEntered")} />
                   ) : (
-                    <div className="w-2 h-2 rounded-full bg-zinc-600" title="待输入" />
+                    <div className="w-2 h-2 rounded-full bg-zinc-600" title={t("studio.byok.keyPending")} />
                   )}
                 </div>
               </div>
@@ -96,12 +99,12 @@ export default function StudioByokTab({
                 {apiTestStatus === "testing" ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    正在拨测物理信道 API...
+                    {t("studio.byok.testing")}
                   </>
                 ) : (
                   <>
                     <Activity className="w-3.5 h-3.5" />
-                    一键诊断秘钥连接 / Test API Connection
+                    {t("studio.byok.testConnection")}
                   </>
                 )}
               </button>

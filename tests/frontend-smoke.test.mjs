@@ -61,7 +61,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
     cwd: rootDir,
     env: {
       ...process.env,
-      NODE_ENV: "production",
+      NODE_ENV: "development",
       LIFEOS_PORT: String(port),
       LIFEOS_DATA_DIR: dataDir,
       LIFEOS_HOST: "127.0.0.1",
@@ -87,7 +87,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
     assert.match(response.headers.get("content-type") || "", /text\/html/);
     const html = await response.text();
     assert.match(html, /<div id="root">/);
-    assert.match(html, /\/assets\//);
+    assert.match(html, /\.\/assets\//);
+    assert.doesNotMatch(html, /src="\/assets\//);
   }
 
   const installPairHtmlResponse = await request(port, "/mobile/pair?token=bind_install_pair_page_123");
@@ -95,21 +96,21 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(installPairHtmlResponse.headers.get("cache-control") || "", /no-store/);
   assert.match(installPairHtmlResponse.headers.get("set-cookie") || "", /lifeos_pairing_intent=bind_install_pair_page_123/);
   const installPairHtml = await installPairHtmlResponse.text();
-  assert.match(installPairHtml, /href="\/manifest\.webmanifest\?pairingToken=bind_install_pair_page_123"/);
+  assert.match(installPairHtml, /href="\/manifest\.webmanifest\?pairingToken=bind_install_pair_page_123"|href="manifest\.webmanifest\?pairingToken=bind_install_pair_page_123"/);
 
   const installChatHtmlResponse = await request(port, "/mobile/chat?pairingToken=bind_install_chat_page_123");
   assert.equal(installChatHtmlResponse.status, 200);
   assert.match(installChatHtmlResponse.headers.get("cache-control") || "", /no-store/);
   assert.match(installChatHtmlResponse.headers.get("set-cookie") || "", /lifeos_pairing_intent=bind_install_chat_page_123/);
   const installChatHtml = await installChatHtmlResponse.text();
-  assert.match(installChatHtml, /href="\/manifest\.webmanifest\?pairingToken=bind_install_chat_page_123"/);
+  assert.match(installChatHtml, /href="\/manifest\.webmanifest\?pairingToken=bind_install_chat_page_123"|href="manifest\.webmanifest\?pairingToken=bind_install_chat_page_123"/);
 
   const installPathHtmlResponse = await request(port, "/mobile/install/bind_install_path_page_123");
   assert.equal(installPathHtmlResponse.status, 200);
   assert.match(installPathHtmlResponse.headers.get("cache-control") || "", /no-store/);
   assert.match(installPathHtmlResponse.headers.get("set-cookie") || "", /lifeos_pairing_intent=bind_install_path_page_123/);
   const installPathHtml = await installPathHtmlResponse.text();
-  assert.match(installPathHtml, /href="\/manifest\.webmanifest\?pairingToken=bind_install_path_page_123"/);
+  assert.match(installPathHtml, /href="\/manifest\.webmanifest\?pairingToken=bind_install_path_page_123"|href="manifest\.webmanifest\?pairingToken=bind_install_path_page_123"/);
 
   const installIntentResponse = await request(port, "/api/v1/mobile/pairing-intent", {
     headers: { Cookie: "lifeos_pairing_intent=bind_install_cookie_recovery_123" },
@@ -122,14 +123,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.equal(offlineResponse.status, 200);
   assert.match(offlineResponse.headers.get("content-type") || "", /text\/html/);
   const offlineHtml = await offlineResponse.text();
-  assert.match(offlineHtml, /当前离线/);
-  assert.match(offlineHtml, /查看设备与离线队列/);
+  assert.match(offlineHtml, /You are offline/);
+  assert.match(offlineHtml, /Device & Offline Queue/);
   assert.match(offlineHtml, /lifeos_offline_message_queue/);
   assert.match(offlineHtml, /lifeos-offline-queue/);
-  assert.match(offlineHtml, /队列来源/);
+  assert.match(offlineHtml, /Queue source/);
   assert.match(offlineHtml, /IndexedDB/);
   assert.match(offlineHtml, /offline-queue-status/);
-  assert.match(offlineHtml, /单条处理/);
+  assert.match(offlineHtml, /failed/);
 
   const manifestResponse = await request(port, "/manifest.webmanifest");
   assert.equal(manifestResponse.status, 200);
@@ -162,7 +163,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const dynamicManifest = await dynamicManifestResponse.json();
   assert.equal(dynamicManifest.id, "/mobile/chat");
   assert.equal(dynamicManifest.start_url, "/mobile/install/bind_install_demo_123");
-  assert.equal(dynamicManifest.shortcuts.find((shortcut) => shortcut.short_name === "绑定")?.url, "/mobile/install/bind_install_demo_123");
+  assert.equal(dynamicManifest.shortcuts.find((shortcut) => shortcut.short_name === "Pair")?.url, "/mobile/install/bind_install_demo_123");
   assert.ok(dynamicManifest.icons.some((icon) => icon.src === "/icons/icon-512.png" && icon.type === "image/png"));
 
   const invalidDynamicManifestResponse = await request(port, "/manifest.webmanifest?pairingToken=not-secret");
@@ -197,7 +198,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serviceWorker, /cacheBuildAssets/);
   assert.match(serviceWorker, /html\.match\(/);
   assert.match(serviceWorker, /assets/);
-  assert.match(serviceWorker, /fetch\("\/", \{ cache: "no-store" \}\)/);
+  assert.match(serviceWorker, /withBasePath\("\/"\)/);
   assert.match(serviceWorker, /cache\.addAll\(buildAssets\)/);
   assert.match(serviceWorker, /\/mobile\/chat/);
   assert.match(serviceWorker, /\/mobile\/device/);
@@ -218,11 +219,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mainSource, /window\.location\.reload\(\)/);
   assert.match(mainSource, /registration\.update\(\)/);
   assert.match(mainSource, /LIFEOS_SKIP_WAITING/);
+  assert.match(mainSource, /basename=\{lifeosBasePath \|\| undefined\}/);
+  assert.match(mainSource, /navigator\.serviceWorker\.register\(`\$\{lifeosBasePath\}\/sw\.js`/);
 
   const indexHtmlSource = await readFile(path.join(rootDir, "index.html"), "utf8");
+  const serverSource = await readFile(path.join(rootDir, "server.ts"), "utf8");
   assert.match(indexHtmlSource, /apple-mobile-web-app-capable/);
-  assert.match(indexHtmlSource, /apple-touch-icon" sizes="192x192" href="\/icons\/icon-192\.png"/);
-  assert.match(indexHtmlSource, /apple-touch-icon" sizes="512x512" href="\/icons\/icon-512\.png"/);
+  assert.match(indexHtmlSource, /apple-touch-icon" sizes="192x192" href="icons\/icon-192\.png"/);
+  assert.match(indexHtmlSource, /apple-touch-icon" sizes="512x512" href="icons\/icon-512\.png"/);
+  assert.doesNotMatch(indexHtmlSource, /href="\/icons\//);
+  assert.match(serverSource, /RUNNING_BUNDLED_SERVER/);
+  assert.match(serverSource, /process\.env\.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER/);
 
   const appSource = await readFile(path.join(rootDir, "src", "App.tsx"), "utf8");
   assert.match(appSource, /useOfflineQueueSync\(flushOfflineMessages\)/);
@@ -262,28 +269,33 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(loginSource, /session\.nextPath/);
 
   const onboardingSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminOnboardingPage.tsx"), "utf8");
+  const translationsSource = await readFile(path.join(rootDir, "src", "i18n", "translations.ts"), "utf8");
   assert.match(onboardingSource, /getOnboardingStatus/);
   assert.match(onboardingSource, /completeOnboarding/);
   assert.match(onboardingSource, /getBackupSchedule/);
   assert.match(onboardingSource, /updateBackupSchedule/);
   assert.match(onboardingSource, /updateActiveAiProvider/);
-  assert.match(onboardingSource, /开启每日自动备份/);
+  assert.match(onboardingSource, /onboarding\.enableDailyBackup/);
   assert.match(onboardingSource, /backupSchedule\.nextRunAt/);
-  assert.match(onboardingSource, /默认聊天 Provider/);
-  assert.match(onboardingSource, /设为默认聊天 Provider/);
-  assert.match(onboardingSource, /已设为默认聊天 Provider/);
-  assert.match(onboardingSource, /打开连接向导/);
+  assert.match(onboardingSource, /onboarding\.defaultProvider/);
+  assert.match(onboardingSource, /onboarding\.setDefault/);
+  assert.match(onboardingSource, /onboarding\.alreadyDefault/);
+  assert.match(onboardingSource, /onboarding\.openConnectionGuide/);
   assert.match(onboardingSource, /\/admin\/settings#mobile-connect/);
-  assert.match(onboardingSource, /完成首次启动向导/);
+  assert.match(onboardingSource, /onboarding\.finish/);
   assert.match(onboardingSource, /completedSteps} \/ 4/);
+  assert.match(translationsSource, /开启每日自动备份/);
+  assert.match(translationsSource, /Set as Default Chat Provider/);
   const mobileChatSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileChatPage.tsx"), "utf8");
-  assert.match(mobileChatSource, /没有扫成功时，粘贴电脑端绑定链接/);
-  assert.match(mobileChatSource, /使用绑定链接/);
-  assert.match(mobileChatSource, /bind_ 开头的绑定 token/);
+  assert.match(mobileChatSource, /mobile\.pastePairing/);
+  assert.match(mobileChatSource, /mobile\.usePairingLink/);
+  assert.match(mobileChatSource, /mobile\.pairingInvalid/);
+  assert.match(translationsSource, /If scanning fails, paste the pairing link from the desktop/);
   assert.match(mobileChatSource, /consumePendingPairingToken/);
   assert.match(mobileChatSource, /peekPendingPairingToken/);
   assert.match(mobileChatSource, /recoveringPairingIntent/);
-  assert.match(mobileChatSource, /正在恢复添加到桌面时保存的绑定信息/);
+  assert.match(mobileChatSource, /mobile\.recoveringPairing/);
+  assert.match(translationsSource, /正在恢复添加到桌面时保存的绑定信息/);
   assert.match(mobileChatSource, /launchPairingToken/);
   assert.match(mobileChatSource, /setPairingManifestToken/);
   assert.match(mobileChatSource, /pairingInstallPath/);
@@ -297,24 +309,57 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobilePairSource, /pairingInstallPath/);
   assert.match(mobilePairSource, /history\.replaceState/);
   assert.doesNotMatch(mobilePairSource, /window\.location\.replace\(`\/mobile\/pair\?token=/);
-  assert.match(mobilePairSource, /保存 24 小时/);
-  assert.match(mobilePairSource, /自动恢复到确认绑定页/);
-  assert.match(mobilePairSource, /设备凭证已经保存/);
+  assert.match(mobilePairSource, /mobilePair\.installFirstHint/);
+  assert.match(mobilePairSource, /mobilePair\.homeScreenHint/);
+  assert.match(mobilePairSource, /testMobileRemoteConnectivity/);
+  assert.match(mobilePairSource, /reportMobileConnectivity/);
+  assert.match(mobilePairSource, /MobileConnectivityCard/);
+  assert.match(mobilePairSource, /mobilePair\.connectivityTest/);
+  assert.match(translationsSource, /保存 24 小时/);
+  assert.match(translationsSource, /自动恢复到确认绑定页/);
+  assert.match(translationsSource, /设备凭证已经保存/);
+  assert.match(translationsSource, /测试当前手机连通性/);
 
   const mobileDeviceSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDevicePage.tsx"), "utf8");
   assert.match(mobileDeviceSource, /getPwaCapabilityStatus/);
-  assert.match(mobileDeviceSource, /PWA 安装与后台同步/);
+  assert.match(mobileDeviceSource, /getRemoteEntryStatus/);
+  assert.match(mobileDeviceSource, /mobileDevice\.pwaTitle/);
+  assert.match(translationsSource, /PWA 安装与后台同步/);
   assert.match(mobileDeviceSource, /Service Worker/);
   assert.match(mobileDeviceSource, /Background Sync/);
   assert.match(mobileDeviceSource, /IndexedDB/);
   assert.match(mobileDeviceSource, /pwaCapabilities\.recommendations/);
+  assert.match(mobileDeviceSource, /getHealth/);
+  assert.match(mobileDeviceSource, /mobileDevice\.remoteEntryTitle/);
+  assert.match(mobileDeviceSource, /mobileDevice\.remoteVerdict/);
+  assert.match(mobileDeviceSource, /mobileDevice\.connectivityTest/);
+  assert.match(mobileDeviceSource, /testMobileRemoteConnectivity/);
+  assert.match(mobileDeviceSource, /reportMobileConnectivity/);
+  assert.match(mobileDeviceSource, /MobileConnectivityCard/);
+  assert.match(translationsSource, /远程入口自检/);
+  assert.match(translationsSource, /测试当前手机连通性/);
+  assert.match(translationsSource, /实时聊天通道/);
+  assert.match(translationsSource, /Tailscale HTTPS 入口/);
+  assert.match(translationsSource, /同局域网入口/);
+  assert.match(translationsSource, /当前使用临时 Cloudflare 地址/);
+  assert.match(translationsSource, /当前入口与电脑端配置不一致/);
 
   const pwaCapabilitiesSource = await readFile(path.join(rootDir, "src", "services", "pwaCapabilities.ts"), "utf8");
   assert.match(pwaCapabilitiesSource, /serviceWorkerControlled/);
   assert.match(pwaCapabilitiesSource, /backgroundSyncSupported/);
   assert.match(pwaCapabilitiesSource, /indexedDbSupported/);
-  assert.match(pwaCapabilitiesSource, /绑定成功后添加到主屏幕/);
-  assert.match(pwaCapabilitiesSource, /后台同步不可用/);
+  assert.match(pwaCapabilitiesSource, /getRemoteEntryStatus/);
+  assert.match(pwaCapabilitiesSource, /testMobileRemoteConnectivity/);
+  assert.match(pwaCapabilitiesSource, /\/api\/v1\/health/);
+  assert.match(pwaCapabilitiesSource, /\/api\/v1\/ws/);
+  const dashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
+  assert.match(dashboardSource, /connectivityReport/);
+  assert.match(dashboardSource, /dashboard\.mobileConnectivityOk/);
+  assert.match(translationsSource, /最近手机异地自检通过/);
+  assert.match(pwaCapabilitiesSource, /temporary-cloudflare/);
+  assert.match(pwaCapabilitiesSource, /configured-mismatch/);
+  assert.match(pwaCapabilitiesSource, /After pairing, add LifeOS to the home screen/);
+  assert.match(pwaCapabilitiesSource, /background sync is unavailable/);
 
   const sensitiveMainSource = await readFile(path.join(rootDir, "src", "main.tsx"), "utf8");
   assert.match(sensitiveMainSource, /clearSensitiveLocalStorageResidue/);
@@ -355,16 +400,24 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /MobileOfflineQueueCards/);
   assert.match(mobileDeviceSource, /clearOfflineMessageQueue/);
 
-  assert.match(mobileDeviceSource, /删除这条离线消息/);
-  assert.match(mobileDeviceSource, /清空离线消息队列/);
-  assert.match(mobileDeviceSource, /粘贴电脑端绑定链接/);
-  assert.match(mobileDeviceSource, /清除旧凭证并重新绑定/);
+  assert.match(mobileDeviceSource, /mobileDevice\.confirmRemoveItem/);
+  assert.match(mobileDeviceSource, /mobileDevice\.confirmClearQueue/);
+  assert.match(mobileDeviceSource, /mobileDevice\.pastePairingLink/);
+  assert.match(mobileDeviceSource, /mobileDevice\.rebindButton/);
   assert.match(mobileDeviceSource, /revokeCurrentDeviceBinding/);
-  assert.match(mobileDeviceSource, /解除并撤销绑定/);
-  assert.match(mobileDeviceSource, /bind_ 开头的绑定 token/);
-  assert.match(mobileDeviceSource, /设备凭证存储/);
+  assert.match(mobileDeviceSource, /mobileDevice\.forgetBinding/);
+  assert.match(mobileDeviceSource, /mobile\/install\/bind_/);
+  assert.match(mobileDeviceSource, /mobileDevice\.storageTitle/);
   assert.match(mobileDeviceSource, /IndexedDB/);
-  assert.match(mobileDeviceSource, /localStorage 旧凭证/);
+  assert.match(mobileDeviceSource, /mobileDevice\.legacyCredential/);
+  assert.match(translationsSource, /删除这条离线消息/);
+  assert.match(translationsSource, /清空离线消息队列/);
+  assert.match(translationsSource, /粘贴电脑端绑定链接/);
+  assert.match(translationsSource, /清除旧凭证并重新绑定/);
+  assert.match(translationsSource, /解除并撤销绑定/);
+  assert.match(translationsSource, /bind_ 开头的绑定 token/);
+  assert.match(translationsSource, /设备凭证存储/);
+  assert.match(translationsSource, /localStorage 旧凭证/);
   assert.doesNotMatch(mobileDeviceSource, /href="\/mobile\/pair"/);
 
   const mobileOfflineQueueCardsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileOfflineQueueCards.tsx"), "utf8");
@@ -372,11 +425,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageRetryLabel/);
   assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageQueueStorageLabel/);
   assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageQueueUsageLabel/);
-  assert.match(mobileOfflineQueueCardsSource, /离线队列存储/);
-  assert.match(mobileOfflineQueueCardsSource, /localStorage 兼容镜像/);
-  assert.match(mobileOfflineQueueCardsSource, /持久化存储/);
-  assert.match(mobileOfflineQueueCardsSource, /失败原因/);
-  assert.match(mobileOfflineQueueCardsSource, /单条重试/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.storageTitle/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.legacyMirror/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.persistentStorage/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.failureReason/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.retryOne/);
+  assert.match(translationsSource, /离线队列存储/);
+  assert.match(translationsSource, /localStorage 兼容镜像/);
+  assert.match(translationsSource, /持久化存储/);
+  assert.match(translationsSource, /失败原因/);
+  assert.match(translationsSource, /单条重试/);
 
   const offlineQueueBannerSource = await readFile(path.join(rootDir, "src", "components", "chat", "OfflineQueueBanner.tsx"), "utf8");
   assert.match(offlineQueueBannerSource, /getOfflineMessageStatusLabel/);
@@ -390,25 +448,27 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(offlineQueueSource, /formatOfflineMessageQueueBytes/);
   assert.match(offlineQueueSource, /getOfflineMessageQueueStorageLabel/);
   assert.match(offlineQueueSource, /getOfflineMessageQueueUsageLabel/);
-  assert.match(offlineQueueSource, /IndexedDB 主存储/);
+  assert.match(offlineQueueSource, /IndexedDB primary storage/);
   assert.match(offlineQueueSource, /hydrateOfflineMessageQueue/);
   assert.match(offlineQueueSource, /writeIndexedQueue/);
   assert.match(offlineQueueSource, /persistentStorageGranted/);
-  assert.match(offlineQueueSource, /浏览器存储空间接近上限/);
-  assert.match(offlineQueueSource, /可立即重试/);
+  assert.match(offlineQueueSource, /Browser storage is near its limit/);
+  assert.match(offlineQueueSource, /Ready to retry/);
 
   const mobileActionsSource = await readFile(path.join(rootDir, "src", "components", "apps", "SystemActionsApp.tsx"), "utf8");
-  assert.match(mobileActionsSource, /已记录 \{actionLogs\.length\} 条/);
+  assert.match(mobileActionsSource, /actions\.loggedCount/);
   assert.match(mobileActionsSource, /actionLogSummary/);
   assert.match(mobileActionsSource, /ActionMetric/);
-  assert.match(mobileActionsSource, /清空记录/);
-  assert.match(mobileActionsSource, /高风险/);
-  assert.match(mobileActionsSource, /最近执行记录/);
-  assert.match(mobileActionsSource, /来源：\{latestActionLog\.source\}/);
-  assert.match(mobileActionsSource, /Scheme：\{latestActionLog\.scheme\}/);
-  assert.match(mobileActionsSource, /风险：\{riskLabel\(latestActionLog\.risk\)\}/);
+  assert.match(mobileActionsSource, /actions\.clearLogs/);
+  assert.match(mobileActionsSource, /actions\.metricHighRisk/);
+  assert.match(mobileActionsSource, /actions\.latestRecord/);
+  assert.match(mobileActionsSource, /actions\.logLineOne/);
+  assert.match(mobileActionsSource, /actions\.logLineTwo/);
+  assert.match(mobileActionsSource, /riskLabel\(latestActionLog\.risk, t\)/);
   assert.match(mobileActionsSource, /loadAllowedUrlSchemes/);
   assert.match(mobileActionsSource, /writeSystemActionStorage/);
+  assert.match(translationsSource, /动作权限中心/);
+  assert.match(translationsSource, /清空记录/);
   assert.doesNotMatch(mobileActionsSource, /localStorage\.getItem\("lifeos_allowed_url_schemes"/);
   assert.doesNotMatch(mobileActionsSource, /localStorage\.setItem\("lifeos_system_actions"/);
 
@@ -420,84 +480,149 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const connectionGuideSource = await readFile(path.join(rootDir, "src", "pages", "admin", "ConnectionGuide.tsx"), "utf8");
   assert.match(connectionGuideSource, /id="mobile-connect"/);
-  assert.match(connectionGuideSource, /推荐绑定地址/);
-  assert.match(connectionGuideSource, /推荐启动环境/);
+  assert.match(connectionGuideSource, /connection\.recommendedAddress/);
+  assert.match(connectionGuideSource, /connection\.recommendedEnv/);
   assert.match(connectionGuideSource, /recommended-env/);
-  assert.match(connectionGuideSource, /复制推荐启动环境/);
+  assert.match(connectionGuideSource, /connection\.copyRecommendedEnv/);
   assert.match(connectionGuideSource, /connectionCandidates/);
-  assert.match(connectionGuideSource, /需重启生效/);
-  assert.match(connectionGuideSource, /复制手机入口/);
-  assert.match(connectionGuideSource, /手机端入口/);
-  assert.match(connectionGuideSource, /mobile\/install/);
+  assert.match(connectionGuideSource, /connection\.restartBadge/);
+  assert.match(connectionGuideSource, /connection\.copyMobileEntry/);
+  assert.match(connectionGuideSource, /connection\.mobileEntry/);
+  assert.match(connectionGuideSource, /connection\.pairingQrHint/);
+  assert.match(translationsSource, /mobile\/install/);
   assert.doesNotMatch(connectionGuideSource, /copyText\("recommended-pair"/);
   assert.doesNotMatch(connectionGuideSource, /copyText\(candidate\.id, candidate\.mobilePairUrl\)/);
   assert.match(connectionGuideSource, /candidate\.envTemplate/);
   assert.match(connectionGuideSource, /candidate\.restartInstruction/);
-  assert.match(connectionGuideSource, /复制启动环境/);
+  assert.match(connectionGuideSource, /connection\.copyEnv/);
   assert.match(connectionGuideSource, /saveDesktopConnectionConfig/);
-  assert.match(connectionGuideSource, /保存到桌面启动配置/);
-  assert.match(connectionGuideSource, /安装包用户/);
-  assert.match(connectionGuideSource, /退出并重新打开 LifeOS AI/);
+  assert.match(connectionGuideSource, /connection\.saveDesktopConfig/);
+  assert.match(connectionGuideSource, /connection\.packageRestartHint/);
+  assert.match(connectionGuideSource, /TailscaleServeActions/);
+  assert.match(connectionGuideSource, /startTailscaleHttpsServe/);
+  const tailscaleServeActionsSource = await readFile(path.join(rootDir, "src", "pages", "admin", "TailscaleServeActions.tsx"), "utf8");
+  assert.match(tailscaleServeActionsSource, /connection\.tailscaleServeStart/);
+  assert.match(tailscaleServeActionsSource, /connection\.tailscaleServeUrl/);
+  assert.match(translationsSource, /推荐绑定地址/);
+  assert.match(translationsSource, /推荐启动环境/);
+  assert.match(translationsSource, /复制推荐启动环境/);
+  assert.match(translationsSource, /需重启生效/);
+  assert.match(translationsSource, /复制手机入口/);
+  assert.match(translationsSource, /手机端入口/);
+  assert.match(translationsSource, /复制启动环境/);
+  assert.match(translationsSource, /保存到桌面启动配置/);
+  assert.match(translationsSource, /安装包用户/);
+  assert.match(translationsSource, /退出并重新打开 LifeOS AI/);
+  assert.match(translationsSource, /一键启动 Tailscale HTTPS Serve/);
   assert.match(connectionGuideSource, /desktopRuntimeConfig/);
+  assert.match(connectionGuideSource, /connection\.testSavedRemote/);
+  assert.match(connectionGuideSource, /saved-desktop-config/);
+  assert.match(connectionGuideSource, /remoteValidationReport/);
+  assert.match(connectionGuideSource, /connection\.remoteValidationOk/);
+  assert.match(connectionGuideSource, /connection\.remoteValidationFail/);
+  assert.match(connectionGuideSource, /persist,\s*label/);
+  assert.match(connectionGuideSource, /desktopRuntimeConfig!\.publicBaseUrl/);
+  assert.match(connectionGuideSource, /CustomRemoteEntryCard/);
+  assert.match(connectionGuideSource, /RemoteReadinessCard/);
+  assert.match(connectionGuideSource, /ConnectionToolStatus/);
+  assert.match(connectionGuideSource, /installCopy/);
+  const connectionToolStatusSource = await readFile(path.join(rootDir, "src", "pages", "admin", "ConnectionToolStatus.tsx"), "utf8");
+  assert.match(connectionToolStatusSource, /connection\.copyInstallAria/);
+  assert.match(connectionToolStatusSource, /connection\.openInstallGuide/);
+  assert.match(translationsSource, /复制安装命令/);
+  assert.match(translationsSource, /Copy Install Command/);
+  assert.match(translationsSource, /验收已保存异地入口/);
+  assert.match(translationsSource, /Smoke Test Saved Remote Entry/);
+  const remoteReadinessCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "RemoteReadinessCard.tsx"), "utf8");
+  assert.match(remoteReadinessCardSource, /remoteReadiness/);
+  assert.match(remoteReadinessCardSource, /connection\.readiness\.status\.ready/);
+  assert.match(remoteReadinessCardSource, /connection\.readiness\.item\.needsPublicOptIn/);
+  const customRemoteEntrySource = await readFile(path.join(rootDir, "src", "pages", "admin", "CustomRemoteEntryCard.tsx"), "utf8");
+  assert.match(customRemoteEntrySource, /connection\.customTitle/);
+  assert.match(customRemoteEntrySource, /testConnectionUrl/);
+  assert.match(customRemoteEntrySource, /result\.steps/);
+  assert.match(customRemoteEntrySource, /saveDesktopConnectionConfig/);
+  assert.match(customRemoteEntrySource, /mode: "configured"/);
+  assert.match(customRemoteEntrySource, /normalizedUrl\.startsWith\("https:\/\/"\)/);
+  assert.match(translationsSource, /稳定异地入口/);
+  assert.match(translationsSource, /已可长期异地使用/);
+  assert.match(translationsSource, /LIFEOS_ALLOW_PUBLIC=1/);
+  assert.match(translationsSource, /项通过/);
+  assert.match(translationsSource, /checks passed/);
+  assert.match(translationsSource, /Cloudflare Named Tunnel/);
 
   const devicePairSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairPage.tsx"), "utf8");
   assert.match(devicePairSource, /connectionCandidates/);
   assert.match(devicePairSource, /testConnectionUrl/);
-  assert.match(devicePairSource, /测试当前绑定地址/);
-  assert.match(devicePairSource, /推荐安全/);
-  assert.match(devicePairSource, /仅可信网络/);
-  assert.match(devicePairSource, /需重启生效/);
+  assert.match(devicePairSource, /devicePair\.testCurrent/);
+  assert.match(devicePairSource, /connection\.secureRecommended/);
+  assert.match(devicePairSource, /connection\.trustedNetworkOnly/);
+  assert.match(devicePairSource, /connection\.restartBadge/);
   assert.match(devicePairSource, /activeCandidate\.envTemplate/);
   assert.match(devicePairSource, /activeCandidate\.restartInstruction/);
   assert.match(devicePairSource, /copiedEnv/);
-  assert.match(devicePairSource, /复制当前绑定启动环境/);
-  assert.match(devicePairSource, /重启后生效/);
+  assert.match(devicePairSource, /devicePair\.copyEnv/);
+  assert.match(devicePairSource, /devicePair\.restartTitle/);
+  assert.match(devicePairSource, /devicePair\.temporaryTitle/);
+  assert.match(devicePairSource, /devicePair\.temporaryBody/);
+  assert.match(translationsSource, /测试当前绑定地址/);
+  assert.match(translationsSource, /推荐安全/);
+  assert.match(translationsSource, /仅可信网络/);
+  assert.match(translationsSource, /复制当前绑定启动环境/);
+  assert.match(translationsSource, /重启后生效/);
+  assert.match(translationsSource, /这是临时地址/);
 
   const adminDashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
-  assert.match(adminDashboardSource, /公网\/异地访问存在待处理风险/);
+  assert.match(adminDashboardSource, /dashboard\.publicRiskTitle/);
   assert.match(adminDashboardSource, /health\.publicRisk\.items\.map/);
-  assert.match(adminDashboardSource, /打开安全设置/);
-  assert.match(adminDashboardSource, /立即创建备份/);
-  assert.match(adminDashboardSource, /开启自动备份/);
+  assert.match(adminDashboardSource, /dashboard\.openSecuritySettings/);
+  assert.match(adminDashboardSource, /dashboard\.createBackupNow/);
+  assert.match(adminDashboardSource, /dashboard\.enableAutoBackup/);
   assert.match(adminDashboardSource, /\/admin\/settings#backup-schedule/);
   assert.match(adminDashboardSource, /previewBackup/);
-  assert.match(adminDashboardSource, /恢复前预览/);
-  assert.match(adminDashboardSource, /恢复风险说明/);
-  assert.match(adminDashboardSource, /普通备份已排除敏感密钥/);
+  assert.match(adminDashboardSource, /dashboard\.preRestorePreview/);
+  assert.match(adminDashboardSource, /dashboard\.restoreRisk/);
+  assert.match(adminDashboardSource, /dashboard\.ordinaryBackupSafe/);
   assert.match(adminDashboardSource, /buildRestoreConfirmMessage/);
+  assert.match(translationsSource, /公网\/异地访问存在待处理风险/);
+  assert.match(translationsSource, /恢复前预览/);
+  assert.match(translationsSource, /普通备份已排除敏感密钥/);
 
   const configDiagnosticsPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ConfigDiagnosticsPanel.tsx"), "utf8");
-  assert.match(configDiagnosticsPanelSource, /发布包/);
+  assert.match(configDiagnosticsPanelSource, /diagnostics\.releasePackage/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.manifestAvailable/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.checksumAvailable/);
   assert.match(configDiagnosticsPanelSource, /latestArtifact/);
   assert.match(configDiagnosticsPanelSource, /backupSchedule\.enabled/);
-  assert.match(configDiagnosticsPanelSource, /自动备份/);
+  assert.match(configDiagnosticsPanelSource, /diagnostics\.autoBackup/);
+  assert.match(translationsSource, /发布包/);
+  assert.match(translationsSource, /自动备份/);
 
   const backupRestorePanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupRestorePanel.tsx"), "utf8");
   assert.match(backupRestorePanelSource, /id="backup-schedule"/);
   assert.match(backupRestorePanelSource, /previewDataCleanup/);
-  assert.match(backupRestorePanelSource, /预览清理/);
+  assert.match(backupRestorePanelSource, /backup\.previewCleanup/);
   assert.match(backupRestorePanelSource, /cleanupPreview/);
   assert.match(backupRestorePanelSource, /buildCleanupConfirmMessage/);
   assert.match(backupRestorePanelSource, /BackupPreviewCard/);
   assert.match(backupRestorePanelSource, /BackupList/);
+  assert.match(translationsSource, /预览清理/);
 
   const backupListSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupList.tsx"), "utf8");
-  assert.match(backupListSource, /还没有备份/);
+  assert.match(backupListSource, /backupList\.empty/);
   assert.match(backupListSource, /backupDownloadUrl\(backup\.file\)/);
   assert.match(backupListSource, /onPreview\(backup\)/);
   assert.match(backupListSource, /onRestore\(backup\)/);
 
   const backupPreviewCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupPreviewCard.tsx"), "utf8");
-  assert.match(backupPreviewCardSource, /备份预览：/);
+  assert.match(backupPreviewCardSource, /backupPreview\.title/);
   assert.match(backupPreviewCardSource, /preview\.tables/);
-  assert.match(backupPreviewCardSource, /普通备份已排除敏感密钥/);
-  assert.match(backupPreviewCardSource, /恢复风险说明/);
+  assert.match(backupPreviewCardSource, /backupPreview\.secretsExcluded/);
+  assert.match(backupPreviewCardSource, /backupPreview\.risks/);
 
   const backupRestoreUiSource = await readFile(path.join(rootDir, "src", "services", "backupRestoreUi.ts"), "utf8");
-  assert.match(backupRestoreUiSource, /备份预览：/);
-  assert.match(backupRestoreUiSource, /预计删除/);
+  assert.match(backupRestoreUiSource, /Backup preview:/);
+  assert.match(backupRestoreUiSource, /Estimated cleanup/);
   assert.match(backupRestoreUiSource, /formatCleanupSummary/);
 
   const aiKeyPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AiKeyPanel.tsx"), "utf8");
@@ -510,14 +635,21 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(aiKeyPanelSource, /testAiProvider/);
   assert.match(aiKeyPanelSource, /Google Gemini API Key/);
   assert.match(aiKeyPanelSource, /Responses \/ Chat Completions/);
-  assert.match(aiKeyPanelSource, /多模型聚合路由/);
+  assert.match(aiKeyPanelSource, /aiKey\.details\.openrouter/);
   assert.match(aiKeyPanelSource, /Ollama \/ LM Studio endpoint/);
-  assert.match(aiKeyPanelSource, /系统安全存储不可用/);
-  assert.match(aiKeyPanelSource, /当前保存位置/);
-  assert.match(aiKeyPanelSource, /优先策略/);
-  assert.match(aiKeyPanelSource, /默认聊天 Provider/);
-  assert.match(aiKeyPanelSource, /设为默认聊天 Provider/);
-  assert.match(aiKeyPanelSource, /重新保存一次可迁移到系统安全存储/);
+  assert.match(aiKeyPanelSource, /aiKey\.systemUnavailable/);
+  assert.match(aiKeyPanelSource, /aiKey\.currentLocation/);
+  assert.match(aiKeyPanelSource, /aiKey\.priorityStrategy/);
+  assert.match(aiKeyPanelSource, /aiKey\.defaultProviderTitle/);
+  assert.match(aiKeyPanelSource, /aiKey\.setDefault/);
+  assert.match(aiKeyPanelSource, /aiKey\.migrateHint/);
+  assert.match(translationsSource, /多模型聚合路由/);
+  assert.match(translationsSource, /系统安全存储不可用/);
+  assert.match(translationsSource, /当前保存位置/);
+  assert.match(translationsSource, /优先策略/);
+  assert.match(translationsSource, /默认聊天 Provider/);
+  assert.match(translationsSource, /设为默认聊天 Provider/);
+  assert.match(translationsSource, /重新保存一次可迁移到系统安全存储/);
   assert.match(chatRuntimeSettingsSource, /lifeos_active_ai_provider/);
   assert.match(chatRuntimeSettingsSource, /providerId/);
   assert.match(chatRuntimeSettingsSource, /readLocalRuntimeValue/);

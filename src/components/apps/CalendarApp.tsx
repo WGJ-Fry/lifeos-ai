@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Plus, Trash2, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSyncedClientState } from "../../hooks/useSyncedClientState";
+import { useI18n } from "../../i18n/I18nProvider";
 
 interface CalendarEvent {
   id: string;
@@ -11,23 +12,32 @@ interface CalendarEvent {
 }
 
 export default function CalendarApp() {
+  const { t } = useI18n();
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(2026);
   const [currentMonth, setCurrentMonth] = useState(5); // June (0-indexed, so 5 is June)
   const [selectedDay, setSelectedDay] = useState<number>(4); // Default to June 4, 2026
 
   const [events, setEvents] = useSyncedClientState<CalendarEvent[]>("lifeos_calendar_events", [
-    { id: "e1", date: "2026-06-04", title: "产品发布会预演", time: "10:00 AM" },
-    { id: "e2", date: "2026-06-04", title: "周四例行周报总结", time: "05:35 PM" },
-    { id: "e3", date: "2026-06-13", title: "周末咖啡拉花课程", time: "02:00 PM" },
-    { id: "e4", date: "2026-06-18", title: "牙齿日常检查预约", time: "11:30 AM" }
+    { id: "e1", date: "2026-06-04", title: t("apps.calendar.defaultEvent1"), time: "10:00 AM" },
+    { id: "e2", date: "2026-06-04", title: t("apps.calendar.defaultEvent2"), time: "05:35 PM" },
+    { id: "e3", date: "2026-06-13", title: t("apps.calendar.defaultEvent3"), time: "02:00 PM" },
+    { id: "e4", date: "2026-06-18", title: t("apps.calendar.defaultEvent4"), time: "11:30 AM" }
   ]);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState("");
   const [newEventTime, setNewEventTime] = useState("09:00 AM");
 
-  const daysOfWeek = ["日", "一", "二", "三", "四", "五", "六"];
+  const daysOfWeek = [
+    t("apps.calendar.week.sun"),
+    t("apps.calendar.week.mon"),
+    t("apps.calendar.week.tue"),
+    t("apps.calendar.week.wed"),
+    t("apps.calendar.week.thu"),
+    t("apps.calendar.week.fri"),
+    t("apps.calendar.week.sat"),
+  ];
 
   // Helper values for rendering calendar
   const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -87,7 +97,7 @@ export default function CalendarApp() {
       <div className="flex items-center justify-between mb-4 border-b border-zinc-800/80 pb-3 h-10 flex-shrink-0">
         <h3 className="font-semibold text-[15px] flex items-center gap-2">
           <CalendarIcon className="w-4 h-4 text-indigo-400" />
-          数字日程规划
+          {t("apps.calendar.title")}
         </h3>
         <div className="flex items-center gap-3">
           <button 
@@ -98,7 +108,7 @@ export default function CalendarApp() {
             <ChevronLeft className="w-4 h-4"/>
           </button>
           <span className="text-[13px] font-bold text-zinc-200">
-            {currentYear}年 {currentMonth + 1}月
+            {t("apps.calendar.monthTitle", { year: String(currentYear), month: String(currentMonth + 1) })}
           </span>
           <button 
             type="button"
@@ -164,13 +174,13 @@ export default function CalendarApp() {
       {/* Agenda Section for the Selected Day */}
       <div className="pt-3 border-t border-zinc-800/80 mt-2 h-36 flex flex-col justify-between flex-shrink-0">
         <div className="flex items-center justify-between text-[11px] font-bold text-zinc-500 mb-1.5 uppercase tracking-wider pl-1">
-          <span>{currentMonth + 1}月{selectedDay}日 · 待办日程 ({selectedDayEvents.length})</span>
+          <span>{t("apps.calendar.agendaTitle", { month: String(currentMonth + 1), day: String(selectedDay), count: String(selectedDayEvents.length) })}</span>
           {!showAddForm && (
             <button
               onClick={() => setShowAddForm(true)}
               className="text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5"/> 新建日程
+              <Plus className="w-3.5 h-3.5"/> {t("apps.calendar.newEvent")}
             </button>
           )}
         </div>
@@ -191,7 +201,7 @@ export default function CalendarApp() {
                     type="text"
                     value={newEventTitle}
                     onChange={(e) => setNewEventTitle(e.target.value)}
-                    placeholder="输入活动主题..."
+                    placeholder={t("apps.calendar.eventPlaceholder")}
                     className="flex-1 bg-zinc-900 border border-white/[0.05] text-xs px-2.5 py-1.5 rounded-lg outline-none focus:border-indigo-500/50 text-left font-medium"
                     onKeyDown={(e) => e.key === "Enter" && handleAddEvent()}
                   />
@@ -208,13 +218,13 @@ export default function CalendarApp() {
                     onClick={() => setShowAddForm(false)}
                     className="text-zinc-400 hover:text-zinc-200 px-2 py-1"
                   >
-                    取消
+                    {t("apps.calendar.cancel")}
                   </button>
                   <button
                     onClick={handleAddEvent}
                     className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 py-1 rounded-md"
                   >
-                    添加
+                    {t("apps.calendar.add")}
                   </button>
                 </div>
               </motion.div>
@@ -225,7 +235,7 @@ export default function CalendarApp() {
                 animate={{ opacity: 1 }}
                 className="text-xs text-zinc-500 text-center py-6 font-medium"
               >
-                今天没有安排，享受慢节奏生活。☘️
+                {t("apps.calendar.empty")}
               </motion.div>
             ) : (
               <motion.div
@@ -251,7 +261,7 @@ export default function CalendarApp() {
                       <button
                         onClick={() => handleDeleteEvent(ev.id)}
                         className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 rounded-md transition-all duration-200"
-                        title="删除日程"
+                        title={t("apps.calendar.delete")}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

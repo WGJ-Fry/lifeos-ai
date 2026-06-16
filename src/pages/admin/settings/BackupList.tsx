@@ -1,4 +1,5 @@
 import { CalendarClock, DatabaseBackup, Download, RotateCcw } from "lucide-react";
+import { useI18n } from "../../../i18n/I18nProvider";
 import { backupDownloadUrl, listBackups } from "../../../services/lifeosApi";
 
 type BackupItem = Awaited<ReturnType<typeof listBackups>>["backups"][number];
@@ -14,10 +15,12 @@ export function BackupList({
   onPreview: (backup: BackupItem) => void;
   onRestore: (backup: BackupItem) => void;
 }) {
+  const { t } = useI18n();
+
   if (backups.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-white/[0.08] p-6 text-center text-sm text-zinc-500">
-        还没有备份。创建一次备份后，这里会显示可下载和可恢复的 SQLite 快照。
+        {t("backupList.empty")}
       </div>
     );
   }
@@ -39,7 +42,7 @@ export function BackupList({
           <div className="flex items-center gap-3">
             <a href={backupDownloadUrl(backup.file)} className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-300 hover:text-cyan-200">
               <Download className="h-3.5 w-3.5" />
-              下载
+              {t("common.download")}
             </a>
             <button
               onClick={() => onPreview(backup)}
@@ -47,7 +50,7 @@ export function BackupList({
               className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-300 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <DatabaseBackup className="h-3.5 w-3.5" />
-              {busy === `preview-${backup.file}` ? "读取中" : "预览"}
+              {busy === `preview-${backup.file}` ? t("common.reading") : t("common.preview")}
             </button>
             <button
               onClick={() => onRestore(backup)}
@@ -55,7 +58,7 @@ export function BackupList({
               className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              {busy === backup.file ? "安排中" : "恢复"}
+              {busy === backup.file ? t("backupList.scheduling") : t("backupList.restore")}
             </button>
           </div>
         </div>

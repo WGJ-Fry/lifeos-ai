@@ -3,16 +3,13 @@ import { AlertTriangle, DatabaseBackup, Download, LockKeyhole, Plus, Sparkles, U
 import { backupDownloadUrl, cancelPendingRestore, cleanupData, createBackup, dataExportDownloadUrl, exportEncryptedBackup, getBackupSchedule, importEncryptedBackup, listBackups, previewBackup, previewDataCleanup, restoreBackup, updateBackupSchedule } from "../../../services/lifeosApi";
 import type { BackupPreview, BackupSchedule, DataExportScope, PendingRestore } from "../../../services/lifeosApi";
 import { buildCleanupConfirmMessage, buildCleanupPolicyOptions, buildRestoreConfirmMessage, formatCleanupSummary } from "../../../services/backupRestoreUi";
+import { useI18n } from "../../../i18n/I18nProvider";
+import type { TranslationKey } from "../../../i18n/translations";
 import { BackupList } from "./BackupList";
 import { BackupPreviewCard } from "./BackupPreviewCard";
 
 type BackupItem = Awaited<ReturnType<typeof listBackups>>["backups"][number];
-const dataExportScopeOptions: Array<{ id: DataExportScope; label: string }> = [
-  { id: "chat", label: "聊天" },
-  { id: "memories", label: "记忆" },
-  { id: "devices", label: "设备" },
-  { id: "auditLogs", label: "审计" },
-];
+const dataExportScopeIds: DataExportScope[] = ["chat", "memories", "devices", "auditLogs"];
 
 export default function BackupRestorePanel({
   backups,
@@ -23,6 +20,7 @@ export default function BackupRestorePanel({
   pendingRestore: PendingRestore | null;
   onChanged: () => Promise<void>;
 }) {
+  const { t } = useI18n();
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [preview, setPreview] = useState<BackupPreview | null>(null);
@@ -33,7 +31,7 @@ export default function BackupRestorePanel({
   const [cleanupAuditDays, setCleanupAuditDays] = useState(180);
   const [cleanupChatDays, setCleanupChatDays] = useState(365);
   const [cleanupPreview, setCleanupPreview] = useState<Awaited<ReturnType<typeof previewDataCleanup>>["cleanup"] | null>(null);
-  const [exportScopes, setExportScopes] = useState<DataExportScope[]>(dataExportScopeOptions.map((option) => option.id));
+  const [exportScopes, setExportScopes] = useState<DataExportScope[]>(dataExportScopeIds);
   const [encryptionPassphrase, setEncryptionPassphrase] = useState("");
   const [importPassphrase, setImportPassphrase] = useState("");
   const exportHref = dataExportDownloadUrl(exportScopes);
@@ -45,7 +43,7 @@ export default function BackupRestorePanel({
         setScheduleEnabled(result.schedule.enabled);
         setScheduleInterval(result.schedule.intervalHours);
       })
-      .catch((error) => setStatus(error.message || "加载自动备份计划失败"));
+      .catch((error) => setStatus(error.message || t("backup.loadScheduleFailed")));
   }, []);
 
   const handleCreateBackup = async () => {
@@ -53,10 +51,10 @@ export default function BackupRestorePanel({
     setStatus(null);
     try {
       const result = await createBackup();
-      setStatus(`已创建备份：${result.backup.file}`);
+      setStatus(t("backup.created", { file: result.backup.file }));
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || "创建备份失败");
+      setStatus(error.message || t("backup.createFailed"));
     } finally {
       setBusy(null);
     }
@@ -71,7 +69,7 @@ export default function BackupRestorePanel({
       setPreview(backupPreview);
     } catch (error: any) {
       setBusy(null);
-      setStatus(error.message || "读取备份预览失败");
+      setStatus(error.message || t("backup.previewFailed"));
       return;
     }
     const confirmed = window.confirm(buildRestoreConfirmMessage(backup.file, backupPreview));
@@ -83,10 +81,10 @@ export default function BackupRestorePanel({
     setStatus(null);
     try {
       const result = await restoreBackup(backup.file);
-      setStatus(`已安排下次启动恢复。恢复前备份：${result.restore.preRestoreBackup.file}`);
+      setStatus(t("backup.restoreScheduled", { file: result.restore.preRestoreBackup.file }));
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || "安排恢复失败");
+      setStatus(error.message || t("backup.restoreFailed"));
     } finally {
       setBusy(null);
     }
@@ -98,9 +96,9 @@ export default function BackupRestorePanel({
     try {
       const result = await previewBackup(backup.file);
       setPreview(result.preview);
-      setStatus(`已读取备份预览：${backup.file}`);
+      setStatus(t("backup.previewLoaded", { file: backup.file }));
     } catch (error: any) {
-      setStatus(error.message || "读取备份预览失败");
+      setStatus(error.message || t("backup.previewFailed"));
     } finally {
       setBusy(null);
     }
@@ -129,10 +127,10 @@ export default function BackupRestorePanel({
         return;
       }
       const result = await cleanupData(cleanupPolicy.options);
-      setStatus(`清理完成：删除 ${result.cleanup.backupsDeleted} 个备份、${result.cleanup.auditLogsDeleted} 条审计、${result.cleanup.chatSessionsDeleted} 个会话。`);
+      setStatus(t("backup.cleanupDone", { backups: result.cleanup.backupsDeleted, auditLogs: result.cleanup.auditLogsDeleted, sessions: result.cleanup.chatSessionsDeleted }));
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || "清理失败");
+      setStatus(error.message || t("backup.cleanupFailed"));
     } finally {
       setBusy(null);
     }
@@ -153,24 +151,24 @@ export default function BackupRestorePanel({
     try {
       const result = await previewDataCleanup(cleanupPolicy.options);
       setCleanupPreview(result.cleanup);
-      setStatus(`清理预览：${formatCleanupSummary(result.cleanup)}`);
+      setStatus(t("backup.cleanupPreview", { summary: formatCleanupSummary(result.cleanup) }));
     } catch (error: any) {
-      setStatus(error.message || "读取清理预览失败");
+      setStatus(error.message || t("backup.cleanupPreviewFailed"));
     } finally {
       setBusy(null);
     }
   };
 
   const handleCancelRestore = async () => {
-    if (!window.confirm("取消等待重启执行的恢复任务？当前数据库不会被替换。")) return;
+    if (!window.confirm(t("backup.cancelRestoreConfirm"))) return;
     setBusy("cancel-restore");
     setStatus(null);
     try {
       await cancelPendingRestore();
-      setStatus("已取消等待重启的恢复任务。");
+      setStatus(t("backup.cancelRestoreDone"));
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || "取消恢复任务失败");
+      setStatus(error.message || t("backup.cancelRestoreFailed"));
     } finally {
       setBusy(null);
     }
@@ -182,10 +180,10 @@ export default function BackupRestorePanel({
     try {
       const result = await updateBackupSchedule({ enabled: scheduleEnabled, intervalHours: scheduleInterval });
       setSchedule(result.schedule);
-      setStatus(result.schedule.enabled ? `自动备份已开启：每 ${result.schedule.intervalHours} 小时执行一次。` : "自动备份已关闭。");
+      setStatus(result.schedule.enabled ? t("backup.scheduleEnabled", { hours: result.schedule.intervalHours }) : t("backup.scheduleDisabled"));
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || "保存自动备份计划失败");
+      setStatus(error.message || t("backup.scheduleSaveFailed"));
     } finally {
       setBusy(null);
     }
@@ -193,7 +191,7 @@ export default function BackupRestorePanel({
 
   const handleEncryptedExport = async (backup: BackupItem) => {
     if (encryptionPassphrase.length < 10) {
-      setStatus("加密口令至少需要 10 个字符。");
+      setStatus(t("backup.exportPassphraseShort"));
       return;
     }
     setBusy(`encrypt-${backup.file}`);
@@ -208,9 +206,9 @@ export default function BackupRestorePanel({
       link.click();
       URL.revokeObjectURL(url);
       setEncryptionPassphrase("");
-      setStatus(`已生成加密备份：${link.download}`);
+      setStatus(t("backup.encryptedExportDone", { file: link.download }));
     } catch (error: any) {
-      setStatus(error.message || "生成加密备份失败");
+      setStatus(error.message || t("backup.encryptedExportFailed"));
     } finally {
       setBusy(null);
     }
@@ -219,7 +217,7 @@ export default function BackupRestorePanel({
   const handleEncryptedImport = async (file: File | null) => {
     if (!file) return;
     if (importPassphrase.length < 10) {
-      setStatus("请输入至少 10 个字符的导入口令。");
+      setStatus(t("backup.importPassphraseShort"));
       return;
     }
     setBusy("encrypted-import");
@@ -229,10 +227,10 @@ export default function BackupRestorePanel({
       const result = await importEncryptedBackup(payload, importPassphrase);
       setPreview(result.preview);
       setImportPassphrase("");
-      setStatus(`已导入加密备份：${result.backup.file}。请先预览，再手动点击恢复。`);
+      setStatus(t("backup.encryptedImportDone", { file: result.backup.file }));
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || "导入加密备份失败");
+      setStatus(error.message || t("backup.encryptedImportFailed"));
     } finally {
       setBusy(null);
     }
@@ -243,7 +241,7 @@ export default function BackupRestorePanel({
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 font-bold">
           <DatabaseBackup className="h-4 w-4 text-blue-300" />
-          备份与恢复
+          {t("backup.title")}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <a
@@ -255,12 +253,12 @@ export default function BackupRestorePanel({
             className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold ${exportScopes.length ? "border-cyan-400/20 bg-cyan-500/10 text-cyan-200" : "pointer-events-none border-white/[0.08] bg-white/[0.03] text-zinc-500"}`}
           >
             <Download className="h-3.5 w-3.5" />
-            导出数据
+            {t("backup.exportData")}
           </a>
           {backups[0] ? (
             <a href={backupDownloadUrl(backups[0].file)} className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-bold text-zinc-200 hover:bg-white/[0.06]">
               <Download className="h-3.5 w-3.5" />
-              下载最新
+              {t("backup.downloadLatest")}
             </a>
           ) : null}
           <button
@@ -269,7 +267,7 @@ export default function BackupRestorePanel({
             className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Plus className="h-3.5 w-3.5" />
-            {busy === "create" ? "创建中" : "创建备份"}
+            {busy === "create" ? t("backup.creating") : t("backup.create")}
           </button>
         </div>
       </div>
@@ -279,9 +277,9 @@ export default function BackupRestorePanel({
           <div className="flex gap-3">
             <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-300" />
             <div>
-              <div className="font-bold">恢复任务等待重启</div>
+              <div className="font-bold">{t("backup.pendingRestoreTitle")}</div>
               <div className="mt-1 text-amber-100/75">
-                将在下次启动前恢复 {pendingRestore.restoredFrom}。恢复前备份：{pendingRestore.preRestoreBackup.file}。
+                {t("backup.pendingRestoreBody", { source: pendingRestore.restoredFrom, file: pendingRestore.preRestoreBackup.file })}
               </div>
               <button
                 onClick={handleCancelRestore}
@@ -289,14 +287,14 @@ export default function BackupRestorePanel({
                 className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-200/25 bg-amber-200/10 px-3 py-2 text-xs font-bold text-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <XCircle className="h-3.5 w-3.5" />
-                {busy === "cancel-restore" ? "取消中" : "取消恢复任务"}
+                {busy === "cancel-restore" ? t("backup.canceling") : t("backup.cancelRestore")}
               </button>
             </div>
           </div>
         </div>
       ) : (
         <div className="mb-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-sm leading-relaxed text-zinc-400">
-          恢复前会自动创建当前数据库备份，恢复动作会在下次启动前执行。建议在升级、开启公网访问、批量导入数据前先创建一次备份。
+          {t("backup.restoreNotice")}
         </div>
       )}
 
@@ -305,31 +303,31 @@ export default function BackupRestorePanel({
       <div id="backup-schedule" className="mb-4 scroll-mt-6 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-bold text-zinc-100">数据导出范围</div>
-            <div className="mt-1 text-xs text-zinc-500">按需要导出聊天、记忆、设备或审计日志。敏感字段仍会脱敏。</div>
+            <div className="text-sm font-bold text-zinc-100">{t("backup.exportScopeTitle")}</div>
+            <div className="mt-1 text-xs text-zinc-500">{t("backup.exportScopeBody")}</div>
           </div>
           <button
             type="button"
-            onClick={() => setExportScopes(dataExportScopeOptions.map((option) => option.id))}
+            onClick={() => setExportScopes(dataExportScopeIds)}
             className="inline-flex items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-zinc-200"
           >
-            全选
+            {t("backup.selectAll")}
           </button>
         </div>
         <div className="grid gap-2 sm:grid-cols-4">
-          {dataExportScopeOptions.map((option) => (
-            <label key={option.id} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#060a10] px-3 py-2 text-sm text-zinc-300">
+          {dataExportScopeIds.map((scope) => (
+            <label key={scope} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#060a10] px-3 py-2 text-sm text-zinc-300">
               <input
                 type="checkbox"
-                checked={exportScopes.includes(option.id)}
+                checked={exportScopes.includes(scope)}
                 onChange={(event) => {
                   setExportScopes((current) => event.target.checked
-                    ? Array.from(new Set([...current, option.id]))
-                    : current.filter((scope) => scope !== option.id));
+                    ? Array.from(new Set([...current, scope]))
+                    : current.filter((value) => value !== scope));
                 }}
                 className="h-4 w-4 accent-cyan-400"
               />
-              {option.label}
+              {t(`backup.scope.${scope}` as TranslationKey)}
             </label>
           ))}
         </div>
@@ -339,11 +337,11 @@ export default function BackupRestorePanel({
       <div className="mb-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-bold text-zinc-100">自动备份计划</div>
+            <div className="text-sm font-bold text-zinc-100">{t("backup.scheduleTitle")}</div>
             <div className="mt-1 text-xs text-zinc-500">
               {schedule?.enabled && schedule.nextRunAt
-                ? `下次执行：${new Date(schedule.nextRunAt).toLocaleString()}`
-                : "关闭时不会自动创建备份。"}
+                ? t("backup.nextRun", { time: new Date(schedule.nextRunAt).toLocaleString() })
+                : t("backup.scheduleOffHint")}
             </div>
           </div>
           <button
@@ -351,7 +349,7 @@ export default function BackupRestorePanel({
             disabled={Boolean(busy)}
             className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {busy === "schedule" ? "保存中" : "保存计划"}
+            {busy === "schedule" ? t("backup.saving") : t("backup.saveSchedule")}
           </button>
         </div>
         <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
@@ -362,10 +360,10 @@ export default function BackupRestorePanel({
               onChange={(event) => setScheduleEnabled(event.target.checked)}
               className="h-4 w-4 accent-emerald-400"
             />
-            开启自动备份
+            {t("backup.enableSchedule")}
           </label>
           <label className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-[#060a10] px-3 py-2 text-sm text-zinc-300">
-            <span className="shrink-0 text-xs text-zinc-500">间隔</span>
+            <span className="shrink-0 text-xs text-zinc-500">{t("backup.interval")}</span>
             <input
               type="number"
               min={1}
@@ -374,17 +372,17 @@ export default function BackupRestorePanel({
               onChange={(event) => setScheduleInterval(Number(event.target.value))}
               className="min-w-0 flex-1 bg-transparent text-right font-mono outline-none"
             />
-            <span className="shrink-0 text-xs text-zinc-500">小时</span>
+            <span className="shrink-0 text-xs text-zinc-500">{t("backup.hours")}</span>
           </label>
         </div>
-        {schedule?.lastRunAt ? <div className="mt-2 text-xs text-zinc-500">上次执行：{new Date(schedule.lastRunAt).toLocaleString()}</div> : null}
+        {schedule?.lastRunAt ? <div className="mt-2 text-xs text-zinc-500">{t("backup.lastRun", { time: new Date(schedule.lastRunAt).toLocaleString() })}</div> : null}
       </div>
 
       <div className="mb-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-sm font-bold text-zinc-100">清理策略</div>
-            <div className="mt-1 text-xs text-zinc-500">备份至少保留 1 份；审计和聊天天数设置为 0 表示不清理。执行前会再次确认。</div>
+            <div className="text-sm font-bold text-zinc-100">{t("backup.cleanupTitle")}</div>
+            <div className="mt-1 text-xs text-zinc-500">{t("backup.cleanupBody")}</div>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
@@ -393,7 +391,7 @@ export default function BackupRestorePanel({
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {busy === "cleanup-preview" ? "预览中" : "预览清理"}
+              {busy === "cleanup-preview" ? t("backup.previewing") : t("backup.previewCleanup")}
             </button>
             <button
               onClick={handleCleanup}
@@ -401,28 +399,28 @@ export default function BackupRestorePanel({
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-bold text-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {busy === "cleanup" ? "清理中" : "按策略清理"}
+              {busy === "cleanup" ? t("backup.cleaning") : t("backup.cleanupByPolicy")}
             </button>
           </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           <NumberField
-            label="保留备份"
-            suffix="份"
+            label={t("backup.keepBackups")}
+            suffix={t("backup.countUnit")}
             value={cleanupBackupKeepCount}
             min={1}
             onChange={setCleanupBackupKeepCount}
           />
           <NumberField
-            label="审计早于"
-            suffix="天"
+            label={t("backup.auditOlderThan")}
+            suffix={t("backup.days")}
             value={cleanupAuditDays}
             min={0}
             onChange={setCleanupAuditDays}
           />
           <NumberField
-            label="聊天早于"
-            suffix="天"
+            label={t("backup.chatOlderThan")}
+            suffix={t("backup.days")}
             value={cleanupChatDays}
             min={0}
             onChange={setCleanupChatDays}
@@ -430,10 +428,10 @@ export default function BackupRestorePanel({
         </div>
         {cleanupPreview ? (
           <div className="mt-3 grid gap-2 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-3 text-center text-xs sm:grid-cols-4">
-            <MetricPill label="备份" value={cleanupPreview.backupsDeleted} />
-            <MetricPill label="审计" value={cleanupPreview.auditLogsDeleted} />
-            <MetricPill label="会话" value={cleanupPreview.chatSessionsDeleted} />
-            <MetricPill label="消息" value={cleanupPreview.messagesDeleted} />
+            <MetricPill label={t("backup.metricBackups")} value={cleanupPreview.backupsDeleted} />
+            <MetricPill label={t("backup.metricAudit")} value={cleanupPreview.auditLogsDeleted} />
+            <MetricPill label={t("backup.metricSessions")} value={cleanupPreview.chatSessionsDeleted} />
+            <MetricPill label={t("backup.metricMessages")} value={cleanupPreview.messagesDeleted} />
           </div>
         ) : null}
       </div>
@@ -442,17 +440,17 @@ export default function BackupRestorePanel({
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-100">
             <LockKeyhole className="h-4 w-4 text-emerald-300" />
-            加密备份导出
+            {t("backup.encryptedExportTitle")}
           </div>
           <div className="mb-3 text-xs leading-relaxed text-zinc-500">
-            使用本机临时派生密钥加密 SQLite 备份，口令不会保存。适合放到网盘或跨设备迁移。
+            {t("backup.encryptedExportBody")}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
               type="password"
               value={encryptionPassphrase}
               onChange={(event) => setEncryptionPassphrase(event.target.value)}
-              placeholder="加密口令，至少 10 个字符"
+              placeholder={t("backup.exportPassphrasePlaceholder")}
               className="min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-[#060a10] px-3 py-2 text-sm text-zinc-100 outline-none"
             />
             <button
@@ -461,29 +459,29 @@ export default function BackupRestorePanel({
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Download className="h-3.5 w-3.5" />
-              {busy?.startsWith("encrypt-") ? "加密中" : "导出最新"}
+              {busy?.startsWith("encrypt-") ? t("backup.encrypting") : t("backup.exportLatest")}
             </button>
           </div>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
           <div className="mb-3 flex items-center gap-2 text-sm font-bold text-zinc-100">
             <Upload className="h-4 w-4 text-blue-300" />
-            加密备份导入
+            {t("backup.encryptedImportTitle")}
           </div>
           <div className="mb-3 text-xs leading-relaxed text-zinc-500">
-            导入后只会保存为一份可预览备份，不会立刻覆盖当前数据。恢复仍需要手动确认并重启。
+            {t("backup.encryptedImportBody")}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
               type="password"
               value={importPassphrase}
               onChange={(event) => setImportPassphrase(event.target.value)}
-              placeholder="导入口令"
+              placeholder={t("backup.importPassphrasePlaceholder")}
               className="min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-[#060a10] px-3 py-2 text-sm text-zinc-100 outline-none"
             />
             <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-blue-400/20 bg-blue-500/10 px-3 py-2 text-xs font-bold text-blue-200">
               <Upload className="h-3.5 w-3.5" />
-              {busy === "encrypted-import" ? "导入中" : "选择文件"}
+              {busy === "encrypted-import" ? t("backup.importing") : t("backup.chooseFile")}
               <input
                 type="file"
                 accept=".json,.lifeos-backup"

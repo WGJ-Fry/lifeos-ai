@@ -92,6 +92,54 @@ chmod +x "LifeOS AI-0.0.0.AppImage"
 
 这一流程也叫 `Use It Away From Home`。桌面版推荐在连接向导里使用 `Save to desktop startup configuration`，它会写入 `desktop startup configuration`，重启后继续使用推荐地址。
 
+### 不在同一局域网的推荐做法
+
+长期自用优先用 Tailscale：
+
+1. 在电脑和手机上安装 Tailscale。
+2. 两台设备登录同一个 Tailnet。
+3. 在 Tailscale 管理后台启用 MagicDNS。
+4. 打开 LifeOS AI 电脑端的“手机连接向导”。
+5. 优先选择 `Tailscale HTTPS Serve` 推荐地址。
+6. 点击“一键启动 Tailscale HTTPS Serve”。成功后系统会把 `https://<device>.<tailnet>` 保存为手机绑定地址。
+7. 如果一键启动不可用，再在电脑终端执行页面给出的命令，例如：
+
+   ```bash
+   tailscale serve --bg https:443 http://127.0.0.1:3000
+   ```
+
+8. 点击连接测试，测试通过后保存到桌面启动配置。
+9. 退出并重新打开 LifeOS AI，然后重新生成手机绑定二维码。
+10. 发布或长期使用前，从电脑终端跑一次远程验收：
+
+   ```bash
+   npm run remote:smoke
+   # 或手动指定入口：
+   LIFEOS_REMOTE_BASE_URL="https://<device>.<tailnet>" npm run remote:smoke
+   ```
+
+   这会同时验证 `/api/v1/health`、`/mobile/chat` 和 `/api/v1/ws`。三项都通过后，再让手机扫码绑定或重新绑定。
+   如果你用源码运行，请先 `npm run build`，再用 `npm run start` 或桌面 App 做远程验收；`npm run dev` 的 Vite 开发服务器可能会拒绝临时 Cloudflare 域名，不能代表安装包效果。
+
+Tailscale HTTPS Serve 会给手机一个 `https://<device>.<tailnet>` 入口，更适合 PWA、Service Worker 和 WebCrypto 设备签名。只有在 HTTPS Serve 不可用时，才退回 Tailnet IP 或 HTTP MagicDNS。
+
+需要 HTTPS 公网入口时用 Cloudflare Tunnel：
+
+1. 安装 `cloudflared`。
+2. 打开 LifeOS AI 电脑端的“手机连接向导”。
+3. 点击“一键启动 Cloudflare Tunnel”。
+4. 等待页面显示 `trycloudflare.com` 地址。
+5. 用新的二维码或手机入口完成绑定。
+6. 发布或给别人测试前，跑一次远程验收：
+
+   ```bash
+   npm run remote:smoke
+   # 或手动指定入口：
+   LIFEOS_REMOTE_BASE_URL="https://<your-tunnel>.trycloudflare.com" npm run remote:smoke
+   ```
+
+`trycloudflare.com` 快速隧道是临时地址。LifeOS AI 会在下次启动时自动重新创建 Tunnel 并刷新二维码地址，但已经添加到手机主屏幕的旧临时域名可能失效。需要长期固定入口时，请使用 Tailscale、Cloudflare Named Tunnel，或自己的可信 HTTPS 反向代理。
+
 ## AI Key
 
 推荐在电脑管理端设置 AI Key。Key 保存在电脑端安全存储或本地加密存储，不会保存到手机端。
@@ -243,6 +291,54 @@ For remote access, prefer:
 Do not expose LifeOS AI directly to a public IP. Before enabling LAN/public mode, set an admin password and review the security hints in the connection guide.
 
 This flow is also called `Use It Away From Home`. In the desktop app, prefer `Save to desktop startup configuration`; it writes the selected address to the `desktop startup configuration` for future launches.
+
+### Recommended Remote Setup
+
+For long-term personal use, prefer Tailscale:
+
+1. Install Tailscale on the desktop and the phone.
+2. Sign both devices into the same Tailnet.
+3. Enable MagicDNS in the Tailscale admin console.
+4. Open the LifeOS AI desktop connection guide.
+5. Prefer the `Tailscale HTTPS Serve` recommended address.
+6. Click `Start Tailscale HTTPS Serve`. On success, LifeOS saves `https://<device>.<tailnet>` as the mobile pairing address.
+7. If one-click start is unavailable, run the command shown by LifeOS AI, for example:
+
+   ```bash
+   tailscale serve --bg https:443 http://127.0.0.1:3000
+   ```
+
+8. Run the connection test, then save it to the desktop startup configuration.
+9. Quit and reopen LifeOS AI, then generate a fresh mobile pairing QR code.
+10. Before publishing or relying on remote access long-term, run the remote smoke check from the desktop:
+
+   ```bash
+   npm run remote:smoke
+   # or set the entry manually:
+   LIFEOS_REMOTE_BASE_URL="https://<device>.<tailnet>" npm run remote:smoke
+   ```
+
+   It verifies `/api/v1/health`, `/mobile/chat`, and `/api/v1/ws`. Pair or re-pair the phone after all three checks pass.
+   If you are running from source, build first and use `npm run start` or the desktop app for remote checks. The Vite dev server behind `npm run dev` may reject temporary Cloudflare hostnames and does not represent the packaged app.
+
+Tailscale HTTPS Serve gives the phone an `https://<device>.<tailnet>` entry, which is better for PWA, Service Worker, and WebCrypto device signing. Fall back to Tailnet IP or HTTP MagicDNS only when HTTPS Serve is unavailable.
+
+For an HTTPS public entry, use Cloudflare Tunnel:
+
+1. Install `cloudflared`.
+2. Open the LifeOS AI desktop connection guide.
+3. Click `Start Cloudflare Tunnel`.
+4. Wait for a `trycloudflare.com` address.
+5. Pair the phone with the new QR code or mobile entry URL.
+6. Before publishing or sharing the build, run the remote smoke check:
+
+   ```bash
+   npm run remote:smoke
+   # or set the entry manually:
+   LIFEOS_REMOTE_BASE_URL="https://<your-tunnel>.trycloudflare.com" npm run remote:smoke
+   ```
+
+Quick `trycloudflare.com` tunnels are temporary. LifeOS AI can recreate a Tunnel on the next launch and refresh QR addresses, but an old home-screen icon that points to the previous temporary domain may stop working. For a stable long-term entry, use Tailscale, Cloudflare Named Tunnel, or your own trusted HTTPS reverse proxy.
 
 ## AI Keys
 

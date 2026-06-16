@@ -14,6 +14,18 @@ export type DeviceRecord = {
   revokedAt?: number;
 };
 
+export type DeviceConnectivityReport = {
+  id: string;
+  deviceId: string;
+  ok: boolean;
+  currentBaseUrl: string;
+  healthOk: boolean;
+  websocketOk: boolean;
+  latencyMs: number;
+  error?: string;
+  createdAt: number;
+};
+
 export type BindingSession = {
   id: string;
   tokenHash: string;
@@ -49,6 +61,20 @@ function mapBindingSession(row: any): BindingSession {
   };
 }
 
+function mapConnectivityReport(row: any): DeviceConnectivityReport {
+  return {
+    id: row.id,
+    deviceId: row.device_id,
+    ok: Boolean(row.ok),
+    currentBaseUrl: row.current_base_url,
+    healthOk: Boolean(row.health_ok),
+    websocketOk: Boolean(row.websocket_ok),
+    latencyMs: row.latency_ms,
+    error: row.error || undefined,
+    createdAt: row.created_at,
+  };
+}
+
 export function getDevices(includeRevoked = false) {
   const rows = includeRevoked
     ? db.prepare("SELECT * FROM devices ORDER BY created_at DESC").all()
@@ -59,6 +85,31 @@ export function getDevices(includeRevoked = false) {
 export function getDevice(deviceId: string) {
   const row = db.prepare("SELECT * FROM devices WHERE id = ?").get(deviceId);
   return row ? mapDevice(row) : undefined;
+}
+
+export function getLatestDeviceConnectivityReport(deviceId: string) {
+  const row = db
+    .prepare("SELECT * FROM device_connectivity_reports WHERE device_id = ? ORDER BY created_at DESC LIMIT 1")
+    .get(deviceId);
+  return row ? mapConnectivityReport(row) : undefined;
+}
+
+export function insertDeviceConnectivityReport(report: DeviceConnectivityReport) {
+  db.prepare(`
+    INSERT INTO device_connectivity_reports (id, device_id, ok, current_base_url, health_ok, websocket_ok, latency_ms, error, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    report.id,
+    report.deviceId,
+    report.ok ? 1 : 0,
+    report.currentBaseUrl,
+    report.healthOk ? 1 : 0,
+    report.websocketOk ? 1 : 0,
+    report.latencyMs,
+    report.error || null,
+    report.createdAt,
+  );
+  return getLatestDeviceConnectivityReport(report.deviceId);
 }
 
 export function getActiveDeviceByToken(deviceId: string | null, accessToken: string | null) {

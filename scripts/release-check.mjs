@@ -10,6 +10,7 @@ const strict = process.env.LIFEOS_RELEASE_STRICT === "1";
 const distribution = process.env.LIFEOS_DISTRIBUTION || "";
 const skipReleaseArtifacts = process.env.LIFEOS_RELEASE_SKIP_ARTIFACTS === "1";
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
+const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
 const require = createRequire(import.meta.url);
 const results = [];
 
@@ -134,7 +135,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:feed"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:feed"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -147,6 +148,24 @@ function checkScripts() {
 
   if (exists("scripts/desktop-release-smoke.mjs")) pass("desktop release smoke script exists");
   else fail("missing desktop release smoke script: scripts/desktop-release-smoke.mjs");
+
+  if (exists("scripts/remote-connection-smoke.mjs")) {
+    const remoteSmoke = fs.readFileSync(path.join(rootDir, "scripts/remote-connection-smoke.mjs"), "utf8");
+    const testScript = packageJson.scripts?.test || "";
+    if (
+      packageJson.scripts?.["remote:smoke"]?.includes("remote-connection-smoke.mjs") &&
+      remoteSmoke.includes("/api/v1/health") &&
+      remoteSmoke.includes("/mobile/chat") &&
+      remoteSmoke.includes("/api/v1/ws") &&
+      remoteSmoke.includes("LIFEOS_REMOTE_BASE_URL") &&
+      remoteSmoke.includes("desktop-runtime-config.json") &&
+      remoteSmoke.includes("resolveRemoteBaseUrl") &&
+      testScript.includes("tests/remote-connection-smoke.test.mjs")
+    ) pass("remote connection smoke verifies health, mobile shell, websocket, and saved desktop config");
+    else fail("remote connection smoke must cover health, mobile shell, websocket, env/config URL, and tests");
+  } else {
+    fail("missing remote connection smoke script: scripts/remote-connection-smoke.mjs");
+  }
 
   if (exists("scripts/desktop-release-smoke.mjs")) {
     const smoke = fs.readFileSync(path.join(rootDir, "scripts/desktop-release-smoke.mjs"), "utf8");
@@ -262,6 +281,17 @@ function checkBuildConfig() {
 }
 
 function checkAssets() {
+  const viteConfigSource = exists("vite.config.ts") ? fs.readFileSync(path.join(rootDir, "vite.config.ts"), "utf8") : "";
+  const indexHtmlSource = exists("index.html") ? fs.readFileSync(path.join(rootDir, "index.html"), "utf8") : "";
+  const mobileInstallSource = exists("server/mobileInstall.ts") ? fs.readFileSync(path.join(rootDir, "server/mobileInstall.ts"), "utf8") : "";
+
+  if (
+    viteConfigSource.includes("base: './'") &&
+    indexHtmlSource.includes('href="manifest.webmanifest"') &&
+    indexHtmlSource.includes('href="icons/icon-192.png"')
+  ) pass("frontend build assets are relative for reverse-proxy subpaths");
+  else fail("frontend build assets or PWA links are not relative for reverse-proxy subpaths");
+
   if (exists("public/icon.svg")) pass("PWA icon exists: public/icon.svg");
   else fail("missing PWA icon: public/icon.svg");
   if (exists("public/icons/icon-192.png") && exists("public/icons/icon-512.png")) pass("PWA install PNG icons exist for Android/iOS launch surfaces");
@@ -289,16 +319,16 @@ function checkAssets() {
       offlineHtml.includes("offline-queue-status") &&
       offlineHtml.includes("lifeos-offline-queue") &&
       offlineHtml.includes("lifeos_offline_message_queue") &&
-      offlineHtml.includes("队列来源") &&
+      offlineHtml.includes("Queue source") &&
       offlineHtml.includes("IndexedDB") &&
-      offlineHtml.includes("单条处理")
+      offlineHtml.includes("failed")
     ) pass("PWA offline fallback page shows persisted queue status");
     else fail("PWA offline fallback should show persisted offline queue status");
   } else fail("missing PWA offline fallback: public/offline.html");
 
   if (exists("public/sw.js")) {
     const sw = fs.readFileSync(path.join(rootDir, "public/sw.js"), "utf8");
-    if (sw.includes("OFFLINE_FALLBACK") && sw.includes("/mobile/chat") && sw.includes("/mobile/device") && sw.includes("/mobile/actions")) pass("PWA service worker caches mobile shell routes");
+    if (sw.includes("BASE_PATH") && sw.includes("withBasePath") && sw.includes("OFFLINE_FALLBACK") && sw.includes("/mobile/chat") && sw.includes("/mobile/device") && sw.includes("/mobile/actions")) pass("PWA service worker caches mobile shell routes");
     else fail("PWA service worker should cache offline fallback and mobile routes");
     if (sw.includes("/icons/icon-192.png") && sw.includes("/icons/icon-512.png")) pass("PWA service worker caches install icons for offline startup");
     else warn("PWA service worker does not cache install icons");
@@ -313,13 +343,30 @@ function checkAssets() {
   }
 
   const mainSource = exists("src/main.tsx") ? fs.readFileSync(path.join(rootDir, "src/main.tsx"), "utf8") : "";
+  if (
+    mainSource.includes("basename={lifeosBasePath || undefined}") &&
+    mainSource.includes("navigator.serviceWorker.register(`${lifeosBasePath}/sw.js`")
+  ) pass("PWA router and service worker registration preserve reverse-proxy base paths");
+  else fail("PWA router or service worker registration does not preserve reverse-proxy base paths");
   if (mainSource.includes("controllerchange") && mainSource.includes("window.location.reload()") && mainSource.includes("registration.update()")) pass("PWA client reloads after service worker updates");
   else warn("PWA client does not reload after service worker updates");
+
+  if (
+    mobileInstallSource.includes("getConfiguredPublicBasePath") &&
+    mobileInstallSource.includes("withBasePath") &&
+    mobileInstallSource.includes("htmlWithPublicBaseHref") &&
+    mobileInstallSource.includes("publicBaseHref") &&
+    mobileInstallSource.includes("manifestHref = `${withBasePath") &&
+    mobileInstallSource.includes("id: withBasePath") &&
+    mobileInstallSource.includes("scope: withBasePath")
+  ) pass("PWA manifest, install HTML, and SPA base href support public base paths");
+  else fail("PWA manifest or install HTML does not preserve public base paths");
 
   const adminRoutesSource = exists("server/routes/adminRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/adminRoutes.ts"), "utf8") : "";
   const onboardingSource = exists("server/onboarding.ts") ? fs.readFileSync(path.join(rootDir, "server/onboarding.ts"), "utf8") : "";
   const adminLoginSource = exists("src/pages/admin/AdminLoginPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminLoginPage.tsx"), "utf8") : "";
   const adminOnboardingSource = exists("src/pages/admin/AdminOnboardingPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminOnboardingPage.tsx"), "utf8") : "";
+  const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
   if (
     adminRoutesSource.includes("/api/v1/admin/onboarding") &&
     adminRoutesSource.includes("admin_onboarding_completed") &&
@@ -330,19 +377,30 @@ function checkAssets() {
     adminOnboardingSource.includes("getBackupSchedule") &&
     adminOnboardingSource.includes("updateBackupSchedule") &&
     adminOnboardingSource.includes("updateActiveAiProvider") &&
-    adminOnboardingSource.includes("开启每日自动备份") &&
+    adminOnboardingSource.includes("onboarding.enableDailyBackup") &&
     adminOnboardingSource.includes("backupSchedule?.nextRunAt") &&
-    adminOnboardingSource.includes("默认聊天 Provider") &&
-    adminOnboardingSource.includes("设为默认聊天 Provider") &&
-    adminOnboardingSource.includes("/admin/settings#mobile-connect")
+    adminOnboardingSource.includes("onboarding.defaultProvider") &&
+    adminOnboardingSource.includes("onboarding.setDefault") &&
+    adminOnboardingSource.includes("/admin/settings#mobile-connect") &&
+    translationsSource.includes("onboarding.enableDailyBackup") &&
+    translationsSource.includes("Set as Default Chat Provider")
   ) pass("first-launch onboarding has authoritative status, completion, audit, and login routing");
   else warn("first-launch onboarding is missing status, completion, audit, or login routing");
 
   const networkDiagnosticsSource = exists("server/networkDiagnostics.ts") ? fs.readFileSync(path.join(rootDir, "server/networkDiagnostics.ts"), "utf8") : "";
   const desktopRuntimeConfigSource = exists("server/desktopRuntimeConfig.ts") ? fs.readFileSync(path.join(rootDir, "server/desktopRuntimeConfig.ts"), "utf8") : "";
   const connectionGuideSource = exists("src/pages/admin/ConnectionGuide.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionGuide.tsx"), "utf8") : "";
+  const connectionToolStatusSource = exists("src/pages/admin/ConnectionToolStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionToolStatus.tsx"), "utf8") : "";
+  const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
   const networkDiagnosticsTestSource = exists("tests/network-diagnostics.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/network-diagnostics.test.mjs"), "utf8") : "";
+  const clientRoutingTestSource = exists("tests/client-routing.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/client-routing.test.mjs"), "utf8") : "";
+  const lifeosApiSourceForRouting = exists("src/services/lifeosApi.ts") ? fs.readFileSync(path.join(rootDir, "src/services/lifeosApi.ts"), "utf8") : "";
+  const realtimeHookSource = exists("src/hooks/useLifeOSRealtime.ts") ? fs.readFileSync(path.join(rootDir, "src/hooks/useLifeOSRealtime.ts"), "utf8") : "";
+  const publicBaseUrlSource = exists("server/publicBaseUrl.ts") ? fs.readFileSync(path.join(rootDir, "server/publicBaseUrl.ts"), "utf8") : "";
+  const serverEntrySource = exists("server.ts") ? fs.readFileSync(path.join(rootDir, "server.ts"), "utf8") : "";
+  const realtimeServerSource = exists("server/realtime.ts") ? fs.readFileSync(path.join(rootDir, "server/realtime.ts"), "utf8") : "";
+  const apiAuthTestSourceForRouting = exists("tests/api-auth.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/api-auth.test.mjs"), "utf8") : "";
   const desktopRuntimeConfigSmokeTestSource = exists("tests/desktop-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/desktop-smoke.test.mjs"), "utf8") : "";
   const desktopMainSourceForRuntimeConfig = exists("desktop/main.cjs") ? fs.readFileSync(path.join(rootDir, "desktop/main.cjs"), "utf8") : "";
   if (
@@ -354,50 +412,124 @@ function checkAssets() {
     desktopRuntimeConfigSource.includes("desktop-runtime-config.json") &&
     desktopRuntimeConfigSource.includes("normalizeDesktopRuntimeConfig") &&
     desktopRuntimeConfigSource.includes("allowPublic") &&
+    desktopRuntimeConfigSource.includes("isTailscaleHttpsServe") &&
     desktopMainSourceForRuntimeConfig.includes("applyDesktopRuntimeConfig") &&
     desktopMainSourceForRuntimeConfig.includes("desktop-runtime-config.json") &&
     networkDiagnosticsSource.includes("tailscale.magicDnsUrls") &&
-    connectionGuideSource.includes("推荐绑定地址") &&
-    connectionGuideSource.includes("推荐启动环境") &&
+    networkDiagnosticsSource.includes("httpsServeUrl") &&
+    networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
+    networkDiagnosticsSource.includes("startTailscaleHttpsServe") &&
+    networkDiagnosticsSource.includes("stopTailscaleHttpsServe") &&
+    networkDiagnosticsSource.includes("maybeStartConfiguredTailscaleServe") &&
+    networkDiagnosticsSource.includes("buildRemoteReadiness") &&
+    networkDiagnosticsSource.includes("remoteReadiness") &&
+    serverEntrySource.includes("maybeStartConfiguredTailscaleServe") &&
+    serverEntrySource.includes("RUNNING_BUNDLED_SERVER") &&
+    serverEntrySource.includes('process.env.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER') &&
+    adminRoutesSource.includes("/api/v1/admin/tailscale-serve/start") &&
+    adminRoutesSource.includes("/api/v1/admin/tailscale-serve/stop") &&
+    networkDiagnosticsSource.includes("tailscale-serve-https") &&
+    connectionGuideSource.includes("connection.recommendedAddress") &&
+    connectionGuideSource.includes("connection.recommendedEnv") &&
     connectionGuideSource.includes("recommended-env") &&
-    connectionGuideSource.includes("复制推荐启动环境") &&
-    connectionGuideSource.includes("复制手机入口") &&
-    connectionGuideSource.includes("手机端入口") &&
-    connectionGuideSource.includes("/mobile/install/&lt;token&gt;") &&
+    connectionGuideSource.includes("connection.copyRecommendedEnv") &&
+    connectionGuideSource.includes("connection.copyMobileEntry") &&
+    connectionGuideSource.includes("connection.mobileEntry") &&
+    connectionGuideSource.includes("connection.pairingQrHint") &&
     !connectionGuideSource.includes('copyText("recommended-pair"') &&
     !connectionGuideSource.includes("copyText(candidate.id, candidate.mobilePairUrl)") &&
     connectionGuideSource.includes("connectionCandidates") &&
     connectionGuideSource.includes("candidate.envTemplate") &&
-    connectionGuideSource.includes("复制启动环境") &&
+    connectionGuideSource.includes("connection.copyEnv") &&
+    connectionGuideSource.includes("installCopy") &&
+    connectionGuideSource.includes("connection.testSavedRemote") &&
+    connectionGuideSource.includes("saved-desktop-config") &&
+    connectionGuideSource.includes("remoteValidationReport") &&
+    connectionGuideSource.includes("connection.remoteValidationOk") &&
+    connectionGuideSource.includes("connection.remoteValidationFail") &&
+    adminRoutesSource.includes("saveRemoteValidationReport") &&
+    adminRoutesSource.includes("persist") &&
+    connectionToolStatusSource.includes("connection.copyInstallAria") &&
+    connectionToolStatusSource.includes("connection.openInstallGuide") &&
+    translationsSource.includes("connection.copyInstallCommand") &&
+    translationsSource.includes("connection.testSavedRemote") &&
+    translationsSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("saveDesktopConnectionConfig") &&
-    connectionGuideSource.includes("保存到桌面启动配置") &&
-    connectionGuideSource.includes("安装包用户") &&
-    connectionGuideSource.includes("退出并重新打开 LifeOS AI") &&
+    connectionGuideSource.includes("connection.saveDesktopConfig") &&
+    connectionGuideSource.includes("TailscaleServeActions") &&
+    connectionGuideSource.includes("startTailscaleHttpsServe") &&
+    connectionGuideSource.includes("connection.packageRestartHint") &&
+    connectionGuideSource.includes("CustomRemoteEntryCard") &&
+    connectionGuideSource.includes("RemoteReadinessCard") &&
+    customRemoteEntrySource.includes("connection.customTitle") &&
+    customRemoteEntrySource.includes("testConnectionUrl") &&
+    customRemoteEntrySource.includes("saveDesktopConnectionConfig") &&
+    customRemoteEntrySource.includes('mode: "configured"') &&
+    customRemoteEntrySource.includes('normalizedUrl.startsWith("https://")') &&
+    desktopRuntimeConfigSource.includes('mode === "configured" || mode === "cloudflare"') &&
+    desktopRuntimeConfigSource.includes("Public remote connection modes require an HTTPS baseUrl") &&
+    translationsSource.includes("connection.recommendedAddress") &&
+    translationsSource.includes("connection.recommendedEnv") &&
+    translationsSource.includes("connection.copyRecommendedEnv") &&
+    translationsSource.includes("connection.saveDesktopConfig") &&
+    translationsSource.includes("connection.customTitle") &&
+    translationsSource.includes("connection.readiness.status.ready") &&
+    translationsSource.includes("connection.readiness.item.needsPublicOptIn") &&
+    translationsSource.includes("/mobile/install/<token>") &&
+    lifeosApiSourceForRouting.includes("getLifeOSBasePath") &&
+    lifeosApiSourceForRouting.includes("apiUrl(url)") &&
+    lifeosApiSourceForRouting.includes("realtimeWebSocketUrl") &&
+    realtimeHookSource.includes("realtimeWebSocketUrl()") &&
+    clientRoutingTestSource.includes("/lifeos/mobile/chat") &&
+    clientRoutingTestSource.includes("wss://remote.example.test/lifeos/api/v1/ws") &&
+    publicBaseUrlSource.includes("getConfiguredPublicBasePath") &&
+    publicBaseUrlSource.includes("stripConfiguredPublicBasePath") &&
+    serverEntrySource.includes("getConfiguredPublicBasePath") &&
+    serverEntrySource.includes("req.url = req.url.slice(basePath.length)") &&
+    realtimeServerSource.includes("stripConfiguredPublicBasePath(url.pathname)") &&
+    apiAuthTestSourceForRouting.includes("public base path serves API, mobile shell, and realtime websocket") &&
+    apiAuthTestSourceForRouting.includes("/lifeos/api/v1/health") &&
+    apiAuthTestSourceForRouting.includes("/lifeos/api/v1/ws") &&
+    packageJson.scripts.test.includes("tests/client-routing.test.mjs") &&
     desktopRuntimeConfigSmokeTestSource.includes("loads saved connection config before starting local core") &&
+    desktopRuntimeConfigSmokeTestSource.includes("autostarts saved Tailscale HTTPS Serve config") &&
     (devicePairSource.includes("diagnostics.recommendedBaseUrl") || devicePairSource.includes("networkDiagnostics.recommendedBaseUrl"))
   ) pass("connection guide ranks usable URLs for pairing QR and tunnel setup");
   else warn("connection guide does not rank usable pairing URLs from diagnostics");
   if (
     devicePairSource.includes("connectionCandidates") &&
     devicePairSource.includes("testConnectionUrl") &&
-    devicePairSource.includes("测试当前绑定地址") &&
-    devicePairSource.includes("推荐安全") &&
-    devicePairSource.includes("仅可信网络") &&
-    devicePairSource.includes("需重启生效") &&
+    devicePairSource.includes("devicePair.testCurrent") &&
+    devicePairSource.includes("connection.secureRecommended") &&
+    devicePairSource.includes("connection.trustedNetworkOnly") &&
+    devicePairSource.includes("connection.restartBadge") &&
     devicePairSource.includes("activeCandidate.envTemplate") &&
     devicePairSource.includes("activeCandidate.restartInstruction") &&
     devicePairSource.includes("copiedEnv") &&
-    devicePairSource.includes("复制当前绑定启动环境") &&
-    devicePairSource.includes("重启后生效")
+    devicePairSource.includes("devicePair.copyEnv") &&
+    devicePairSource.includes("devicePair.restartTitle") &&
+    translationsSource.includes("devicePair.testCurrent") &&
+    translationsSource.includes("connection.secureRecommended") &&
+    translationsSource.includes("connection.trustedNetworkOnly") &&
+    translationsSource.includes("devicePair.copyEnv")
   ) pass("device pairing QR page exposes recommended URL safety and reachability test");
   else warn("device pairing QR page does not expose recommended URL safety or reachability test");
   if (
     networkDiagnosticsSource.includes("cloudflared tunnel --url") &&
     networkDiagnosticsSource.includes("tailscale") &&
+    networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
     networkDiagnosticsSource.includes("parsed.username = \"\"") &&
-    networkDiagnosticsSource.includes("new URL(\"/api/v1/health\", parsed.origin)") &&
+    networkDiagnosticsSource.includes("new URL(`${basePath}/api/v1/health`, parsed.origin)") &&
+    networkDiagnosticsSource.includes("new URL(`${basePath}/mobile/chat`, parsed.origin)") &&
+    networkDiagnosticsSource.includes("probeWebSocketStep") &&
+    networkDiagnosticsSource.includes("publicAccessWarning = Boolean") &&
     networkDiagnosticsTestSource.includes("network diagnostics detects mocked Cloudflare and Tailscale CLIs") &&
-    networkDiagnosticsTestSource.includes("connection URL tests strip credentials, query secrets, and fragments")
+    networkDiagnosticsTestSource.includes("tailscale-serve-https") &&
+    networkDiagnosticsTestSource.includes("remoteReadiness.status") &&
+    networkDiagnosticsTestSource.includes("needsPublicOptIn") &&
+    networkDiagnosticsTestSource.includes("Tailscale HTTPS Serve helpers run controlled start and stop commands") &&
+    networkDiagnosticsTestSource.includes("connection URL tests strip credentials, query secrets, and fragments") &&
+    networkDiagnosticsTestSource.includes("connection URL tests health, mobile shell, and websocket under a remote base path")
   ) pass("connection diagnostics have Cloudflare/Tailscale mock coverage and sanitize test URLs");
   else warn("connection diagnostics lack Cloudflare/Tailscale mock coverage or URL sanitization checks");
 
@@ -431,11 +563,12 @@ function checkAssets() {
     coreRoutesSource.includes("securityDiagnostics.overall !== \"ok\"") &&
     securityDiagnosticsSource.includes('id: "backupSchedule"') &&
     securityDiagnosticsSource.includes("getBackupSchedule") &&
-    adminDashboardSource.includes("公网/异地访问存在待处理风险") &&
+    adminDashboardSource.includes("dashboard.publicRiskTitle") &&
     adminDashboardSource.includes("health.publicRisk.items.map") &&
-    adminDashboardSource.includes("立即创建备份") &&
-    adminDashboardSource.includes("开启自动备份") &&
+    adminDashboardSource.includes("dashboard.createBackupNow") &&
+    adminDashboardSource.includes("dashboard.enableAutoBackup") &&
     adminDashboardSource.includes("/admin/settings#backup-schedule") &&
+    translationsSource.includes("dashboard.publicRiskTitle") &&
     publicModeTestSource.includes("backupSchedule") &&
     publicModeTestSource.includes("configuredHealth.publicSetupRisk, true") &&
     publicModeTestSource.includes("improvedHealth.publicRisk.items")
@@ -456,6 +589,10 @@ function checkAssets() {
     mobilePairSource.includes("setPairingManifestToken") &&
     mobilePairSource.includes("consumePendingPairingToken") &&
     mobilePairSource.includes("history.replaceState") &&
+    mobilePairSource.includes("testMobileRemoteConnectivity") &&
+    mobilePairSource.includes("reportMobileConnectivity") &&
+    mobilePairSource.includes("MobileConnectivityCard") &&
+    mobilePairSource.includes("mobilePair.connectivityTest") &&
     mobileChatSource.includes("launchPairingToken") &&
     mobileChatSource.includes("setPairingManifestToken") &&
     mobileChatSource.includes("getMobilePairingIntent") &&
@@ -488,8 +625,8 @@ function checkAssets() {
 
   const mobileDeviceSource = exists("src/pages/mobile/MobileDevicePage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileDevicePage.tsx"), "utf8") : "";
   if (
-    mobileDeviceSource.includes("粘贴电脑端绑定链接") &&
-    mobileDeviceSource.includes("清除旧凭证并重新绑定") &&
+    mobileDeviceSource.includes("mobileDevice.pastePairingLink") &&
+    mobileDeviceSource.includes("mobileDevice.rebindButton") &&
     mobileDeviceSource.includes("pairingInstallPath") &&
     !mobileDeviceSource.includes('href="/mobile/pair"') &&
     !mobileDeviceSource.includes("window.location.href = `/mobile/pair?token=")
@@ -509,7 +646,7 @@ function checkAssets() {
     deviceRoutesSource.includes('app.delete("/api/v1/devices/me"') &&
     deviceRoutesSource.includes("device_self_revoked") &&
     lifeosApiSource.includes("revokeCurrentDeviceBinding") &&
-    mobileDeviceSource.includes("解除并撤销绑定") &&
+    mobileDeviceSource.includes("mobileDevice.forgetBinding") &&
     apiAuthTestSource.includes("Self Revoke Phone") &&
     apiAuthTestSource.includes("device_self_revoked")
   ) pass("mobile device page can revoke its own server-side binding with audit coverage");
@@ -520,8 +657,10 @@ function checkAssets() {
     deviceCredentialStoreSource.includes("LEGACY_LOCAL_STORAGE_KEY") &&
     deviceCredentialStoreSource.includes("localStorage.removeItem(LEGACY_LOCAL_STORAGE_KEY)") &&
     !deviceCredentialStoreSource.includes("localStorage.setItem(LEGACY_LOCAL_STORAGE_KEY") &&
-    mobileDeviceSource.includes("设备凭证存储") &&
-    mobileDeviceSource.includes("localStorage 旧凭证")
+    mobileDeviceSource.includes("mobileDevice.storageTitle") &&
+    mobileDeviceSource.includes("mobileDevice.legacyCredential") &&
+    translationsSource.includes("mobileDevice.storageTitle") &&
+    translationsSource.includes("mobileDevice.legacyCredential")
   ) pass("mobile device credentials migrate away from localStorage and expose storage status");
   else warn("mobile device credential storage can regress to localStorage or lacks storage status UI");
 
@@ -593,21 +732,43 @@ function checkAssets() {
   const pwaCapabilitiesSource = exists("src/services/pwaCapabilities.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaCapabilities.ts"), "utf8") : "";
   const pwaCapabilitiesTestSource = exists("tests/pwa-capabilities.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/pwa-capabilities.test.mjs"), "utf8") : "";
   const frontendSmokeTestSource = exists("tests/frontend-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/frontend-smoke.test.mjs"), "utf8") : "";
+  const dbSourceForConnectivity = exists("server/db.ts") ? fs.readFileSync(path.join(rootDir, "server/db.ts"), "utf8") : "";
   if (
     pwaCapabilitiesSource.includes("getPwaCapabilityStatus") &&
+    pwaCapabilitiesSource.includes("getRemoteEntryStatus") &&
+    pwaCapabilitiesSource.includes("testMobileRemoteConnectivity") &&
+    pwaCapabilitiesSource.includes("/api/v1/health") &&
+    pwaCapabilitiesSource.includes("/api/v1/ws") &&
+    pwaCapabilitiesSource.includes("temporary-cloudflare") &&
+    pwaCapabilitiesSource.includes("configured-mismatch") &&
     pwaCapabilitiesSource.includes("serviceWorkerControlled") &&
     pwaCapabilitiesSource.includes("backgroundSyncSupported") &&
     pwaCapabilitiesSource.includes("indexedDbSupported") &&
-    mobileDeviceSource.includes("PWA 安装与后台同步") &&
+    mobileDeviceSource.includes("mobileDevice.pwaTitle") &&
+    mobileDeviceSource.includes("mobileDevice.remoteVerdict") &&
+    mobileDeviceSource.includes("mobileDevice.connectivityTest") &&
+    mobileDeviceSource.includes("testMobileRemoteConnectivity") &&
+    mobileDeviceSource.includes("reportMobileConnectivity") &&
     mobileDeviceSource.includes("pwaCapabilities.recommendations") &&
+    adminDashboardSource.includes("connectivityReport") &&
+    adminDashboardSource.includes("dashboard.mobileConnectivityOk") &&
+    deviceRoutesSource.includes("/api/v1/devices/me/connectivity-report") &&
+    deviceRoutesSource.includes("insertDeviceConnectivityReport") &&
+    deviceRoutesSource.includes("device_connectivity_reported") &&
+    exists("server/migrations/004_device_connectivity_reports.sql") &&
+    dbSourceForConnectivity.includes("device_connectivity_reports") &&
+    pwaCapabilitiesTestSource.includes("remote entry status detects configured public base mismatches") &&
+    pwaCapabilitiesTestSource.includes("mobile remote connectivity probes health and websocket") &&
+    pwaCapabilitiesTestSource.includes("mobile remote connectivity reports websocket failures") &&
     pwaCapabilitiesTestSource.includes("degraded offline sync support") &&
-    frontendSmokeTestSource.includes("PWA 安装与后台同步")
+    frontendSmokeTestSource.includes("mobileDevice\\.pwaTitle") &&
+    translationsSource.includes("mobileDevice.pwaTitle")
   ) pass("mobile device page surfaces PWA install and background sync capability status");
   else warn("mobile device page lacks PWA install/background sync capability status or coverage");
   if (
     offlineQueueSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueSource.includes("getOfflineMessageRetryLabel") &&
-    offlineQueueSource.includes("可立即重试") &&
+    offlineQueueSource.includes("Ready to retry") &&
     offlineQueueBannerSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueBannerSource.includes("getOfflineMessageRetryLabel") &&
     mobileDeviceSource.includes("getOfflineMessageQueueStorageStatus") &&
@@ -616,10 +777,14 @@ function checkAssets() {
     mobileOfflineQueueCardsSource.includes("getOfflineMessageRetryLabel") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueStorageLabel") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueUsageLabel") &&
-    mobileOfflineQueueCardsSource.includes("离线队列存储") &&
-    mobileOfflineQueueCardsSource.includes("localStorage 兼容镜像") &&
-    mobileOfflineQueueCardsSource.includes("持久化存储") &&
-    mobileOfflineQueueCardsSource.includes("失败原因") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.storageTitle") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.legacyMirror") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.persistentStorage") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.failureReason") &&
+    translationsSource.includes("offlineQueue.storageTitle") &&
+    translationsSource.includes("offlineQueue.legacyMirror") &&
+    translationsSource.includes("offlineQueue.persistentStorage") &&
+    translationsSource.includes("offlineQueue.failureReason") &&
     offlineQueueTestSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageRetryLabel") &&
     offlineQueueTestSource.includes("formatOfflineMessageQueueBytes") &&
@@ -627,10 +792,10 @@ function checkAssets() {
     offlineQueueTestSource.includes("getOfflineMessageQueueUsageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageStatus") &&
     offlineQueueTestSource.includes("migrates legacy localStorage into IndexedDB primary storage") &&
-    offlineQueueSource.includes("IndexedDB 主存储") &&
+    offlineQueueSource.includes("IndexedDB primary storage") &&
     offlineQueueSource.includes("hydrateOfflineMessageQueue") &&
     offlineQueueSource.includes("writeIndexedQueue") &&
-    offlineQueueSource.includes("浏览器存储空间接近上限")
+    offlineQueueSource.includes("Browser storage is near its limit")
   ) pass("offline queue UI uses localized status and item retry timing");
   else warn("offline queue UI lacks localized item status, retry timing, or tests");
 
@@ -639,13 +804,15 @@ function checkAssets() {
   const systemActionStorageSource = exists("src/services/systemActionStorage.ts") ? fs.readFileSync(path.join(rootDir, "src/services/systemActionStorage.ts"), "utf8") : "";
   const systemActionsTestSource = exists("tests/system-actions.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/system-actions.test.mjs"), "utf8") : "";
   if (
-    systemActionsSource.includes("动作权限中心") &&
+    systemActionsSource.includes("actions.permissionCenter") &&
     systemActionsSource.includes("actionLogSummary") &&
     systemActionsSource.includes("ActionMetric") &&
-    systemActionsSource.includes("清空记录") &&
-    systemActionsSource.includes("最近执行记录") &&
-    systemActionsSource.includes("Scheme：{latestActionLog.scheme}") &&
-    systemActionsSource.includes("风险：{riskLabel(latestActionLog.risk)}") &&
+    systemActionsSource.includes("actions.clearLogs") &&
+    systemActionsSource.includes("actions.latestRecord") &&
+    systemActionsSource.includes("actions.logLineTwo") &&
+    systemActionsSource.includes("riskLabel(latestActionLog.risk, t)") &&
+    translationsSource.includes("actions.permissionCenter") &&
+    translationsSource.includes("actions.clearLogs") &&
     systemActionsSource.includes("loadAllowedUrlSchemes") &&
     systemActionsSource.includes("writeSystemActionStorage") &&
     !systemActionsSource.includes('localStorage.getItem("lifeos_allowed_url_schemes"') &&
@@ -657,7 +824,7 @@ function checkAssets() {
     systemActionsTestSource.includes("system action storage loads safe defaults") &&
     systemActionsTestSource.includes("system action storage normalizes whitelist") &&
     frontendSmokeTestSource.includes("actionLogSummary") &&
-    frontendSmokeTestSource.includes("清空记录")
+    frontendSmokeTestSource.includes("actions\\.clearLogs")
   ) pass("mobile action permission center summarizes, clears, and audits local app launches");
   else warn("mobile action permission center lacks summary, clear action, launch audit details, or tests");
   if (
@@ -710,11 +877,13 @@ function checkAssets() {
   if (
     adminRoutesSource.includes("release:") &&
     adminRoutesSource.includes("getReleaseDiagnostics()") &&
-    configDiagnosticsPanelSource.includes("发布包") &&
+    configDiagnosticsPanelSource.includes("diagnostics.releasePackage") &&
     configDiagnosticsPanelSource.includes("diagnostics.release.manifestAvailable") &&
     configDiagnosticsPanelSource.includes("diagnostics.release.checksumAvailable") &&
     configDiagnosticsPanelSource.includes("backupSchedule.enabled") &&
-    configDiagnosticsPanelSource.includes("自动备份") &&
+    configDiagnosticsPanelSource.includes("diagnostics.autoBackup") &&
+    translationsSource.includes("diagnostics.releasePackage") &&
+    translationsSource.includes("diagnostics.autoBackup") &&
     frontendSmokeTestSource.includes("diagnostics\\.release\\.manifestAvailable")
   ) pass("admin settings diagnostics surfaces release manifest and checksum status");
   else warn("admin settings diagnostics does not surface release manifest/checksum status");
@@ -767,8 +936,10 @@ function checkAssets() {
     aiKeyPanelSource.includes("updateActiveAiProvider") &&
     aiKeyPanelSource.includes("updateAiProviderModel") &&
     aiKeyPanelSource.includes("testAiProvider") &&
-    aiKeyPanelSource.includes("默认聊天 Provider") &&
-    aiKeyPanelSource.includes("设为默认聊天 Provider") &&
+    aiKeyPanelSource.includes("aiKey.defaultProviderTitle") &&
+    aiKeyPanelSource.includes("aiKey.setDefault") &&
+    translationsSource.includes("aiKey.defaultProviderTitle") &&
+    translationsSource.includes("aiKey.setDefault") &&
     adminRoutesSource.includes("ai_provider_default_updated") &&
     apiAuthTestSource.includes("file:///tmp/ollama.sock") &&
     apiAuthTestSource.includes("endpoint-secret") &&
@@ -782,8 +953,10 @@ function checkAssets() {
     appSecretsSource.includes("safeStorage.decryptString") &&
     appSecretsSource.includes("macOS Keychain") &&
     appSecretsSource.includes("migrationRecommended") &&
-    aiKeyPanelSource.includes("当前保存位置") &&
-    aiKeyPanelSource.includes("重新保存一次可迁移到系统安全存储") &&
+    aiKeyPanelSource.includes("aiKey.currentLocation") &&
+    aiKeyPanelSource.includes("aiKey.migrateHint") &&
+    translationsSource.includes("aiKey.currentLocation") &&
+    translationsSource.includes("aiKey.migrateHint") &&
     apiAuthTestSource.includes("secureStorage.fallbackActive")
   ) pass("AI key storage reports system secure store, fallback, and migration state");
   else warn("AI key storage lacks system secure store status, fallback visibility, or tests");
@@ -854,7 +1027,8 @@ function checkSecurityConfig() {
     backupRoutesSource.includes('app.delete("/api/v1/backups/pending-restore"') &&
     backupRoutesSource.includes("database_restore_cancelled") &&
     lifeosApiSource.includes("cancelPendingRestore") &&
-    backupRestorePanelSource.includes("取消恢复任务") &&
+    backupRestorePanelSource.includes("backup.cancelRestore") &&
+    translationsSource.includes("backup.cancelRestore") &&
     backupRestoreTestSource.includes("scheduled restore can be cancelled before restart") &&
     backupRestoreTestSource.includes("restore-pending.db") &&
     backupRestoreTestSource.includes("restore-pending.json")
@@ -874,16 +1048,16 @@ function checkSecurityConfig() {
   if (
     backupRestorePanelSource.includes("BackupPreviewCard") &&
     backupRestorePanelSource.includes("BackupList") &&
-    backupPreviewCardSource.includes("恢复风险说明") &&
+    backupPreviewCardSource.includes("backupPreview.risks") &&
     backupPreviewCardSource.includes("preview.tables") &&
-    backupPreviewCardSource.includes("普通备份已排除敏感密钥") &&
+    backupPreviewCardSource.includes("backupPreview.secretsExcluded") &&
     backupListSource.includes("backupDownloadUrl(backup.file)") &&
     backupListSource.includes("onPreview(backup)") &&
     backupListSource.includes("onRestore(backup)") &&
     adminDashboardSource.includes("previewBackup") &&
-    adminDashboardSource.includes("恢复前预览") &&
-    adminDashboardSource.includes("恢复风险说明") &&
-    backupRestoreUiSource.includes("备份预览：") &&
+    adminDashboardSource.includes("dashboard.preRestorePreview") &&
+    adminDashboardSource.includes("dashboard.restoreRisk") &&
+    backupRestoreUiSource.includes("Backup preview:") &&
     backupRestorePanelSource.includes("buildRestoreConfirmMessage") &&
     adminDashboardSource.includes("buildRestoreConfirmMessage")
   ) pass("backup restore previews are shown before restore in settings and dashboard");
@@ -911,8 +1085,9 @@ function checkSecurityConfig() {
     dbSource.includes("DELETE FROM admin_sessions") &&
     backupRoutesSource.includes("ordinaryBackupExcludesSecrets") &&
     lifeosApiSource.includes("sensitiveData") &&
-    backupPreviewCardSource.includes("普通备份已排除敏感密钥") &&
-    adminDashboardSource.includes("普通备份已排除敏感密钥") &&
+    backupPreviewCardSource.includes("backupPreview.secretsExcluded") &&
+    adminDashboardSource.includes("dashboard.ordinaryBackupSafe") &&
+    translationsSource.includes("backupPreview.secretsExcluded") &&
     apiAuthTestSource.includes("sanitizedSecretCount") &&
     apiAuthTestSource.includes("ordinaryBackupExcludesSecrets")
   ) pass("ordinary SQLite backups exclude AI keys and sensitive client state by default");
@@ -922,10 +1097,11 @@ function checkSecurityConfig() {
     backupRoutesSource.includes("data_cleanup_previewed") &&
     lifeosApiSource.includes("previewDataCleanup") &&
     backupRestorePanelSource.includes("previewDataCleanup") &&
-    backupRestorePanelSource.includes("预览清理") &&
+    backupRestorePanelSource.includes("backup.previewCleanup") &&
+    translationsSource.includes("backup.previewCleanup") &&
     backupRestorePanelSource.includes("cleanupPreview") &&
     backupRestoreUiSource.includes("formatCleanupSummary") &&
-    backupRestoreUiSource.includes("预计删除") &&
+    backupRestoreUiSource.includes("Estimated cleanup") &&
     backupRestorePanelSource.includes("buildCleanupConfirmMessage") &&
     backupRestoreTestSource.includes("/api/v1/data/cleanup/preview") &&
     apiAuthTestSource.includes("data_cleanup_previewed")
@@ -939,17 +1115,17 @@ function checkSecurityConfig() {
   else warn("desktop diagnostic export is not implemented");
   if (desktopMain.includes("mainWindow: mainWindow")) pass("desktop diagnostic includes main window state");
   else warn("desktop diagnostic does not include main window state");
-  if (desktopMain.includes("openLogsFolder") && desktopMain.includes("打开日志目录")) pass("desktop logs folder menu action is implemented");
+  if (desktopMain.includes("openLogsFolder") && desktopMain.includes("Open Logs Folder")) pass("desktop logs folder menu action is implemented");
   else warn("desktop logs folder menu action is not implemented");
   if (desktopMain.includes("lifeos-desktop.log") && desktopMain.includes("tail: readLogTail()")) pass("desktop diagnostic includes redacted log tail");
   else warn("desktop diagnostic does not include a redacted log tail");
-  if (desktopMain.includes("directoryLabel") && desktopMain.includes("系统日志目录已配置")) pass("desktop diagnostic exposes a safe logs directory label");
+  if (desktopMain.includes("directoryLabel") && desktopMain.includes("System log directory is configured")) pass("desktop diagnostic exposes a safe logs directory label");
   else warn("desktop diagnostic does not expose a safe logs directory label");
   if (desktopMain.includes("fetchLocalJson") && desktopMain.includes("health: healthResult.ok") && desktopMain.includes("adminStatus: adminStatusResult.ok")) pass("desktop diagnostic includes local core health and admin status snapshots");
   else warn("desktop diagnostic does not include local core health/admin status snapshots");
   if (desktopMain.includes("readReleaseSnapshot") && desktopMain.includes("release: readReleaseSnapshot()") && desktopSmokeTestSource.includes("diagnostics.release.manifestAvailable")) pass("desktop diagnostic includes release manifest and checksum metadata");
   else warn("desktop diagnostic does not include release manifest/checksum metadata");
-  if (desktopMain.includes("onboardingRequired") && desktopMain.includes("nextPath") && desktopMain.includes("首次启动向导待完成")) pass("desktop diagnostic captures first-launch onboarding routing state");
+  if (desktopMain.includes("onboardingRequired") && desktopMain.includes("nextPath") && desktopMain.includes("First-run guide pending")) pass("desktop diagnostic captures first-launch onboarding routing state");
   else warn("desktop diagnostic does not capture first-launch onboarding routing state");
   if (
     desktopSmokeTestSource.includes("/api/v1/admin/setup") &&
@@ -957,11 +1133,11 @@ function checkSecurityConfig() {
     desktopSmokeTestSource.includes('"/admin/onboarding"')
   ) pass("desktop smoke verifies first-launch setup routes into onboarding");
   else warn("desktop smoke does not verify setup-to-onboarding routing");
-  if (desktopMain.includes("refreshDesktopShellStatus") && desktopMain.includes("desktopShell: publicDesktopShellStatus()") && desktopMain.includes("刷新状态")) pass("desktop tray exposes refreshed health/admin/AI/device status");
+  if (desktopMain.includes("refreshDesktopShellStatus") && desktopMain.includes("desktopShell: publicDesktopShellStatus()") && desktopMain.includes("Refresh Status")) pass("desktop tray exposes refreshed health/admin/AI/device status");
   else warn("desktop tray does not expose refreshed health/admin/AI/device status");
   if (desktopMain.includes("showStartupFailureWindow") && desktopMain.includes("lifeos-desktop.log")) pass("desktop startup failure page points users to logs");
   else warn("desktop startup failure page does not point users to logs");
-  if (desktopMain.includes("LifeOS startup failed") && desktopMain.includes("导出桌面诊断包") && desktopMain.includes("打开日志目录")) pass("desktop startup failure menu exposes diagnostics and logs");
+  if (desktopMain.includes("LifeOS startup failed") && desktopMain.includes("Export Desktop Diagnostics") && desktopMain.includes("Open Logs Folder")) pass("desktop startup failure menu exposes diagnostics and logs");
   else warn("desktop startup failure menu does not expose diagnostics and logs");
 }
 
@@ -1140,6 +1316,9 @@ function checkReleaseDocs() {
       "diagnostic bundle",
       "desktop startup configuration",
       "Save to desktop startup configuration",
+      "npm run remote:smoke",
+      "LIFEOS_REMOTE_BASE_URL",
+      "/api/v1/ws",
       "Wait until the phone shows the bound chat or device page",
       "Do not add the unbound QR page to the home screen",
       "delete the old home-screen icon",

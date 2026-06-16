@@ -1,5 +1,6 @@
 import { Brain, Globe, LayoutDashboard, LockKeyhole, Settings, Zap } from "lucide-react";
 import type { ReactNode } from "react";
+import { useI18n } from "../../../i18n/I18nProvider";
 import type { CustomApp } from "../../../types";
 
 export type StudioTab = "overview" | "workshop" | "memory" | "byok" | "proxy" | "settings";
@@ -13,6 +14,8 @@ export default function StudioSidebar({
   customApps: CustomApp[];
   onSelectTab: (tab: StudioTab) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="relative z-20 hidden w-[200px] flex-col gap-2 border-r border-white/[0.05] bg-[#050505]/50 p-5 backdrop-blur-md md:flex lg:w-[250px]">
       <div className="mb-4 flex flex-col items-center border-b border-white/[0.05] py-6">
@@ -21,46 +24,46 @@ export default function StudioSidebar({
             <div className="h-full w-full bg-[url('https://i.pravatar.cc/150?u=a042581f4e29026024d')] bg-cover bg-center" />
           </div>
         </div>
-        <div className="text-base font-bold text-white">郭健 / 主人翁</div>
+        <div className="text-base font-bold text-white">{t("studio.sidebar.owner")}</div>
         <div className="mt-1 flex items-center gap-1.5 rounded border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 font-mono text-[11px] text-emerald-400">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" /> Identity Verified
         </div>
       </div>
 
-      <div className="mb-1 mt-2 pl-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">数据枢纽板块</div>
+      <div className="mb-1 mt-2 pl-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">{t("studio.sidebar.dataHub")}</div>
 
       <SidebarButton
         active={activeTab === "overview"}
         icon={<LayoutDashboard className={`h-4 w-4 ${activeTab === "overview" ? "text-indigo-400" : ""}`} />}
-        label="宏观监控面板"
+        label={t("studio.sidebar.overview")}
         onClick={() => onSelectTab("overview")}
       />
       <SidebarButton
         active={activeTab === "workshop"}
         icon={<Zap className={`h-4 w-4 ${activeTab === "workshop" ? "text-amber-400" : ""}`} />}
-        label="能力工坊"
+        label={t("studio.sidebar.workshop")}
         badge={String(customApps.length)}
         onClick={() => onSelectTab("workshop")}
       />
       <SidebarButton
         active={activeTab === "memory"}
         icon={<Brain className={`h-4 w-4 ${activeTab === "memory" ? "text-emerald-400" : ""}`} />}
-        label="个人知识库"
+        label={t("studio.sidebar.memory")}
         onClick={() => onSelectTab("memory")}
       />
 
-      <div className="mb-1 mt-6 pl-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">内核与连接</div>
+      <div className="mb-1 mt-6 pl-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500">{t("studio.sidebar.kernelConnection")}</div>
 
       <SidebarButton
         active={activeTab === "byok"}
         icon={<LockKeyhole className={`h-4 w-4 ${activeTab === "byok" ? "text-indigo-400" : ""}`} />}
-        label="大模型枢纽 (BYOK)"
+        label={t("studio.sidebar.byok")}
         onClick={() => onSelectTab("byok")}
       />
       <SidebarButton
         active={activeTab === "proxy"}
         icon={<Globe className={`h-4 w-4 ${activeTab === "proxy" ? "text-indigo-400" : ""}`} />}
-        label="网络代理直连"
+        label={t("studio.sidebar.proxy")}
         onClick={() => onSelectTab("proxy")}
       />
 
@@ -69,7 +72,7 @@ export default function StudioSidebar({
       <SidebarButton
         active={activeTab === "settings"}
         icon={<Settings className={`h-4 w-4 ${activeTab === "settings" ? "text-indigo-400" : ""}`} />}
-        label="系统自适应常驻设置"
+        label={t("studio.sidebar.settings")}
         onClick={() => onSelectTab("settings")}
       />
     </div>

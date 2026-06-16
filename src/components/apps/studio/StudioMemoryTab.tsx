@@ -1,5 +1,6 @@
 import { Brain, FolderSync, Plus, Sparkles, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
+import { useI18n } from "../../../i18n/I18nProvider";
 
 export type StudioMemoryItem = {
   id: string;
@@ -33,6 +34,8 @@ export default function StudioMemoryTab({
   onAddMemory,
   onDeleteMemory,
 }: StudioMemoryTabProps) {
+  const { t } = useI18n();
+
   return (
     <motion.div
       key="memory"
@@ -45,20 +48,20 @@ export default function StudioMemoryTab({
         <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent blur-3xl pointer-events-none" />
         <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
           <FolderSync className="w-5 h-5 text-indigo-400" />
-          数据与组件装载中心
+          {t("studio.memory.loadCenterTitle")}
         </h3>
         <p className="text-zinc-400 text-sm font-medium mb-6 leading-relaxed">
-          在此将外部数据（如 JSON 配置文件、记忆快照，或第三方编写的工坊应用源码）直接装载入您管家的数据枢纽中。
+          {t("studio.memory.loadCenterBody")}
         </p>
         <div
           className="p-8 border-2 border-dashed border-white/[0.05] hover:border-indigo-500/45 hover:bg-white/[0.02] rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer group text-center"
-          onClick={() => alert("功能已接入: 请直接在终端发送“这个”的内容附件给助理管家！")}
+          onClick={() => alert(t("studio.memory.uploadHintAlert"))}
         >
           <div className="w-12 h-12 rounded-full bg-white/[0.05] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-250">
             <Sparkles className="w-6 h-6 text-zinc-400 group-hover:text-indigo-400" />
           </div>
-          <div className="font-bold text-zinc-200 mb-1">点此或拖拽文件以上传装载</div>
-          <div className="text-xs text-zinc-500 font-medium leading-relaxed">支持 JSON, 结构化文档, 各种自定义应用代码 (建议：您也可以直连在对话框里发给助理处理)</div>
+          <div className="font-bold text-zinc-200 mb-1">{t("studio.memory.uploadTitle")}</div>
+          <div className="text-xs text-zinc-500 font-medium leading-relaxed">{t("studio.memory.uploadBody")}</div>
         </div>
       </div>
 
@@ -69,8 +72,8 @@ export default function StudioMemoryTab({
             <Brain className="w-6 h-6" />
           </div>
           <div className="text-left">
-            <h2 className="text-xl font-bold text-white">个人习惯与专属记忆库</h2>
-            <p className="text-zinc-500 text-xs font-medium mt-0.5">基于长期交互提取并安全加密存放的习惯图谱</p>
+            <h2 className="text-xl font-bold text-white">{t("studio.memory.title")}</h2>
+            <p className="text-zinc-500 text-xs font-medium mt-0.5">{t("studio.memory.subtitle")}</p>
           </div>
         </div>
 
@@ -83,7 +86,7 @@ export default function StudioMemoryTab({
                   <button
                     onClick={() => onDeleteMemory(memory.id)}
                     className="text-zinc-600 hover:text-red-400 transition-colors p-1 rounded-md hover:bg-red-500/10"
-                    title="擦除记忆"
+                    title={t("studio.memory.deleteTitle")}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -102,27 +105,27 @@ export default function StudioMemoryTab({
               className="p-5 border border-dashed border-white/[0.08] hover:border-emerald-500/50 hover:bg-white/[0.01] rounded-[24px] flex flex-col items-center justify-center transition-all cursor-pointer group text-center min-h-[145px]"
             >
               <Plus className="w-5 h-5 text-zinc-500 group-hover:text-emerald-400 mb-2 transition-transform group-hover:scale-110" />
-              <div className="font-bold text-zinc-400 text-xs group-hover:text-zinc-200 transition-colors">添加自定义习惯 / 专属记忆</div>
-              <p className="text-[10px] text-zinc-600 mt-1">注入关于您的习惯 preferences，让管家更懂您的交互逻辑</p>
+              <div className="font-bold text-zinc-400 text-xs group-hover:text-zinc-200 transition-colors">{t("studio.memory.addCustom")}</div>
+              <p className="text-[10px] text-zinc-600 mt-1">{t("studio.memory.addCustomHint")}</p>
             </div>
           ) : (
             <div className="bg-[#111113] p-5 rounded-[24px] border border-emerald-500/30 flex flex-col justify-between">
               <div className="space-y-3">
                 <div className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex justify-between">
-                  <span>新增习惯/偏好记录</span>
-                  <span className="text-[10px] text-zinc-600">注入端侧内存</span>
+                  <span>{t("studio.memory.newRecord")}</span>
+                  <span className="text-[10px] text-zinc-600">{t("studio.memory.injectEdgeMemory")}</span>
                 </div>
 
                 <input
                   type="text"
-                  placeholder="输入记忆主题 (例如: 晚间智能温控意见)"
+                  placeholder={t("studio.memory.titlePlaceholder")}
                   value={newMemoryTitle}
                   onChange={(event) => onChangeTitle(event.target.value)}
                   className="w-full bg-[#050505] border border-white/[0.1] text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-emerald-500/55 transition-all text-left"
                 />
 
                 <textarea
-                  placeholder="写下具体的日常习惯规则 (例如: 到了晚上11点后，希望背景声轻柔一些。)"
+                  placeholder={t("studio.memory.contentPlaceholder")}
                   value={newMemoryContent}
                   onChange={(event) => onChangeContent(event.target.value)}
                   className="w-full bg-[#050505] border border-white/[0.1] text-zinc-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-emerald-500/55 transition-all resize-none h-18 text-left"
@@ -134,13 +137,13 @@ export default function StudioMemoryTab({
                   onClick={onCancelAdding}
                   className="px-3 py-1.5 text-[11px] font-bold text-zinc-400 hover:text-white transition-colors"
                 >
-                  取消
+                  {t("studio.memory.cancel")}
                 </button>
                 <button
                   onClick={onAddMemory}
                   className="bg-emerald-600 hover:bg-emerald-500 px-4 py-1.5 rounded-xl text-[11px] font-bold text-white transition-all shadow-md active:scale-95"
                 >
-                  确定装载
+                  {t("studio.memory.confirmLoad")}
                 </button>
               </div>
             </div>

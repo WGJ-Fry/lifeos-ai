@@ -2,6 +2,7 @@ import { useState } from "react";
 import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
 import { changeAdminPassword } from "../../../services/lifeosApi";
 import type { ConfigDiagnostics } from "../../../services/lifeosApi";
+import { useI18n } from "../../../i18n/I18nProvider";
 
 export default function AdminPasswordPanel({
   diagnostics,
@@ -10,6 +11,7 @@ export default function AdminPasswordPanel({
   diagnostics: ConfigDiagnostics;
   onChanged: () => Promise<void> | void;
 }) {
+  const { t } = useI18n();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -22,11 +24,11 @@ export default function AdminPasswordPanel({
   const handleSubmit = async () => {
     setStatus(null);
     if (newPassword.length < 8) {
-      setStatus("新密码至少需要 8 位。");
+      setStatus(t("adminPassword.tooShort"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setStatus("两次输入的新密码不一致。");
+      setStatus(t("adminPassword.mismatch"));
       return;
     }
 
@@ -36,10 +38,10 @@ export default function AdminPasswordPanel({
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setStatus(result.securityCheck.overall === "ok" ? "管理员密码已更新，公网安全自检已通过。" : "管理员密码已更新，请继续处理安全自检提示。");
+      setStatus(result.securityCheck.overall === "ok" ? t("adminPassword.updatedOk") : t("adminPassword.updatedNeedsCheck"));
       await onChanged();
     } catch (error: any) {
-      setStatus(error.message || "修改管理员密码失败");
+      setStatus(error.message || t("adminPassword.failed"));
     } finally {
       setBusy(false);
     }
@@ -51,10 +53,10 @@ export default function AdminPasswordPanel({
         <div>
           <div className="flex items-center gap-2 font-bold">
             <ShieldCheck className="h-4 w-4 text-emerald-300" />
-            管理员密码
+            {t("adminPassword.title")}
           </div>
           <p className="mt-1 text-sm leading-relaxed text-zinc-400">
-            公网或异地连接前建议使用 12 位以上的短语密码，并混合数字或符号。密码只保存在电脑端。
+            {t("adminPassword.description")}
           </p>
         </div>
         {passwordCheck ? (
@@ -65,7 +67,7 @@ export default function AdminPasswordPanel({
                 ? "bg-amber-500/10 text-amber-200"
                 : "bg-emerald-500/10 text-emerald-200"
           }`}>
-            {passwordCheck.status === "ok" ? "强度通过" : passwordCheck.status === "critical" ? "需要处理" : "建议加强"}
+            {passwordCheck.status === "ok" ? t("adminPassword.strong") : passwordCheck.status === "critical" ? t("adminPassword.needsAction") : t("adminPassword.strengthen")}
           </span>
         ) : null}
       </div>
@@ -80,9 +82,9 @@ export default function AdminPasswordPanel({
       {status ? <div className="mb-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3 text-sm text-zinc-300">{status}</div> : null}
 
       <div className="grid gap-3 md:grid-cols-3">
-        <PasswordField label="当前密码" value={currentPassword} onChange={setCurrentPassword} disabled={busy} />
-        <PasswordField label="新密码" value={newPassword} onChange={setNewPassword} disabled={busy} />
-        <PasswordField label="确认新密码" value={confirmPassword} onChange={setConfirmPassword} disabled={busy} />
+        <PasswordField label={t("adminPassword.current")} value={currentPassword} onChange={setCurrentPassword} disabled={busy} />
+        <PasswordField label={t("adminPassword.next")} value={newPassword} onChange={setNewPassword} disabled={busy} />
+        <PasswordField label={t("adminPassword.confirm")} value={confirmPassword} onChange={setConfirmPassword} disabled={busy} />
       </div>
       <button
         onClick={handleSubmit}
@@ -90,7 +92,7 @@ export default function AdminPasswordPanel({
         className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-bold text-emerald-200 disabled:opacity-50 sm:w-auto"
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-        更新管理员密码
+        {t("adminPassword.update")}
       </button>
     </section>
   );

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -35,6 +35,18 @@ async function stop(child) {
   if (child.exitCode !== null) return;
   child.kill();
   await new Promise((resolve) => child.once("exit", resolve));
+}
+
+async function waitForFileMatch(file, pattern, timeoutMs = 10_000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const value = await readFile(file, "utf8");
+      if (pattern.test(value)) return value;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(`Timed out waiting for ${pattern} in ${file}`);
 }
 
 function cookieHeader(response) {
@@ -98,31 +110,35 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   assert.deepEqual(mobileInstallIntent, { token: "bind_desktop_install_smoke_123" });
   const entryScript = loginPage.match(/<script[^>]+src="([^"]+)"/)?.[1];
   assert.ok(entryScript, "desktop login page should load the production app bundle");
-  const appBundle = await fetch(`http://127.0.0.1:${actualPort}${entryScript}`).then((response) => response.text());
-  const loginChunk = appBundle.match(/assets\/AdminLoginPage-[A-Za-z0-9_-]+\.js/)?.[0];
-  const onboardingChunk = appBundle.match(/assets\/AdminOnboardingPage-[A-Za-z0-9_-]+\.js/)?.[0];
+  const shellBaseHref = loginPage.match(/<base\s+href="([^"]+)"/)?.[1] || "/";
+  const shellBaseUrl = new URL(shellBaseHref, `http://127.0.0.1:${actualPort}/`).toString();
+  const appBundleUrl = new URL(entryScript, shellBaseUrl).toString();
+  const appBundle = await fetch(appBundleUrl).then((response) => response.text());
+  const loginChunk = appBundle.match(/(?:\.\/)?AdminLoginPage-[A-Za-z0-9_-]+\.js/)?.[0];
+  const onboardingChunk = appBundle.match(/(?:\.\/)?AdminOnboardingPage-[A-Za-z0-9_-]+\.js/)?.[0];
   assert.ok(loginChunk, "desktop app bundle should reference the admin login chunk");
   assert.ok(onboardingChunk, "desktop app bundle should reference the first-launch onboarding chunk");
-  const loginBundle = await fetch(`http://127.0.0.1:${actualPort}/${loginChunk}`).then((response) => response.text());
-  assert.match(loginBundle, /首次启动向导/);
-  assert.match(loginBundle, /设置管理员密码/);
-  assert.match(loginBundle, /进入设置页配置 AI Key/);
-  assert.match(loginBundle, /绑定手机端开始使用/);
+  const loginBundle = await fetch(new URL(loginChunk, appBundleUrl)).then((response) => response.text());
+  assert.match(loginBundle, /auth\.firstRunGuide/);
+  assert.match(loginBundle, /auth\.firstRunStep1/);
+  assert.match(loginBundle, /auth\.firstRunStep2/);
+  assert.match(loginBundle, /auth\.firstRunStep3/);
   assert.match(loginBundle, /onboardingRequired/);
-  const onboardingBundle = await fetch(`http://127.0.0.1:${actualPort}/${onboardingChunk}`).then((response) => response.text());
-  assert.match(onboardingBundle, /把 LifeOS AI 配到可用状态/);
-  assert.match(onboardingBundle, /启动安全自检/);
-  assert.match(onboardingBundle, /默认聊天 Provider/);
-  assert.match(onboardingBundle, /设为默认聊天 Provider/);
-  assert.match(onboardingBundle, /创建初始备份/);
-  assert.match(onboardingBundle, /开启每日自动备份/);
-  assert.match(onboardingBundle, /下次自动备份/);
-  assert.match(onboardingBundle, /每日自动备份已开启/);
-  assert.match(onboardingBundle, /绑定手机端/);
-  assert.match(onboardingBundle, /打开连接向导/);
+  const onboardingBundle = await fetch(new URL(onboardingChunk, appBundleUrl)).then((response) => response.text());
+  assert.match(onboardingBundle, /onboarding\.title/);
+  assert.match(onboardingBundle, /onboarding\.securityCheck/);
+  assert.match(onboardingBundle, /onboarding\.defaultProvider/);
+  assert.match(onboardingBundle, /onboarding\.setDefault/);
+  assert.match(onboardingBundle, /onboarding\.backupTitle/);
+  assert.match(onboardingBundle, /onboarding\.createBackup/);
+  assert.match(onboardingBundle, /onboarding\.enableDailyBackup/);
+  assert.match(onboardingBundle, /onboarding\.backupScheduleOn/);
+  assert.match(onboardingBundle, /onboarding\.dailyBackupEnabled/);
+  assert.match(onboardingBundle, /onboarding\.mobileTitle/);
+  assert.match(onboardingBundle, /onboarding\.openConnectionGuide/);
   assert.match(onboardingBundle, /\/admin\/settings#mobile-connect/);
-  assert.match(onboardingBundle, /完成首次启动向导/);
-  assert.match(onboardingBundle, /首次启动向导已完成/);
+  assert.match(onboardingBundle, /onboarding\.finish/);
+  assert.match(onboardingBundle, /onboarding\.doneStatus/);
 
   const setupResponse = await fetch(`http://127.0.0.1:${actualPort}/api/v1/admin/setup`, {
     method: "POST",
@@ -189,6 +205,83 @@ test("Electron desktop loads saved connection config before starting local core"
   assert.equal(health.networkMode, "lan");
   assert.equal(health.publicBaseUrl, "https://desktop-smoke.example.com");
   assert.equal(health.publicAccessAllowed, true);
+});
+
+test("Electron desktop autostarts saved Tailscale HTTPS Serve config", async (t) => {
+  const port = 7710 + Math.floor(Math.random() * 1000);
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-tailscale-data-"));
+  const userDataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-tailscale-user-"));
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-tailscale-bin-"));
+  const commandLog = path.join(binDir, "tailscale.log");
+  await mkdir(path.join(userDataDir, "data"), { recursive: true });
+  await writeFile(path.join(userDataDir, "data", "desktop-runtime-config.json"), `${JSON.stringify({
+    mode: "tailscale",
+    label: "Tailscale Desktop Smoke",
+    host: "127.0.0.1",
+    port,
+    publicBaseUrl: "https://lifeos-mac.tailnet.example.ts.net",
+    allowPublic: true,
+    baseUrl: "https://lifeos-mac.tailnet.example.ts.net",
+    updatedAt: Date.now(),
+  }, null, 2)}\n`);
+  const tailscalePath = path.join(binDir, "tailscale");
+  await writeFile(tailscalePath, `#!/bin/sh
+echo "$@" >> "${commandLog}"
+if [ "$1" = "version" ]; then
+  echo "1.66.4"
+  exit 0
+fi
+if [ "$1" = "status" ]; then
+  echo '{"Self":{"Online":true,"HostName":"lifeos-mac","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}'
+  exit 0
+fi
+if [ "$1" = "serve" ] && [ "$2" = "status" ]; then
+  echo '{}'
+  exit 0
+fi
+if [ "$1" = "serve" ]; then
+  echo "ok"
+  exit 0
+fi
+exit 1
+`);
+  await chmod(tailscalePath, 0o755);
+
+  const child = spawn(electronBinaryPath(), ["desktop/main.cjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      PATH: `${binDir}:${process.env.PATH || ""}`,
+      ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
+      LIFEOS_PORT: "",
+      LIFEOS_HOST: "",
+      LIFEOS_DATA_DIR: dataDir,
+      PUBLIC_BASE_URL: "",
+      APP_URL: "",
+      LIFEOS_ALLOW_PUBLIC: "",
+      LIFEOS_ADMIN_PASSWORD: "",
+      LIFEOS_DESKTOP_USER_DATA_DIR: userDataDir,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  const output = [];
+  child.stdout.on("data", (chunk) => output.push(chunk.toString()));
+  child.stderr.on("data", (chunk) => output.push(chunk.toString()));
+
+  t.after(async () => {
+    await stop(child);
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(userDataDir, { recursive: true, force: true });
+    await rm(binDir, { recursive: true, force: true });
+  });
+
+  const { health, port: actualPort } = await waitForHealth(port, child, output);
+  assert.equal(actualPort, port);
+  assert.equal(health.host, "127.0.0.1");
+  assert.equal(health.publicBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
+  assert.equal(health.publicAccessAllowed, true);
+  const log = await waitForFileMatch(commandLog, /serve --bg https:443 http:\/\/127\.0\.0\.1:/);
+  assert.match(log, new RegExp(`serve --bg https:443 http://127\\.0\\.0\\.1:${actualPort}`));
 });
 
 test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) => {
@@ -269,10 +362,10 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   assert.equal(diagnostics.localCore.adminStatus.nextPath, null);
   assert.equal(diagnostics.desktopShell.trayAvailable, true);
   assert.equal(diagnostics.desktopShell.core, "healthy");
-  assert.match(diagnostics.desktopShell.coreLabel, /本地核心正常/);
-  assert.equal(diagnostics.desktopShell.adminLabel, "管理员未设置");
-  assert.equal(diagnostics.desktopShell.aiLabel, "AI 未配置");
-  assert.match(diagnostics.desktopShell.deviceLabel, /^设备 \d+\/\d+ 在线$/);
+  assert.match(diagnostics.desktopShell.coreLabel, /本地核心正常|Local core healthy/);
+  assert.match(diagnostics.desktopShell.adminLabel, /管理员未设置|Admin not configured/);
+  assert.match(diagnostics.desktopShell.aiLabel, /AI 未配置|AI not configured/);
+  assert.match(diagnostics.desktopShell.deviceLabel, /^(设备|Devices) \d+\/\d+ (在线|online)$/);
   assert.match(diagnostics.desktopShell.url, new RegExp(`^http://127\\.0\\.0\\.1:${actualPort}/admin/login`));
   assert.ok(diagnostics.mainWindow);
   assert.match(diagnostics.mainWindow.url, new RegExp(`^http://127\\.0\\.0\\.1:${actualPort}/admin/login`));
@@ -294,7 +387,7 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   });
   assert.equal(diagnostics.logs.fileName, "lifeos-desktop.log");
   assert.equal(diagnostics.logs.directoryAvailable, true);
-  assert.equal(diagnostics.logs.directoryLabel, "系统日志目录已配置，可从桌面菜单打开");
+  assert.match(diagnostics.logs.directoryLabel, /系统日志目录已配置，可从桌面菜单打开|System log directory is configured/);
   const serialized = JSON.stringify(diagnostics);
   assert.equal(serialized.includes("should-not-leak"), false);
   assert.equal(serialized.includes("dataDir=/"), false);
@@ -335,6 +428,6 @@ test("Electron desktop keeps a startup failure window open when local core fails
   assert.equal(child.exitCode, null, `desktop should stay open with failure window\n${output.join("")}`);
   assert.match(output.join(""), /Forced desktop startup failure/);
   const desktopMain = await readFile(path.join(rootDir, "desktop", "main.cjs"), "utf8");
-  assert.match(desktopMain, /导出桌面诊断包/);
-  assert.match(desktopMain, /打开日志目录/);
+  assert.match(desktopMain, /Export Desktop Diagnostics/);
+  assert.match(desktopMain, /Open Logs Folder/);
 });

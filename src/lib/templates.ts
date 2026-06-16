@@ -1,13 +1,13 @@
 // Interactive Sandboxed Boilerplate Templates for LifeOS Custom Apps
 
 export const TEMPLATES = {
-  todo: `<!-- 智能事务看板 (Alpine.js Task Tracker) -->
+  todo: `<!-- Smart Task Board (Alpine.js Task Tracker) -->
 <div class="p-6 bg-[#0c0c0e] min-h-screen text-zinc-100 flex flex-col justify-between" x-data="{
   newTodo: '',
   todos: Alpine.$persist([
-    { id: 1, text: '同步晨间习惯库', done: true },
-    { id: 2, text: '拨测大模型接口延迟', done: false },
-    { id: 3, text: '集成自定义微小程序', done: false }
+    { id: 1, text: 'Sync morning habit library', done: true },
+    { id: 2, text: 'Check model API latency', done: false },
+    { id: 3, text: 'Integrate custom micro app', done: false }
   ]).as('todos_v1'),
   addTodo() {
     if (!this.newTodo.trim()) return;
@@ -31,9 +31,9 @@ export const TEMPLATES = {
     <div class="flex justify-between items-center mb-6">
       <div>
         <h3 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
-          🎯 智能事务看板
+          🎯 Smart Task Board
         </h3>
-        <p class="text-[10px] text-zinc-400 mt-1">具备 LocalPersist 独立键盘缓存持久层</p>
+        <p class="text-[10px] text-zinc-400 mt-1">LocalPersist-powered independent cache layer</p>
       </div>
       <div class="px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-[10px] font-mono font-bold" x-text="completionRate + '%'"></div>
     </div>
@@ -45,7 +45,7 @@ export const TEMPLATES = {
 
     <!-- Form -->
     <form @submit.prevent="addTodo" class="flex gap-2 mb-5">
-      <input type="text" x-model="newTodo" placeholder="输入备忘事件并回车..." class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-indigo-500/50 transition-colors">
+      <input type="text" x-model="newTodo" placeholder="Type a memo and press Enter..." class="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-indigo-500/50 transition-colors">
       <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 rounded-xl transition-all">Add</button>
     </form>
 
@@ -68,7 +68,7 @@ export const TEMPLATES = {
   </div>
 </div>`,
 
-  chart: `<!-- 网络状况与延迟探针 (Chart.js Line Chart) -->
+  chart: `<!-- Network Status and Latency Probe (Chart.js Line Chart) -->
 <div class="p-6 bg-[#0a0a0c] min-h-screen text-zinc-100 flex flex-col justify-between" x-data="{
   packetCount: 0,
   latencyRecords: [24, 28, 35, 45, 22, 29, 31],
@@ -79,7 +79,7 @@ export const TEMPLATES = {
       data: {
         labels: ['1s', '2s', '3s', '4s', '5s', '6s', '7s'],
         datasets: [{
-          label: '物理加速通道延迟 (ms)',
+          label: 'Physical relay latency (ms)',
           data: this.latencyRecords,
           borderColor: '#6366f1',
           borderWidth: 2,
@@ -113,9 +113,9 @@ export const TEMPLATES = {
     <div class="flex justify-between items-center mb-4">
       <div>
         <h3 class="text-base font-bold text-white tracking-tight flex items-center gap-1.5">
-          ⚡ 智慧路由加速状态
+          ⚡ Smart Routing Status
         </h3>
-        <p class="text-[10px] text-zinc-400 mt-1">引入外部 Chart.js CDN 架构制图卡片</p>
+        <p class="text-[10px] text-zinc-400 mt-1">Chart card powered by external Chart.js CDN</p>
       </div>
       <span class="text-[9px] bg-emerald-500/10 text-emerald-400 font-mono font-bold px-2 py-0.5 rounded border border-emerald-500/20">
         Pings: <span x-text="packetCount"></span>
@@ -128,11 +128,11 @@ export const TEMPLATES = {
   </div>
 
   <div class="text-[9.5px] text-zinc-500 text-left leading-relaxed mt-4 font-sans bg-zinc-900/40 p-3 rounded-xl border border-zinc-800/30">
-    💡 本模板展示了如何直接通过第三方 JS 库（如 Chart.js、D3 等）优雅绘制高难度数字看板卡片实例。
+    💡 This template shows how to draw advanced dashboard cards elegantly with third-party JS libraries such as Chart.js or D3.
   </div>
 </div>`,
 
-  clock: `<!-- 宇宙流星雨粒子时钟 (Canvas Starfall Clock) -->
+  clock: `<!-- Cosmic Starfall Particle Clock (Canvas Starfall Clock) -->
 <div class="p-6 bg-[#0c0c0e] min-h-screen text-zinc-100 flex flex-col justify-between" x-data="{
   currentTime: '',
   is24Hour: true,
@@ -188,7 +188,7 @@ export const TEMPLATES = {
   <div>
     <div class="flex justify-between items-center mb-4">
       <h3 class="text-xs font-bold uppercase tracking-widest text-[#6366f1] text-left">
-        🌌 坐标粒子计时悬浮卡
+        🌌 Particle Time Card
       </h3>
       <button @click="is24Hour = !is24Hour" class="bg-zinc-900 border border-zinc-800 text-zinc-300 text-[9px] font-bold px-2 py-0.5 rounded-lg hover:border-zinc-700 active:scale-95 transition-all text-center" x-text="is24Hour ? '12H' : '24H'"></button>
     </div>

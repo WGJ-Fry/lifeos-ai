@@ -3,7 +3,7 @@ import type express from "express";
 import { insertAuditLog } from "../audit";
 import { requireAdmin } from "../auth";
 import { getRequestActor } from "../auth";
-import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getOpenBindingSessionByToken, insertBindingSession, insertDevice, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
+import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
 import { rateLimit } from "../httpSecurity";
 import { getConfiguredPublicBaseUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
 import { broadcastRealtime, closeDeviceConnection, isDeviceOnline, sendRealtimeToDevice } from "../realtime";
@@ -26,12 +26,39 @@ function normalizePairingBaseUrl(value: unknown) {
   if (parsed.username || parsed.password) throw new Error("baseUrl must not contain credentials");
   const normalized = normalizePublicBaseUrl(raw);
   if (!normalized) throw new Error("Only HTTP/HTTPS baseUrl is allowed");
-  return new URL(normalized).origin;
+  return normalized;
 }
 
 function sanitizeDevice(device: DeviceRecord) {
   const { accessTokenHash, ...safeDevice } = device;
   return safeDevice;
+}
+
+function sanitizeDeviceWithConnectivity(device: DeviceRecord) {
+  return {
+    ...sanitizeDevice(device),
+    connectivityReport: getLatestDeviceConnectivityReport(device.id) || null,
+  };
+}
+
+function normalizeConnectivityReportPayload(body: any) {
+  const steps = Array.isArray(body?.steps) ? body.steps.slice(0, 4) : [];
+  const health = steps.find((step) => step?.id === "health");
+  const websocket = steps.find((step) => step?.id === "websocket");
+  const currentBaseUrl = String(body?.currentBase || "").trim();
+  if (!currentBaseUrl || currentBaseUrl.length > 240) throw new Error("currentBase is required");
+  const parsed = new URL(currentBaseUrl);
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("currentBase must be a clean HTTP/HTTPS base URL");
+  }
+  return {
+    ok: Boolean(body?.ok),
+    currentBaseUrl,
+    healthOk: Boolean(health?.ok),
+    websocketOk: Boolean(websocket?.ok),
+    latencyMs: Math.max(0, Math.min(Number(body?.latencyMs) || 0, 120000)),
+    error: body?.error ? String(body.error).slice(0, 300) : undefined,
+  };
 }
 
 function deviceTokenExpiresAt(now = Date.now()) {
@@ -194,10 +221,46 @@ export function registerDeviceRoutes(app: express.Express) {
     res.json({ ok: true, device: sanitizeDevice({ ...device, status: "revoked", revokedAt: Date.now() }) });
   });
 
+  app.post("/api/v1/devices/me/connectivity-report", (req, res) => {
+    const actor = getRequestActor(req);
+    if (!actor || actor.type !== "device") return res.status(401).json({ error: "Device authentication required" });
+    const device = getDevice(actor.id);
+    if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
+
+    let normalized: ReturnType<typeof normalizeConnectivityReportPayload>;
+    try {
+      normalized = normalizeConnectivityReportPayload(req.body);
+    } catch (error: any) {
+      return res.status(400).json({ error: error.message || "Invalid connectivity report" });
+    }
+
+    const report = insertDeviceConnectivityReport({
+      id: crypto.randomUUID(),
+      deviceId: device.id,
+      createdAt: Date.now(),
+      ...normalized,
+    });
+    insertAuditLog("device_connectivity_reported", "device", device.id, {
+      ok: report?.ok || false,
+      currentBaseUrl: report?.currentBaseUrl || normalized.currentBaseUrl,
+      healthOk: report?.healthOk || false,
+      websocketOk: report?.websocketOk || false,
+      latencyMs: report?.latencyMs || normalized.latencyMs,
+      error: report?.error || null,
+    }, "device", device.id);
+    broadcastRealtime({
+      type: "device.connectivity_reported",
+      deviceId: device.id,
+      report,
+      timestamp: Date.now(),
+    });
+    res.json({ ok: true, report });
+  });
+
   app.get("/api/v1/devices", requireAdmin, (_req, res) => {
     res.json({
       devices: getDevices().map((device) => ({
-        ...sanitizeDevice(device),
+        ...sanitizeDeviceWithConnectivity(device),
         status: isDeviceOnline(device.id) ? "online" : device.status,
       })),
     });

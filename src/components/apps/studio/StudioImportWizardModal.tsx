@@ -1,28 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-
-const suggestions = [
-  {
-    label: "简易待办事项",
-    name: "每日备忘看板",
-    prompt: "一个卡片样式的每日习惯与待办记录，可以在线添加和勾选完成，支持一键清空和清除已完成，具备每日成就感百分百看板，配色要求是柔和深灰色系带紫色微高亮。",
-  },
-  {
-    label: "静谧番茄工作钟",
-    name: "极简番茄工作钟",
-    prompt: "一个带有圆环定时动画，支持倒数十秒或数分钟的倒数番茄时钟。具备启动、暂停和重置功能，倒计时到了以后会有一点漂亮的闪烁微交互提醒。",
-  },
-  {
-    label: "个人收支记账",
-    name: "智慧科创记账盒",
-    prompt: "一个极其美观、带表格跟历史分类流水的记账卡片。用户能自由新增收入交易、消费明细并随时一键清除所有数据，界面完全是高质感科幻黑深色调。",
-  },
-  {
-    label: "工程单位换算器",
-    name: "单位快捷转换器",
-    prompt: "一个极简好用的物理单位转换计算器。用户可以自由在左栏跟右栏互相选择物理单位（如摄氏度、华氏度、长度等），输入数值实时输出结果。",
-  },
-];
+import { useI18n } from "../../../i18n/I18nProvider";
 
 type StudioImportWizardModalProps = {
   isOpen: boolean;
@@ -47,6 +25,14 @@ export default function StudioImportWizardModal({
   onPromptInputChange,
   onGenerate,
 }: StudioImportWizardModalProps) {
+  const { t } = useI18n();
+  const suggestions = [
+    { label: t("studio.import.suggestionTodoLabel"), name: t("studio.import.suggestionTodoName"), prompt: t("studio.import.suggestionTodoPrompt") },
+    { label: t("studio.import.suggestionPomodoroLabel"), name: t("studio.import.suggestionPomodoroName"), prompt: t("studio.import.suggestionPomodoroPrompt") },
+    { label: t("studio.import.suggestionLedgerLabel"), name: t("studio.import.suggestionLedgerName"), prompt: t("studio.import.suggestionLedgerPrompt") },
+    { label: t("studio.import.suggestionConverterLabel"), name: t("studio.import.suggestionConverterName"), prompt: t("studio.import.suggestionConverterPrompt") },
+  ];
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -63,8 +49,8 @@ export default function StudioImportWizardModal({
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-white text-sm tracking-tight">JARVIS · 智能微应用构建</h3>
-                  <p className="text-[10px] text-zinc-500 mt-0.5">描述您的想法，JARVIS 将自动为您装配生成独立组件</p>
+                  <h3 className="font-semibold text-white text-sm tracking-tight">{t("studio.import.title")}</h3>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">{t("studio.import.subtitle")}</p>
                 </div>
               </div>
               <button
@@ -88,10 +74,10 @@ export default function StudioImportWizardModal({
                   </div>
                   <div className="space-y-2 max-w-sm px-6">
                     <h3 className="text-sm font-semibold text-white tracking-tight flex items-center justify-center gap-1.5 animate-pulse">
-                      正在智能构建应用中...
+                      {t("studio.import.generatingTitle")}
                     </h3>
                     <p className="text-zinc-500 text-xs leading-normal">
-                      正在设计组件布局、组装逻辑状态，并润色用户界面，这通常需要 3 到 5 秒，请稍候。
+                      {t("studio.import.generatingBody")}
                     </p>
                   </div>
                   <div className="w-48 bg-zinc-900/80 h-1 rounded-full overflow-hidden border border-zinc-800/30">
@@ -108,20 +94,20 @@ export default function StudioImportWizardModal({
                       JARVIS
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-zinc-300">智能向导</h4>
+                      <h4 className="text-xs font-bold text-zinc-300">{t("studio.import.guideTitle")}</h4>
                       <span className="text-[8px] text-zinc-600 font-mono tracking-wider uppercase">CORE ENGINE</span>
                     </div>
                   </div>
 
                   <div className="bg-[#111115]/40 border border-white/[0.03] p-3.5 rounded-xl text-xs text-zinc-400 leading-relaxed font-sans space-y-2">
-                    <p>您在这里<strong>无需编写任何代码</strong>。</p>
-                    <p>只需在右侧输入您的设想（例如记账、习惯打卡、倒计时钟），我将瞬间为您装配出一个具有完整交互功能与优雅样式的独立微应用。</p>
+                    <p>{t("studio.import.noCode")}</p>
+                    <p>{t("studio.import.noCodeBody")}</p>
                   </div>
                 </div>
 
                 <div className="text-[9px] text-zinc-600 font-medium border-t border-white/[0.03] pt-3 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>安全沙盒隔离环境 (Sandbox Verified)</span>
+                  <span>{t("studio.import.sandboxVerified")}</span>
                 </div>
               </div>
 
@@ -135,29 +121,29 @@ export default function StudioImportWizardModal({
 
                   <div className="space-y-1.5 text-left">
                     <label className="block text-xs font-semibold text-zinc-400 pl-0.5">
-                      应用名称 <span className="text-zinc-600 font-normal text-[10px] ml-1">(可选)</span>
+                      {t("studio.import.appName")} <span className="text-zinc-600 font-normal text-[10px] ml-1">{t("studio.import.optional")}</span>
                     </label>
                     <input
                       type="text"
                       value={appName}
                       onChange={(event) => onAppNameChange(event.target.value)}
-                      placeholder="输入组件标题，如：记账看板"
+                      placeholder={t("studio.import.appNamePlaceholder")}
                       className="w-full bg-[#050505] border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none focus:border-indigo-500/40 transition-colors placeholder:text-zinc-600"
                     />
                   </div>
 
                   <div className="space-y-1.5 text-left">
-                    <label className="block text-xs font-semibold text-zinc-400 pl-0.5">核心功能描述</label>
+                    <label className="block text-xs font-semibold text-zinc-400 pl-0.5">{t("studio.import.description")}</label>
                     <textarea
                       value={promptInput}
                       onChange={(event) => onPromptInputChange(event.target.value)}
-                      placeholder="用自然的语言描述您的设计设想。(如：一个带有进度环与计时定时功能的番茄工作钟，支持启动、暂停、重置，并在倒数完成时闪烁交互。)"
+                      placeholder={t("studio.import.descriptionPlaceholder")}
                       className="w-full bg-[#050505] border border-white/[0.06] rounded-xl px-3.5 py-2.5 text-xs text-zinc-200 outline-none focus:border-indigo-500/40 focus:ring-1 focus:ring-indigo-500/10 transition-all h-24 resize-none placeholder:text-zinc-600 leading-relaxed"
                     />
                   </div>
 
                   <div className="space-y-1.5 text-left">
-                    <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider pl-0.5">快捷灵感参考 (点击一键载入)：</span>
+                    <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-wider pl-0.5">{t("studio.import.quickIdeas")}</span>
                     <div className="flex flex-wrap gap-1.5">
                       {suggestions.map((suggestion) => (
                         <button
@@ -182,7 +168,7 @@ export default function StudioImportWizardModal({
                     onClick={onClose}
                     className="px-4 py-2 rounded-lg text-xs font-bold text-zinc-500 hover:text-zinc-300 transition-colors"
                   >
-                    取消返回
+                    {t("studio.import.cancel")}
                   </button>
                   <button
                     type="button"
@@ -191,7 +177,7 @@ export default function StudioImportWizardModal({
                     className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all shadow-[0_0_15px_rgba(99,102,241,0.2)] active:scale-95 flex items-center gap-1.5"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-                    <span>开始智能生成</span>
+                    <span>{t("studio.import.generate")}</span>
                   </button>
                 </div>
               </div>

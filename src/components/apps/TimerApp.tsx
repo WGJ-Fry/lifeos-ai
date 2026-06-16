@@ -2,16 +2,18 @@ import { useState, useEffect, useRef } from "react";
 import { Timer, Play, Pause, RotateCcw, Award, Coffee, Zap, Flame, Volume2, VolumeX } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSyncedClientState } from "../../hooks/useSyncedClientState";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type TimerMode = "focus" | "shortBreak" | "longBreak";
 
 const MODE_PRESETS: Record<TimerMode, { label: string; duration: number; color: string; bgLight: string }> = {
-  focus: { label: "深度专注", duration: 25 * 60, color: "text-indigo-400", bgLight: "bg-indigo-500/10" },
-  shortBreak: { label: "短时休憩", duration: 5 * 60, color: "text-emerald-400", bgLight: "bg-emerald-500/10" },
-  longBreak: { label: "深度放松", duration: 15 * 60, color: "text-amber-400", bgLight: "bg-amber-500/10" }
+  focus: { label: "focus", duration: 25 * 60, color: "text-indigo-400", bgLight: "bg-indigo-500/10" },
+  shortBreak: { label: "shortBreak", duration: 5 * 60, color: "text-emerald-400", bgLight: "bg-emerald-500/10" },
+  longBreak: { label: "longBreak", duration: 15 * 60, color: "text-amber-400", bgLight: "bg-amber-500/10" }
 };
 
 export default function TimerApp() {
+  const { t } = useI18n();
   const [mode, setMode] = useState<TimerMode>("focus");
   const [timeLeft, setTimeLeft] = useState(MODE_PRESETS.focus.duration);
   const [isActive, setIsActive] = useState(false);
@@ -110,12 +112,12 @@ export default function TimerApp() {
       <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 h-10 flex-shrink-0">
         <h3 className="font-semibold text-[14px] flex items-center gap-2">
           <Timer className="w-4 h-4 text-indigo-400" />
-          冥想专注节奏
+          {t("apps.timer.title")}
         </h3>
         <button
           onClick={() => setSoundEnabled(!soundEnabled)}
           className="text-zinc-500 hover:text-zinc-300 p-1.5 rounded-lg hover:bg-white/[0.03] transition-colors"
-          title={soundEnabled ? "静音告警" : "开启提示音"}
+          title={soundEnabled ? t("apps.timer.mute") : t("apps.timer.unmute")}
         >
           {soundEnabled ? <Volume2 className="w-4 h-4 text-indigo-400" /> : <VolumeX className="w-4 h-4" />}
         </button>
@@ -135,7 +137,7 @@ export default function TimerApp() {
                   : "text-zinc-500 hover:text-zinc-300"
               }`}
             >
-              {MODE_PRESETS[m].label}
+              {t(`apps.timer.mode.${m}`)}
             </button>
           );
         })}
@@ -181,7 +183,7 @@ export default function TimerApp() {
               {formatTime(timeLeft)}
             </span>
             <span className={`text-[10px] font-bold mt-2 uppercase tracking-wider ${MODE_PRESETS[mode].color}`}>
-              {isActive ? "正在专注中" : "待发状态"}
+              {isActive ? t("apps.timer.active") : t("apps.timer.ready")}
             </span>
           </div>
         </div>
@@ -205,7 +207,7 @@ export default function TimerApp() {
         <button
           onClick={reset}
           className="w-10 h-10 border border-white/[0.05] hover:border-zinc-700 rounded-2xl flex items-center justify-center hover:bg-zinc-800/40 transition-colors active:scale-95"
-          title="重置节奏"
+          title={t("apps.timer.reset")}
         >
           <RotateCcw className="w-4 h-4 text-zinc-400" />
         </button>
@@ -225,12 +227,12 @@ export default function TimerApp() {
           {isActive ? (
             <>
               <Pause className="w-3.5 h-3.5 fill-current" />
-              <span>暂停中继</span>
+              <span>{t("apps.timer.pause")}</span>
             </>
           ) : (
             <>
               <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
-              <span>开始专注</span>
+              <span>{t("apps.timer.start")}</span>
             </>
           )}
         </button>
@@ -241,9 +243,9 @@ export default function TimerApp() {
         <div className="text-center">
           <div className="text-[13px] font-bold text-zinc-200 font-mono flex items-center justify-center gap-1">
             <Award className="w-3.5 h-3.5 text-indigo-400" />
-            {stats.sessions} <span className="text-[9px] text-zinc-500 font-sans">个次</span>
+            {stats.sessions} <span className="text-[9px] text-zinc-500 font-sans">{t("apps.timer.sessionUnit")}</span>
           </div>
-          <div className="text-[9px] font-bold text-zinc-500 uppercase mt-0.5">累计圆满频次</div>
+          <div className="text-[9px] font-bold text-zinc-500 uppercase mt-0.5">{t("apps.timer.sessionsLabel")}</div>
         </div>
         
         <div className="w-px h-6 bg-white/[0.05]" />
@@ -251,9 +253,9 @@ export default function TimerApp() {
         <div className="text-center">
           <div className="text-[13px] font-bold text-zinc-200 font-mono flex items-center justify-center gap-1">
             <Coffee className="w-3.5 h-3.5 text-emerald-400" />
-            {stats.minutes} <span className="text-[9px] text-zinc-500 font-sans">分钟</span>
+            {stats.minutes} <span className="text-[9px] text-zinc-500 font-sans">{t("apps.timer.minuteUnit")}</span>
           </div>
-          <div className="text-[9px] font-bold text-zinc-500 uppercase mt-0.5">累积心流时长</div>
+          <div className="text-[9px] font-bold text-zinc-500 uppercase mt-0.5">{t("apps.timer.minutesLabel")}</div>
         </div>
 
         <div className="w-px h-6 bg-white/[0.05]" />
@@ -261,9 +263,9 @@ export default function TimerApp() {
         <div className="text-center">
           <div className="text-[13px] font-bold text-zinc-200 font-mono flex items-center justify-center gap-1">
             <Flame className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
-            {stats.streak} <span className="text-[9px] text-zinc-500 font-sans">天度</span>
+            {stats.streak} <span className="text-[9px] text-zinc-500 font-sans">{t("apps.timer.dayUnit")}</span>
           </div>
-          <div className="text-[9px] font-bold text-zinc-500 uppercase mt-0.5">多日连续保持</div>
+          <div className="text-[9px] font-bold text-zinc-500 uppercase mt-0.5">{t("apps.timer.streakLabel")}</div>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Sparkles } from "lucide-react";
+import { useI18n } from "../../../i18n/I18nProvider";
 import StudioSandboxPreview from "./StudioSandboxPreview";
 import StudioTelemetryLogPanel, { StudioTelemetryLog } from "./StudioTelemetryLogPanel";
 
@@ -19,12 +20,6 @@ type StudioResponsivePreviewProps = {
   onToggleConsole: () => void;
 };
 
-const devices: Array<{ id: StudioPreviewDevice; label: string }> = [
-  { id: "mobile", label: "手机视口" },
-  { id: "tablet", label: "平板视口" },
-  { id: "responsive", label: "自适应" },
-];
-
 export default function StudioResponsivePreview({
   runningCode,
   refineInstruction,
@@ -39,6 +34,13 @@ export default function StudioResponsivePreview({
   onResetLogs,
   onToggleConsole,
 }: StudioResponsivePreviewProps) {
+  const { t } = useI18n();
+  const devices: Array<{ id: StudioPreviewDevice; label: string }> = [
+    { id: "mobile", label: t("studio.preview.mobile") },
+    { id: "tablet", label: t("studio.preview.tablet") },
+    { id: "responsive", label: t("studio.preview.responsive") },
+  ];
+
   return (
     <div className="flex-1 flex flex-col p-4 sm:p-6 min-w-0 overflow-hidden relative">
       <div className="px-5 py-3 border border-white/[0.06] bg-[#09090b] rounded-t-2xl flex items-center justify-between text-xs shrink-0 select-none">
@@ -49,8 +51,8 @@ export default function StudioResponsivePreview({
             <span className="w-2.5 h-2.5 rounded-full bg-green-500/30 border border-green-500/40" />
           </span>
           <span className="text-zinc-300 font-bold ml-1 flex items-center gap-2">
-            JARVIS 沙盒高级调试终端 <span className="text-zinc-650 font-normal">|</span>
-            <span className="text-zinc-400 font-medium hidden sm:inline">端侧事件完全互锁，可自由交互</span>
+            {t("studio.preview.title")} <span className="text-zinc-650 font-normal">|</span>
+            <span className="text-zinc-400 font-medium hidden sm:inline">{t("studio.preview.subtitle")}</span>
           </span>
         </div>
 
@@ -81,18 +83,18 @@ export default function StudioResponsivePreview({
                 onLandscapeChange(nextLandscape);
                 onAppendSimulatorLog({
                   time: "COMPILER",
-                  text: `调整虚拟窗口比例: [${nextLandscape ? "横向拓扑 (Landscape)" : "纵向适配 (Portrait)"}]`,
+                  text: t("studio.preview.orientationLog", { orientation: nextLandscape ? t("studio.preview.landscapeFull") : t("studio.preview.portraitFull") }),
                   type: "log",
                 });
               }}
-              title="一键转换容器高宽方向"
+              title={t("studio.preview.orientationTitle")}
               className={`px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-bold transition-all border ${
                 isLandscape
                   ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
                   : "bg-[#161619] text-zinc-400 border-white/[0.06] hover:bg-white/[0.04]"
               }`}
             >
-              {isLandscape ? "横屏" : "竖屏"}
+              {isLandscape ? t("studio.preview.landscape") : t("studio.preview.portrait")}
             </button>
           )}
         </div>
@@ -134,7 +136,7 @@ export default function StudioResponsivePreview({
               <StudioSandboxPreview
                 code={runningCode}
                 frameKey={`${runningCode.length}_nocode_revised_frame_${previewDevice}_${isLandscape ? "l" : "p"}`}
-                emptyTitle="沙箱暂未加载视图代码"
+                emptyTitle={t("studio.preview.emptyTitle")}
               />
 
               {isRefining && (
@@ -146,11 +148,11 @@ export default function StudioResponsivePreview({
                     </div>
                   </div>
                   <h4 className="text-sm font-bold text-zinc-100 tracking-wide animate-pulse">
-                    AI 正在极速重构界面与逻辑 ...
+                    {t("studio.preview.refiningTitle")}
                   </h4>
                   <div className="mt-3 flex flex-col items-center gap-1.5">
                     <span className="text-[11px] text-zinc-400 font-medium leading-relaxed max-w-[280px]">
-                      正在同步底层状态机、重绘 Tailwind 渐变配色并加载核心计算公式，请稍候。
+                      {t("studio.preview.refiningBody")}
                     </span>
                     {refineInstruction.trim() && (
                       <span className="text-[10px] bg-white/[0.04] text-indigo-400 font-medium border border-indigo-500/20 px-3 py-1.5 rounded-xl max-w-[280px] truncate mt-2">
@@ -167,7 +169,7 @@ export default function StudioResponsivePreview({
         <StudioTelemetryLogPanel
           logs={simulatorLogs}
           showConsole={showConsole}
-          title="JARVIS 沙盒交互系统日志巡检终端 (Client Telemetry Logs)"
+          title={t("studio.preview.telemetryTitle")}
           onReset={onResetLogs}
           onToggle={onToggleConsole}
         />

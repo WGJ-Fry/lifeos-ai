@@ -12,10 +12,10 @@ let serverPort = 3000;
 let desktopLogPath = "";
 let desktopShellStatus = {
   core: "starting",
-  coreLabel: "本地核心启动中",
-  adminLabel: "管理员状态未知",
-  aiLabel: "AI 状态未知",
-  deviceLabel: "设备状态未知",
+  coreLabel: "Local core starting",
+  adminLabel: "Admin status unknown",
+  aiLabel: "AI status unknown",
+  deviceLabel: "Device status unknown",
   url: "",
   updatedAt: null,
 };
@@ -274,15 +274,15 @@ function summarizeDesktopShellStatus(health, adminStatus) {
   const onlineDeviceCount = Number.isFinite(Number(health?.onlineDeviceCount)) ? Number(health.onlineDeviceCount) : 0;
   const adminLabel = adminStatus?.configured
     ? adminStatus.onboardingRequired
-      ? "首次启动向导待完成"
-      : "管理员已设置"
-    : "管理员未设置";
+      ? "First-run guide pending"
+      : "Admin configured"
+    : "Admin not configured";
   return {
     core: health?.ok ? "healthy" : "unreachable",
-    coreLabel: health?.ok ? `本地核心正常 · ${health.networkMode === "lan" ? "LAN" : "Local"}` : "本地核心不可达",
+    coreLabel: health?.ok ? `Local core healthy · ${health.networkMode === "lan" ? "LAN" : "Local"}` : "Local core unreachable",
     adminLabel,
-    aiLabel: health?.aiConfigured ? "AI 已配置" : "AI 未配置",
-    deviceLabel: `设备 ${onlineDeviceCount}/${deviceCount} 在线`,
+    aiLabel: health?.aiConfigured ? "AI configured" : "AI not configured",
+    deviceLabel: `Devices ${onlineDeviceCount}/${deviceCount} online`,
     url: localUrl("/admin/login"),
     updatedAt: Date.now(),
   };
@@ -412,7 +412,7 @@ async function createDesktopDiagnosticBundle() {
     logs: {
       fileName: desktopLogPath ? path.basename(desktopLogPath) : "",
       directoryAvailable: Boolean(desktopLogPath),
-      directoryLabel: desktopLogPath ? "系统日志目录已配置，可从桌面菜单打开" : "系统日志目录未初始化",
+      directoryLabel: desktopLogPath ? "System log directory is configured and can be opened from the desktop menu" : "System log directory is not initialized",
       size: logStat?.size || 0,
       modifiedAt: logStat?.mtimeMs || null,
       tail: readLogTail(),
@@ -425,7 +425,7 @@ async function exportDesktopDiagnosticBundle(targetPath) {
   let outputPath = targetPath;
   if (!outputPath) {
     const result = await dialog.showSaveDialog({
-      title: "导出 LifeOS AI 桌面诊断包",
+      title: "Export LifeOS AI Desktop Diagnostic Bundle",
       defaultPath: `lifeos-desktop-diagnostics-${stamp}.json`,
       filters: [{ name: "JSON", extensions: ["json"] }],
     });
@@ -446,7 +446,7 @@ function showStartupFailureWindow(error) {
     height: 560,
     minWidth: 640,
     minHeight: 480,
-    title: "LifeOS AI 启动失败",
+    title: "LifeOS AI Startup Failed",
     backgroundColor: "#060a10",
     webPreferences: {
       contextIsolation: true,
@@ -458,7 +458,7 @@ function showStartupFailureWindow(error) {
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <title>LifeOS AI 启动失败</title>
+    <title>LifeOS AI Startup Failed</title>
     <style>
       body { margin: 0; min-height: 100vh; background: #060a10; color: #e4e4e7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; display: grid; place-items: center; }
       main { width: min(640px, calc(100vw - 48px)); border: 1px solid rgba(255,255,255,.08); background: #101722; border-radius: 24px; padding: 28px; box-shadow: 0 24px 80px rgba(0,0,0,.35); }
@@ -472,10 +472,10 @@ function showStartupFailureWindow(error) {
   </head>
   <body>
     <main>
-      <h1>LifeOS AI 本地核心启动失败</h1>
-      <p>桌面外壳已经打开，但本地服务没有成功启动。请打开日志目录查看 <code>lifeos-desktop.log</code>，修复后重新启动 LifeOS AI。</p>
+      <h1>LifeOS AI local core failed to start</h1>
+      <p>The desktop shell opened, but the local service did not start successfully. Open the log directory and inspect <code>lifeos-desktop.log</code>, then restart LifeOS AI after fixing the issue.</p>
       <div class="path">${htmlEscape(logsDir)}</div>
-      <p class="hint">常见原因：端口被占用、数据目录权限异常、打包文件缺失，或安全配置环境变量不完整。</p>
+      <p class="hint">Common causes: port already in use, data directory permissions, missing packaged files, or incomplete security environment variables.</p>
       <pre>${htmlEscape(message)}</pre>
     </main>
   </body>
@@ -495,18 +495,18 @@ function buildTrayMenu() {
     { label: desktopShellStatus.adminLabel, enabled: false },
     { label: desktopShellStatus.aiLabel, enabled: false },
     { label: desktopShellStatus.deviceLabel, enabled: false },
-    { label: `本机端口 ${serverPort}`, enabled: false },
+    { label: `Local port ${serverPort}`, enabled: false },
     { type: "separator" },
-    { label: "打开控制台", click: () => showMainWindow("/admin/dashboard") },
-    { label: "手机绑定", click: () => showMainWindow("/admin/devices/pair") },
-    { label: "系统设置", click: () => showMainWindow("/admin/settings") },
+    { label: "Open Console", click: () => showMainWindow("/admin/dashboard") },
+    { label: "Pair Phone", click: () => showMainWindow("/admin/devices/pair") },
+    { label: "System Settings", click: () => showMainWindow("/admin/settings") },
     { type: "separator" },
-    { label: "刷新状态", click: () => refreshDesktopShellStatus().catch((error) => writeDesktopLog("Failed to refresh tray status", error?.message || String(error))) },
-    { label: "复制本机地址", click: copyLocalAddress },
-    { label: "导出桌面诊断包", click: () => exportDesktopDiagnosticBundle().catch((error) => writeDesktopLog("Failed to export desktop diagnostics", error?.message || String(error))) },
-    { label: "打开日志目录", click: openLogsFolder },
+    { label: "Refresh Status", click: () => refreshDesktopShellStatus().catch((error) => writeDesktopLog("Failed to refresh tray status", error?.message || String(error))) },
+    { label: "Copy Local Address", click: copyLocalAddress },
+    { label: "Export Desktop Diagnostics", click: () => exportDesktopDiagnosticBundle().catch((error) => writeDesktopLog("Failed to export desktop diagnostics", error?.message || String(error))) },
+    { label: "Open Logs Folder", click: openLogsFolder },
     { type: "separator" },
-    { role: "quit", label: "退出" },
+    { role: "quit", label: "Quit" },
   ]);
 }
 
@@ -534,37 +534,37 @@ function buildMenuTemplate() {
     {
       label: "LifeOS AI",
       submenu: [
-        { label: "打开控制台", click: () => showMainWindow("/admin/dashboard") },
-        { label: "手机绑定", click: () => showMainWindow("/admin/devices/pair") },
-        { label: "系统设置", click: () => showMainWindow("/admin/settings") },
+        { label: "Open Console", click: () => showMainWindow("/admin/dashboard") },
+        { label: "Pair Phone", click: () => showMainWindow("/admin/devices/pair") },
+        { label: "System Settings", click: () => showMainWindow("/admin/settings") },
         { type: "separator" },
-        { label: "复制本机地址", click: copyLocalAddress },
-        { label: "导出桌面诊断包", click: () => exportDesktopDiagnosticBundle().catch((error) => writeDesktopLog("Failed to export desktop diagnostics", error?.message || String(error))) },
-        { label: "打开日志目录", click: openLogsFolder },
+        { label: "Copy Local Address", click: copyLocalAddress },
+        { label: "Export Desktop Diagnostics", click: () => exportDesktopDiagnosticBundle().catch((error) => writeDesktopLog("Failed to export desktop diagnostics", error?.message || String(error))) },
+        { label: "Open Logs Folder", click: openLogsFolder },
         { type: "separator" },
-        { role: "quit", label: "退出 LifeOS AI" },
+        { role: "quit", label: "Quit LifeOS AI" },
       ],
     },
     {
-      label: "编辑",
+      label: "Edit",
       submenu: [
-        { role: "undo", label: "撤销" },
-        { role: "redo", label: "重做" },
+        { role: "undo", label: "Undo" },
+        { role: "redo", label: "Redo" },
         { type: "separator" },
-        { role: "cut", label: "剪切" },
-        { role: "copy", label: "复制" },
-        { role: "paste", label: "粘贴" },
-        { role: "selectAll", label: "全选" },
+        { role: "cut", label: "Cut" },
+        { role: "copy", label: "Copy" },
+        { role: "paste", label: "Paste" },
+        { role: "selectAll", label: "Select All" },
       ],
     },
     {
-      label: "窗口",
+      label: "Window",
       submenu: [
-        { role: "reload", label: "重新载入" },
-        { role: "toggleDevTools", label: "开发者工具" },
+        { role: "reload", label: "Reload" },
+        { role: "toggleDevTools", label: "Developer Tools" },
         { type: "separator" },
-        { role: "minimize", label: "最小化" },
-        { role: "close", label: "关闭窗口" },
+        { role: "minimize", label: "Minimize" },
+        { role: "close", label: "Close Window" },
       ],
     },
   ];
@@ -609,9 +609,9 @@ app.whenReady().then(async () => {
       {
         label: "LifeOS AI",
         submenu: [
-          { label: "导出桌面诊断包", click: () => exportDesktopDiagnosticBundle().catch((exportError) => writeDesktopLog("Failed to export desktop diagnostics", exportError?.message || String(exportError))) },
-          { label: "打开日志目录", click: openLogsFolder },
-          { role: "quit", label: "退出 LifeOS AI" },
+          { label: "Export Desktop Diagnostics", click: () => exportDesktopDiagnosticBundle().catch((exportError) => writeDesktopLog("Failed to export desktop diagnostics", exportError?.message || String(exportError))) },
+          { label: "Open Logs Folder", click: openLogsFolder },
+          { role: "quit", label: "Quit LifeOS AI" },
         ],
       },
     ]));

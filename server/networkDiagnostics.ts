@@ -1,5 +1,7 @@
 import { execFileSync } from "child_process";
 import os from "os";
+import { WebSocket } from "ws";
+import { extractCloudflareTunnelUrls, getManagedCloudflareTunnelStatus } from "./cloudflareTunnel.ts";
 import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
 import { getConfiguredPublicBaseUrl } from "./publicBaseUrl";
 
@@ -7,6 +9,26 @@ type CommandResult = {
   ok: boolean;
   output: string;
 };
+
+type ConnectionProbeStep = {
+  id: "health" | "mobile-shell" | "websocket";
+  ok: boolean;
+  status: number;
+  url: string;
+  latencyMs: number;
+  error?: string;
+};
+
+type ConnectionCandidate = ReturnType<typeof connectionCandidate>;
+type RemoteReadinessItemId =
+  | "noRemoteEntry"
+  | "localOnly"
+  | "lanOnly"
+  | "needsHttps"
+  | "needsPublicOptIn"
+  | "needsRestart"
+  | "temporaryTunnel"
+  | "ready";
 
 function runCommand(command: string, args: string[] = []): CommandResult {
   try {
@@ -22,6 +44,29 @@ function runCommand(command: string, args: string[] = []): CommandResult {
   }
 }
 
+function runManagedCommand(command: string, args: string[] = []): CommandResult {
+  try {
+    const output = execFileSync(command, args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 15000,
+      env: process.env,
+    });
+    return { ok: true, output: output.trim() };
+  } catch (error: any) {
+    const output = `${error?.stdout || ""}${error?.stderr || ""}`.trim();
+    return { ok: false, output: output || error?.message || "Command failed" };
+  }
+}
+
+function cloudflaredCommand() {
+  return process.env.LIFEOS_CLOUDFLARED_BIN || "cloudflared";
+}
+
+function tailscaleCommand() {
+  return process.env.LIFEOS_TAILSCALE_BIN || "tailscale";
+}
+
 function getProcessOutput(name: string) {
   const command = process.platform === "win32" ? "tasklist" : "pgrep";
   const args = process.platform === "win32" ? [] : ["-fl", name];
@@ -31,11 +76,6 @@ function getProcessOutput(name: string) {
 function isProcessRunning(name: string) {
   const result = getProcessOutput(name);
   return result.ok && result.output.toLowerCase().includes(name.toLowerCase());
-}
-
-export function extractCloudflareTunnelUrls(output: string) {
-  const matches = output.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com\b/gi) || [];
-  return Array.from(new Set(matches.map((url) => url.replace(/\/$/, ""))));
 }
 
 function getLanUrls(port: string) {
@@ -52,21 +92,25 @@ function connectionCandidate(input: {
   mode: "configured" | "cloudflare" | "tailscale" | "lan" | "local";
   priority: number;
   requiresRestart: boolean;
+  stability: "stable" | "temporary" | "local";
   notes: string[];
 }) {
   const secure = input.baseUrl.startsWith("https://") || input.mode === "tailscale" || input.mode === "local";
   const normalizedBaseUrl = input.baseUrl.replace(/\/$/, "");
+  const parsedBaseUrl = new URL(normalizedBaseUrl);
+  const host = input.mode === "local" || (input.mode === "tailscale" && parsedBaseUrl.protocol === "https:") ? "127.0.0.1" : "0.0.0.0";
   const envTemplate = input.mode === "local"
-    ? `LIFEOS_HOST=127.0.0.1 LIFEOS_PORT=${new URL(normalizedBaseUrl).port || "3000"} npm run start`
-    : `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=${normalizedBaseUrl} npm run start`;
+    ? `LIFEOS_HOST=127.0.0.1 LIFEOS_PORT=${parsedBaseUrl.port || "3000"} npm run start`
+    : `LIFEOS_HOST=${host} LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=${normalizedBaseUrl} npm run start`;
   return {
     ...input,
     baseUrl: normalizedBaseUrl,
     secure,
+    stability: input.stability,
     envTemplate,
     restartInstruction: input.requiresRestart
-      ? "复制启动环境，退出 LifeOS AI 后用该环境重新启动，本地址才会用于二维码和手机入口。"
-      : "当前地址已经生效，可直接复制绑定入口或测试连通性。",
+      ? "Copy the startup environment, quit LifeOS AI, then restart with it so this address is used for QR codes and mobile entry."
+      : "This address is already active. You can copy the pairing entry or test connectivity.",
     mobilePairUrl: `${normalizedBaseUrl}/mobile/pair`,
     mobileChatUrl: `${normalizedBaseUrl}/mobile/chat`,
   };
@@ -83,14 +127,15 @@ function buildConnectionCandidates(input: {
   if (input.publicBaseUrl) {
     candidates.push(connectionCandidate({
       id: "configured-public",
-      label: "当前 PUBLIC_BASE_URL",
+      label: "Current PUBLIC_BASE_URL",
       baseUrl: input.publicBaseUrl,
       mode: "configured",
       priority: input.publicBaseUrl.startsWith("https://") ? 100 : 70,
       requiresRestart: false,
+      stability: input.publicBaseUrl.includes(".trycloudflare.com") ? "temporary" : "stable",
       notes: input.publicBaseUrl.startsWith("https://")
-        ? ["当前已配置 HTTPS 公网/隧道地址，绑定二维码会优先使用它。"]
-        : ["当前 PUBLIC_BASE_URL 不是 HTTPS，仅建议在 Tailscale 或可信内网中使用。"],
+        ? ["An HTTPS public/tunnel address is configured, so pairing QR codes will prefer it."]
+        : ["The current PUBLIC_BASE_URL is not HTTPS. Use it only with Tailscale or a trusted private network."],
     }));
   }
   for (const [index, url] of input.cloudflare.detectedUrls.entries()) {
@@ -99,9 +144,26 @@ function buildConnectionCandidates(input: {
       label: index === 0 ? "Cloudflare Tunnel" : `Cloudflare Tunnel ${index + 1}`,
       baseUrl: url,
       mode: "cloudflare",
-      priority: 90 - index,
+      priority: 84 - index,
       requiresRestart: input.publicBaseUrl !== url,
-      notes: ["适合异地访问。复制启动环境并重启后，绑定二维码会使用这个 HTTPS 地址。"],
+      stability: "temporary",
+      notes: ["Good for quick HTTPS remote access, but trycloudflare.com quick tunnels are temporary and may change after restart."],
+    }));
+  }
+  if (input.tailscale.httpsServeUrl) {
+    candidates.push(connectionCandidate({
+      id: "tailscale-serve-https",
+      label: "Tailscale HTTPS Serve",
+      baseUrl: input.tailscale.httpsServeUrl,
+      mode: "tailscale",
+      priority: input.tailscale.serveRunning ? 98 : 93,
+      requiresRestart: input.publicBaseUrl !== input.tailscale.httpsServeUrl,
+      stability: "stable",
+      notes: [
+        input.tailscale.serveRunning
+          ? "Best for long-term remote phone access on your own Tailnet. HTTPS Serve is already active."
+          : `Best for long-term remote phone access on your own Tailnet. Run: ${input.tailscale.serveCommand}`,
+      ],
     }));
   }
   for (const [index, url] of input.tailscale.magicDnsUrls.entries()) {
@@ -110,9 +172,10 @@ function buildConnectionCandidates(input: {
       label: index === 0 ? "Tailscale MagicDNS" : `Tailscale MagicDNS ${index + 1}`,
       baseUrl: url,
       mode: "tailscale",
-      priority: 82 - index,
+      priority: 94 - index,
       requiresRestart: input.publicBaseUrl !== url,
-      notes: ["适合自己的手机和电脑异地连接。手机需登录同一个 Tailnet。"],
+      stability: "stable",
+      notes: ["Good for connecting your own phone and computer remotely. The phone must join the same Tailnet."],
     }));
   }
   for (const [index, url] of input.tailscale.urls.entries()) {
@@ -121,90 +184,178 @@ function buildConnectionCandidates(input: {
       label: index === 0 ? "Tailscale IP" : `Tailscale IP ${index + 1}`,
       baseUrl: url,
       mode: "tailscale",
-      priority: 78 - index,
+      priority: 90 - index,
       requiresRestart: input.publicBaseUrl !== url,
-      notes: ["MagicDNS 不可用时可用 Tailnet IP。手机需登录同一个 Tailnet。"],
+      stability: "stable",
+      notes: ["Use the Tailnet IP when MagicDNS is unavailable. The phone must join the same Tailnet."],
     }));
   }
   for (const [index, url] of input.lanUrls.entries()) {
     candidates.push(connectionCandidate({
       id: `lan-${index}`,
-      label: index === 0 ? "局域网 Wi-Fi" : `局域网地址 ${index + 1}`,
+      label: index === 0 ? "LAN Wi-Fi" : `LAN address ${index + 1}`,
       baseUrl: url,
       mode: "lan",
       priority: 50 - index,
       requiresRestart: true,
-      notes: ["适合同一 Wi-Fi。离开当前网络后通常不可用。"],
+      stability: "temporary",
+      notes: ["Good for the same Wi-Fi network. It usually stops working after leaving this network."],
     }));
   }
   candidates.push(connectionCandidate({
     id: "local",
-    label: "本机管理",
+    label: "Local management",
     baseUrl: `http://127.0.0.1:${input.port}`,
     mode: "local",
     priority: 10,
     requiresRestart: false,
-    notes: ["只适合电脑本机管理，手机无法扫码访问。"],
+    stability: "local",
+    notes: ["Only suitable for desktop-local management. Phones cannot access this QR code."],
   }));
   return candidates
     .filter((candidate, index, all) => all.findIndex((item) => item.baseUrl === candidate.baseUrl) === index)
     .sort((left, right) => right.priority - left.priority);
 }
 
+function buildRemoteReadiness(input: {
+  host: string;
+  publicBaseUrl: string;
+  publicAccessAllowed: boolean;
+  recommended: ConnectionCandidate | undefined;
+}) {
+  const candidate = input.recommended;
+  const blockers: Array<{ id: RemoteReadinessItemId; detail?: string }> = [];
+  const actions: Array<{ id: RemoteReadinessItemId; detail?: string }> = [];
+
+  if (!candidate) {
+    blockers.push({ id: "noRemoteEntry" });
+    actions.push({ id: "noRemoteEntry" });
+    return { status: "blocked", severity: "danger", candidateId: "", baseUrl: "", blockers, actions };
+  }
+
+  if (candidate.mode === "local") {
+    blockers.push({ id: "localOnly", detail: candidate.baseUrl });
+    actions.push({ id: "noRemoteEntry" });
+    return { status: "local-only", severity: "danger", candidateId: candidate.id, baseUrl: candidate.baseUrl, blockers, actions };
+  }
+
+  if (candidate.mode === "lan") {
+    blockers.push({ id: "lanOnly", detail: candidate.baseUrl });
+    actions.push({ id: "noRemoteEntry" });
+    return { status: "lan-only", severity: "warning", candidateId: candidate.id, baseUrl: candidate.baseUrl, blockers, actions };
+  }
+
+  if (!candidate.secure) {
+    blockers.push({ id: "needsHttps", detail: candidate.baseUrl });
+    actions.push({ id: "needsHttps" });
+  }
+
+  if ((input.host === "0.0.0.0" || input.publicBaseUrl || candidate.mode === "configured" || candidate.mode === "cloudflare") && !input.publicAccessAllowed) {
+    blockers.push({ id: "needsPublicOptIn" });
+    actions.push({ id: "needsPublicOptIn" });
+  }
+
+  if (candidate.requiresRestart) {
+    actions.push({ id: "needsRestart", detail: candidate.baseUrl });
+  }
+
+  if (candidate.stability === "temporary") {
+    actions.push({ id: "temporaryTunnel", detail: candidate.baseUrl });
+  }
+
+  if (blockers.length) {
+    return { status: "blocked", severity: "danger", candidateId: candidate.id, baseUrl: candidate.baseUrl, blockers, actions };
+  }
+  if (candidate.requiresRestart) {
+    return { status: "needs-restart", severity: "warning", candidateId: candidate.id, baseUrl: candidate.baseUrl, blockers, actions };
+  }
+  if (candidate.stability === "temporary") {
+    return { status: "temporary", severity: "warning", candidateId: candidate.id, baseUrl: candidate.baseUrl, blockers, actions };
+  }
+
+  actions.push({ id: "ready", detail: candidate.baseUrl });
+  return { status: "ready", severity: "ok", candidateId: candidate.id, baseUrl: candidate.baseUrl, blockers, actions };
+}
+
 function getCloudflareTunnelStatus(port: string) {
-  const version = runCommand("cloudflared", ["--version"]);
+  const version = runCommand(cloudflaredCommand(), ["--version"]);
   const installed = version.ok;
   const processOutput = installed ? getProcessOutput("cloudflared") : { ok: false, output: "" };
-  const running = installed && processOutput.ok && processOutput.output.toLowerCase().includes("cloudflared");
-  const detectedUrls = extractCloudflareTunnelUrls(processOutput.output);
+  const managed = getManagedCloudflareTunnelStatus();
+  const processRunning = installed && processOutput.ok && processOutput.output.toLowerCase().includes("cloudflared");
+  const running = processRunning || managed.running;
+  const detectedUrls = Array.from(new Set([
+    ...extractCloudflareTunnelUrls(processOutput.output),
+    ...(managed.url ? [managed.url] : []),
+  ]));
   return {
     installed,
     running,
+    managed,
     version: installed ? version.output.split("\n")[0] : "",
     detectedUrls,
     suggestedCommand: `cloudflared tunnel --url http://127.0.0.1:${port}`,
-    installCommand: process.platform === "darwin" ? "brew install cloudflared" : "下载并安装 cloudflared 后确认命令可用",
+    installCommand: process.platform === "darwin" ? "brew install cloudflared" : "Download and install cloudflared, then confirm the command is available",
+    installUrl: "https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/",
     envTemplate: `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=${detectedUrls[0] || "https://<your-tunnel>.trycloudflare.com"} npm run start`,
     notes: installed
       ? [
-        running ? "检测到 cloudflared 进程正在运行。" : "已安装 cloudflared，可运行下方命令创建临时 HTTPS 隧道。",
-        detectedUrls[0] ? `检测到临时隧道地址：${detectedUrls[0]}` : "临时隧道会输出 trycloudflare.com 地址，把它填入 PUBLIC_BASE_URL 后重启 LifeOS AI。",
+        running ? "A running cloudflared process was detected." : "cloudflared is installed. Run the command below to create a temporary HTTPS tunnel.",
+        detectedUrls[0] ? `Temporary tunnel detected: ${detectedUrls[0]}` : "The temporary tunnel will output a trycloudflare.com address. Put it into PUBLIC_BASE_URL and restart LifeOS AI.",
       ]
       : [
-        "未检测到 cloudflared CLI。安装后可创建临时 HTTPS 隧道。",
-        "安装方式：macOS 可用 brew install cloudflared；也可从 Cloudflare 官方发布页下载。",
+        "cloudflared CLI was not detected. Install it to create a temporary HTTPS tunnel.",
+        "Install with brew install cloudflared on macOS, or download it from Cloudflare releases.",
       ],
   };
 }
 
 function getTailscaleStatus() {
-  const version = runCommand("tailscale", ["version", "--short"]);
+  const command = tailscaleCommand();
+  const version = runCommand(command, ["version", "--short"]);
   const installed = version.ok;
+  const port = process.env.LIFEOS_PORT || process.env.PORT || 3000;
   let online = false;
   let deviceName = "";
   let tailnetName = "";
   let urls: string[] = [];
   let magicDnsUrls: string[] = [];
+  let httpsServeUrl = "";
+  let serveRunning = false;
+  let serveStatus = "";
 
   if (installed) {
-    const status = runCommand("tailscale", ["status", "--json"]);
+    const status = runCommand(command, ["status", "--json"]);
     if (status.ok) {
       try {
         const parsed = JSON.parse(status.output);
         online = Boolean(parsed?.Self?.Online);
         deviceName = parsed?.Self?.HostName || "";
         tailnetName = parsed?.MagicDNSSuffix || "";
-        urls = (parsed?.Self?.TailscaleIPs || []).map((ip: string) => `http://${ip}:${process.env.LIFEOS_PORT || process.env.PORT || 3000}`);
+        urls = (parsed?.Self?.TailscaleIPs || []).map((ip: string) => `http://${ip}:${port}`);
         if (deviceName && tailnetName) {
-          magicDnsUrls = [`http://${deviceName}.${tailnetName}:${process.env.LIFEOS_PORT || process.env.PORT || 3000}`];
+          magicDnsUrls = [`http://${deviceName}.${tailnetName}:${port}`];
+          httpsServeUrl = `https://${deviceName}.${tailnetName}`;
         }
       } catch {
         online = status.output.toLowerCase().includes("logged in");
       }
     }
+    const serve = runCommand(command, ["serve", "status", "--json"]);
+    serveStatus = serve.output;
+    if (serve.ok) {
+      serveRunning = Boolean(
+        (httpsServeUrl && serve.output.includes(httpsServeUrl.replace(/^https:\/\//, "")))
+          || serve.output.includes(`127.0.0.1:${port}`)
+          || serve.output.includes(`:${port}`),
+      );
+    } else {
+      serveRunning = serve.output.toLowerCase().includes("https") && serve.output.includes(String(port));
+    }
   }
 
-  const mobileUrls = Array.from(new Set([...magicDnsUrls, ...urls]));
+  const mobileUrls = Array.from(new Set([...(httpsServeUrl ? [httpsServeUrl] : []), ...magicDnsUrls, ...urls]));
+  const serveCommand = httpsServeUrl ? `tailscale serve --bg https:443 http://127.0.0.1:${port}` : "";
 
   return {
     installed,
@@ -214,17 +365,96 @@ function getTailscaleStatus() {
     tailnetName,
     urls,
     magicDnsUrls,
+    httpsServeUrl,
+    serveRunning,
+    serveCommand,
+    serveStatus,
     mobileUrls,
-    installCommand: process.platform === "darwin" ? "brew install --cask tailscale" : "安装 Tailscale 客户端并登录同一个 Tailnet",
-    envTemplate: mobileUrls[0] ? `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=${mobileUrls[0]} npm run start` : `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start`,
+    installCommand: process.platform === "darwin" ? "brew install --cask tailscale" : "Install the Tailscale client and sign in to the same Tailnet",
+    installUrl: "https://tailscale.com/download",
+    envTemplate: mobileUrls[0]
+      ? `${httpsServeUrl ? "LIFEOS_HOST=127.0.0.1" : "LIFEOS_HOST=0.0.0.0"} LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=${mobileUrls[0]} npm run start`
+      : `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start`,
     notes: installed
       ? [
-        online ? "Tailscale 已登录并在线，可优先使用 MagicDNS 或 Tailnet IP 访问。" : "已安装 Tailscale，但当前未检测到在线状态。",
-        "Tailscale 适合自己设备之间异地访问，通常不需要把服务暴露到公开互联网。",
+        online ? "Tailscale is signed in and online. Prefer HTTPS Serve for phone PWA/WebCrypto support." : "Tailscale is installed, but no online status was detected.",
+        httpsServeUrl
+          ? serveRunning
+            ? `HTTPS Serve appears active at ${httpsServeUrl}.`
+            : `For the most reliable phone entry, run: ${serveCommand}`
+          : "Enable MagicDNS in Tailscale to get a stable HTTPS Serve hostname.",
+        "Tailscale is suitable for remote access between your own devices and usually avoids public internet exposure.",
       ]
       : [
-        "未检测到 Tailscale CLI。安装并登录后，手机和电脑加入同一 Tailnet 即可访问。",
+        "Tailscale CLI was not detected. Install it, sign in, and join the phone and computer to the same Tailnet.",
       ],
+  };
+}
+
+export function startTailscaleHttpsServe(port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000")) {
+  const before = getTailscaleStatus();
+  if (!before.installed) throw new Error("Tailscale CLI was not detected. Install Tailscale and sign in first.");
+  if (!before.online) throw new Error("Tailscale is installed but not online. Sign in and connect this computer to your Tailnet first.");
+  if (!before.httpsServeUrl) throw new Error("Tailscale MagicDNS/HTTPS name was not detected. Enable MagicDNS and HTTPS certificates in Tailscale first.");
+
+  const command = before.serveCommand || `tailscale serve --bg https:443 http://127.0.0.1:${port}`;
+  const result = runManagedCommand(tailscaleCommand(), ["serve", "--bg", "https:443", `http://127.0.0.1:${port}`]);
+  if (!result.ok) throw new Error(result.output || "Failed to start Tailscale HTTPS Serve");
+
+  const after = getTailscaleStatus();
+  return {
+    ok: true,
+    command,
+    output: result.output,
+    url: after.httpsServeUrl || before.httpsServeUrl,
+    status: after,
+  };
+}
+
+export function stopTailscaleHttpsServe() {
+  const before = getTailscaleStatus();
+  if (!before.installed) throw new Error("Tailscale CLI was not detected.");
+  const result = runManagedCommand(tailscaleCommand(), ["serve", "--https=443", "off"]);
+  if (!result.ok) throw new Error(result.output || "Failed to stop Tailscale HTTPS Serve");
+  const after = getTailscaleStatus();
+  return {
+    ok: true,
+    command: "tailscale serve --https=443 off",
+    output: result.output,
+    url: before.httpsServeUrl,
+    status: after,
+  };
+}
+
+function isTailscaleServeAutostartDisabled() {
+  return process.env.LIFEOS_DISABLE_TAILSCALE_SERVE_AUTOSTART === "1"
+    || process.env.LIFEOS_TAILSCALE_SERVE_AUTOSTART === "0";
+}
+
+export function maybeStartConfiguredTailscaleServe(port = String(process.env.LIFEOS_PORT || process.env.PORT || "3000")) {
+  const config = getDesktopRuntimeConfig();
+  if (!config || config.mode !== "tailscale" || !config.publicBaseUrl.startsWith("https://") || isTailscaleServeAutostartDisabled()) {
+    return { started: false, reason: "not_configured", serve: null, config };
+  }
+
+  const status = getTailscaleStatus();
+  if (status.serveRunning && status.httpsServeUrl) {
+    process.env.PUBLIC_BASE_URL = status.httpsServeUrl;
+    return {
+      started: false,
+      reason: "already_running",
+      serve: { ok: true, command: status.serveCommand, output: status.serveStatus, url: status.httpsServeUrl, status },
+      config,
+    };
+  }
+
+  const serve = startTailscaleHttpsServe(port);
+  process.env.PUBLIC_BASE_URL = serve.url;
+  return {
+    started: true,
+    reason: "tailscale_configured",
+    serve,
+    config,
   };
 }
 
@@ -238,6 +468,12 @@ export function getNetworkDiagnostics() {
   const connectionCandidates = buildConnectionCandidates({ port, publicBaseUrl, lanUrls, cloudflare, tailscale });
   const recommendedBaseUrl = connectionCandidates[0]?.baseUrl || `http://127.0.0.1:${port}`;
   const desktopRuntimeConfig = getDesktopRuntimeConfig();
+  const remoteReadiness = buildRemoteReadiness({
+    host,
+    publicBaseUrl,
+    publicAccessAllowed: process.env.LIFEOS_ALLOW_PUBLIC === "1",
+    recommended: connectionCandidates[0],
+  });
 
   return {
     host,
@@ -247,6 +483,7 @@ export function getNetworkDiagnostics() {
     lanUrls,
     lanEnvTemplate: `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start`,
     recommendedBaseUrl,
+    remoteReadiness,
     connectionCandidates,
     desktopRuntimeConfig,
     cloudflare,
@@ -255,14 +492,65 @@ export function getNetworkDiagnostics() {
       publicModeRequired: host === "0.0.0.0" || Boolean(publicBaseUrl),
       requiresHttpsForInternet: Boolean(publicBaseUrl) && !publicBaseUrl.startsWith("https://"),
       notes: [
-        "异地访问优先选择 Tailscale 或 Cloudflare Tunnel。",
-        "公开互联网访问必须设置 LIFEOS_ALLOW_PUBLIC=1，并确认前方是可信 HTTPS 隧道或反向代理。",
+        "Prefer Tailscale or Cloudflare Tunnel for remote access.",
+        "Public internet access requires LIFEOS_ALLOW_PUBLIC=1 and a trusted HTTPS tunnel or reverse proxy in front.",
       ],
     },
   };
 }
 
-export async function testConnectionUrl(baseUrl: string) {
+async function probeFetchStep(id: ConnectionProbeStep["id"], url: URL, validate: (response: Response, body: string) => boolean, signal: AbortSignal): Promise<ConnectionProbeStep> {
+  const startedAt = Date.now();
+  try {
+    const response = await fetch(url, { signal });
+    const body = await response.text().catch(() => "");
+    return {
+      id,
+      ok: response.ok && validate(response, body),
+      status: response.status,
+      url: url.toString(),
+      latencyMs: Date.now() - startedAt,
+      error: response.ok ? undefined : `HTTP ${response.status}`,
+    };
+  } catch (error: any) {
+    return {
+      id,
+      ok: false,
+      status: 0,
+      url: url.toString(),
+      latencyMs: Date.now() - startedAt,
+      error: error?.name === "AbortError" ? "Connection test timed out" : error?.message || "Connection test failed",
+    };
+  }
+}
+
+async function probeWebSocketStep(url: URL, timeoutMs: number): Promise<ConnectionProbeStep> {
+  const startedAt = Date.now();
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (step: ConnectionProbeStep) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      try {
+        ws.close();
+      } catch {}
+      resolve(step);
+    };
+    const timer = setTimeout(() => {
+      done({ id: "websocket", ok: false, status: 0, url: url.toString(), latencyMs: Date.now() - startedAt, error: "WebSocket test timed out" });
+    }, timeoutMs);
+    const ws = new WebSocket(url);
+    ws.once("open", () => {
+      done({ id: "websocket", ok: true, status: 101, url: url.toString(), latencyMs: Date.now() - startedAt });
+    });
+    ws.once("error", (error: any) => {
+      done({ id: "websocket", ok: false, status: 0, url: url.toString(), latencyMs: Date.now() - startedAt, error: error?.message || "WebSocket connection failed" });
+    });
+  });
+}
+
+export async function testConnectionUrl(baseUrl: string, options: { includeWebSocket?: boolean } = {}) {
   let parsed: URL;
   try {
     parsed = new URL(baseUrl);
@@ -279,18 +567,38 @@ export async function testConnectionUrl(baseUrl: string) {
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 3000);
-  const healthUrl = new URL("/api/v1/health", parsed.origin);
+  const basePath = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");
+  const healthUrl = new URL(`${basePath}/api/v1/health`, parsed.origin);
+  const mobileShellUrl = new URL(`${basePath}/mobile/chat`, parsed.origin);
+  const wsUrl = new URL(`${basePath}/api/v1/ws`, parsed.origin);
+  wsUrl.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
   const startedAt = Date.now();
   try {
-    const response = await fetch(healthUrl, { signal: controller.signal });
-    const body = await response.json().catch(() => null);
+    let publicAccessWarning = false;
+    const health = await probeFetchStep("health", healthUrl, (_response, body) => {
+      try {
+        const parsedBody = JSON.parse(body);
+        publicAccessWarning = Boolean(parsedBody?.publicAccessWarning);
+        return parsedBody?.service === "lifeos-local-core";
+      } catch {
+        return false;
+      }
+    }, controller.signal);
+    const mobileShell = await probeFetchStep("mobile-shell", mobileShellUrl, (_response, body) => body.includes("LifeOS AI") || body.includes("lifeos"), controller.signal);
+    const steps = [health, mobileShell];
+    if (options.includeWebSocket !== false) {
+      steps.push(await probeWebSocketStep(wsUrl, 3000));
+    }
+    const ok = steps.every((step) => step.ok);
     return {
-      ok: response.ok && body?.service === "lifeos-local-core",
-      status: response.status,
+      ok,
+      status: health.status,
       url: healthUrl.toString(),
       latencyMs: Date.now() - startedAt,
-      service: body?.service || "",
-      publicAccessWarning: Boolean(body?.publicAccessWarning),
+      service: health.ok ? "lifeos-local-core" : "",
+      publicAccessWarning,
+      steps,
+      error: ok ? undefined : steps.find((step) => !step.ok)?.error || "Remote entry check failed",
     };
   } catch (error: any) {
     return {
@@ -298,6 +606,7 @@ export async function testConnectionUrl(baseUrl: string) {
       status: 0,
       url: healthUrl.toString(),
       latencyMs: Date.now() - startedAt,
+      steps: [],
       error: error?.name === "AbortError" ? "Connection test timed out" : error?.message || "Connection test failed",
     };
   } finally {

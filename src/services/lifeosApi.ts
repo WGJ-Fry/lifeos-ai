@@ -13,6 +13,27 @@ export type BoundDevice = {
   createdAt: number;
   lastSeenAt: number;
   revokedAt?: number;
+  connectivityReport?: DeviceConnectivityReport | null;
+};
+
+export type DeviceConnectivityReport = {
+  id: string;
+  deviceId: string;
+  ok: boolean;
+  currentBaseUrl: string;
+  healthOk: boolean;
+  websocketOk: boolean;
+  latencyMs: number;
+  error?: string;
+  createdAt: number;
+};
+
+export type MobileConnectivityReportInput = {
+  ok: boolean;
+  currentBase: string;
+  latencyMs: number;
+  error?: string;
+  steps: Array<{ id: "health" | "websocket"; ok: boolean; url: string; latencyMs: number; status?: number; error?: string }>;
 };
 
 export type BindingSession = {
@@ -220,6 +241,14 @@ export type NetworkDiagnostics = {
   lanUrls: string[];
   lanEnvTemplate: string;
   recommendedBaseUrl: string;
+  remoteReadiness: {
+    status: "ready" | "needs-restart" | "temporary" | "local-only" | "lan-only" | "blocked";
+    severity: "ok" | "warning" | "danger";
+    candidateId: string;
+    baseUrl: string;
+    blockers: Array<{ id: "noRemoteEntry" | "localOnly" | "lanOnly" | "needsHttps" | "needsPublicOptIn" | "needsRestart" | "temporaryTunnel" | "ready"; detail?: string }>;
+    actions: Array<{ id: "noRemoteEntry" | "localOnly" | "lanOnly" | "needsHttps" | "needsPublicOptIn" | "needsRestart" | "temporaryTunnel" | "ready"; detail?: string }>;
+  };
   connectionCandidates: Array<{
     id: string;
     label: string;
@@ -227,6 +256,7 @@ export type NetworkDiagnostics = {
     mode: "configured" | "cloudflare" | "tailscale" | "lan" | "local";
     priority: number;
     requiresRestart: boolean;
+    stability: "stable" | "temporary" | "local";
     secure: boolean;
     envTemplate: string;
     restartInstruction: string;
@@ -244,13 +274,45 @@ export type NetworkDiagnostics = {
     baseUrl: string;
     updatedAt: number;
   } | null;
+  remoteValidationReport: {
+    id: string;
+    label: string;
+    baseUrl: string;
+    url: string;
+    ok: boolean;
+    status: number;
+    latencyMs: number;
+    passed: number;
+    total: number;
+    createdAt: number;
+    error?: string;
+    steps: Array<{
+      id: string;
+      ok: boolean;
+      status: number;
+      url: string;
+      latencyMs: number;
+      error?: string;
+    }>;
+  } | null;
   cloudflare: {
     installed: boolean;
     running: boolean;
+    managed: {
+      running: boolean;
+      starting: boolean;
+      url: string;
+      pid: number | null;
+      startedAt: number | null;
+      command: string;
+      lastOutput: string;
+      lastError: string;
+    };
     version: string;
     detectedUrls: string[];
     suggestedCommand: string;
     installCommand: string;
+    installUrl: string;
     envTemplate: string;
     notes: string[];
   };
@@ -262,8 +324,13 @@ export type NetworkDiagnostics = {
     tailnetName: string;
     urls: string[];
     magicDnsUrls: string[];
+    httpsServeUrl: string;
+    serveRunning: boolean;
+    serveCommand: string;
+    serveStatus: string;
     mobileUrls: string[];
     installCommand: string;
+    installUrl: string;
     envTemplate: string;
     notes: string[];
   };
@@ -282,16 +349,40 @@ export type ConnectionTestResult = {
   service?: string;
   publicAccessWarning?: boolean;
   error?: string;
+  steps?: Array<{
+    id: "health" | "mobile-shell" | "websocket";
+    ok: boolean;
+    status: number;
+    url: string;
+    latencyMs: number;
+    error?: string;
+  }>;
 };
 
 export type MobilePairingIntent = {
   token: string;
 };
 
+export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
+  const match = String(pathname || "/").match(/^(.*?)(?:\/(?:admin|mobile)(?:\/|$)|\/?$)/);
+  const basePath = (match?.[1] || "").replace(/\/+$/, "");
+  return basePath === "/" ? "" : basePath;
+}
+
+export function apiUrl(path: string) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${getLifeOSBasePath()}${normalizedPath}`;
+}
+
+export function realtimeWebSocketUrl(path = "/api/v1/ws") {
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${window.location.host}${apiUrl(path)}`;
+}
+
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const method = init?.method || "GET";
   const body = typeof init?.body === "string" ? init.body : "";
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl(url), {
     ...init,
     credentials: "same-origin",
     headers: {
@@ -310,7 +401,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export async function getMobilePairingIntent(): Promise<MobilePairingIntent> {
-  const response = await fetch("/api/v1/mobile/pairing-intent", {
+  const response = await fetch(apiUrl("/api/v1/mobile/pairing-intent"), {
     credentials: "same-origin",
     headers: {
       "Content-Type": "application/json",
@@ -429,10 +520,10 @@ export function getNetworkDiagnostics() {
   return requestJson<NetworkDiagnostics>("/api/v1/admin/network-diagnostics");
 }
 
-export function testConnectionUrl(baseUrl: string) {
-  return requestJson<{ result: ConnectionTestResult }>("/api/v1/admin/network-diagnostics/test-url", {
+export function testConnectionUrl(baseUrl: string, options: { persist?: boolean; label?: string } = {}) {
+  return requestJson<{ result: ConnectionTestResult; remoteValidationReport?: NetworkDiagnostics["remoteValidationReport"] }>("/api/v1/admin/network-diagnostics/test-url", {
     method: "POST",
-    body: JSON.stringify({ baseUrl }),
+    body: JSON.stringify({ baseUrl, ...options }),
   });
 }
 
@@ -445,6 +536,59 @@ export function saveDesktopConnectionConfig(input: { mode: NetworkDiagnostics["c
     method: "PUT",
     body: JSON.stringify(input),
   });
+}
+
+export function getCloudflareTunnelStatus() {
+  return requestJson<{
+    tunnel: NetworkDiagnostics["cloudflare"]["managed"];
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/cloudflare-tunnel");
+}
+
+export function startCloudflareTunnel() {
+  return requestJson<{
+    tunnel: NetworkDiagnostics["cloudflare"]["managed"];
+    config: NonNullable<NetworkDiagnostics["desktopRuntimeConfig"]>;
+    diagnostics: NetworkDiagnostics;
+    message: string;
+  }>("/api/v1/admin/cloudflare-tunnel/start", { method: "POST" });
+}
+
+export function stopCloudflareTunnel() {
+  return requestJson<{
+    tunnel: NetworkDiagnostics["cloudflare"]["managed"];
+    diagnostics: NetworkDiagnostics;
+    message: string;
+  }>("/api/v1/admin/cloudflare-tunnel/stop", { method: "POST" });
+}
+
+export function startTailscaleHttpsServe() {
+  return requestJson<{
+    serve: {
+      ok: boolean;
+      command: string;
+      output: string;
+      url: string;
+      status: NetworkDiagnostics["tailscale"];
+    };
+    config: NonNullable<NetworkDiagnostics["desktopRuntimeConfig"]>;
+    diagnostics: NetworkDiagnostics;
+    message: string;
+  }>("/api/v1/admin/tailscale-serve/start", { method: "POST" });
+}
+
+export function stopTailscaleHttpsServe() {
+  return requestJson<{
+    serve: {
+      ok: boolean;
+      command: string;
+      output: string;
+      url: string;
+      status: NetworkDiagnostics["tailscale"];
+    };
+    diagnostics: NetworkDiagnostics;
+    message: string;
+  }>("/api/v1/admin/tailscale-serve/stop", { method: "POST" });
 }
 
 export function diagnosticBundleDownloadUrl() {
@@ -571,6 +715,25 @@ export async function rotateDeviceToken() {
 
 export async function revokeCurrentDeviceBinding() {
   return requestJson<{ ok: true; device: BoundDevice }>("/api/v1/devices/me", { method: "DELETE" });
+}
+
+export function reportMobileConnectivity(result: MobileConnectivityReportInput) {
+  return requestJson<{ ok: true; report: DeviceConnectivityReport }>("/api/v1/devices/me/connectivity-report", {
+    method: "POST",
+    body: JSON.stringify({
+      ok: result.ok,
+      currentBase: result.currentBase,
+      latencyMs: result.latencyMs,
+      error: result.error,
+      steps: result.steps.map((step) => ({
+        id: step.id,
+        ok: step.ok,
+        status: step.status,
+        latencyMs: step.latencyMs,
+        error: step.error,
+      })),
+    }),
+  });
 }
 
 export async function createDeviceWebSocketAuthMessage() {
@@ -738,7 +901,7 @@ export function listChatSessions() {
   return requestJson<{ sessions: ChatSession[] }>("/api/v1/chat/sessions");
 }
 
-export function createChatSession(title = "JARVIS 主会话") {
+export function createChatSession(title = "JARVIS Main Session") {
   return requestJson<{ session: ChatSession }>("/api/v1/chat/sessions", {
     method: "POST",
     body: JSON.stringify({ title }),

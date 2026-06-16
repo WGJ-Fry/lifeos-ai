@@ -66,9 +66,9 @@ export function previewBackup(file: string) {
         ordinaryBackupExcludesSecrets: Number(tables.app_secrets || 0) === 0 && sensitiveClientStateRows === 0,
       },
       warnings: [
-        "恢复会在下次启动前替换当前 SQLite。",
-        "恢复前系统会自动创建当前数据库备份。",
-        "普通备份不包含 AI Key 和敏感客户端状态；恢复后如需 AI 能力，请在设置中重新配置 Key。",
+        "Restore will replace the current SQLite database before the next startup.",
+        "The system will automatically create a backup of the current database before restore.",
+        "Ordinary backups do not include AI Keys or sensitive client state. Reconfigure keys in Settings after restore if AI features are needed.",
       ],
     };
   } finally {

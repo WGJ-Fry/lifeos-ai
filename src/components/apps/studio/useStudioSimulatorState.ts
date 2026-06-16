@@ -12,8 +12,8 @@ export type StudioRefineHistoryItem = {
 };
 
 const INITIAL_LOGS: StudioTelemetryLog[] = [
-  { time: "SYSTEM", text: "JARVIS 隔离渲染运行沙箱初始化成功...", type: "info" },
-  { time: "ROUTER", text: "多端自适应状态机挂载就绪！可切换横屏或手机视口...", type: "log" },
+  { time: "SYSTEM", text: "JARVIS isolated rendering sandbox initialized.", type: "info" },
+  { time: "ROUTER", text: "Adaptive state machine mounted. You can switch landscape or mobile viewport.", type: "log" },
 ];
 
 function loadPreviewDevice(): StudioPreviewDevice {
@@ -35,7 +35,7 @@ export function useStudioSimulatorState() {
     setSimulatorLogs((prev) => [...prev, log].slice(-6));
   }, []);
 
-  const resetSimulatorLogs = useCallback((log: StudioTelemetryLog = { time: "SYS", text: "已重载重置本地捕获遥测日志...", type: "info" }) => {
+  const resetSimulatorLogs = useCallback((log: StudioTelemetryLog = { time: "SYS", text: "Local telemetry logs reloaded and reset.", type: "info" }) => {
     setSimulatorLogs([log]);
   }, []);
 
@@ -46,7 +46,7 @@ export function useStudioSimulatorState() {
   const captureRefineVersion = useCallback((instruction: string, code: string) => {
     const version = {
       id: "ver_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
-      timestamp: new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
       instruction,
       code,
       persona: "all",
@@ -58,8 +58,8 @@ export function useStudioSimulatorState() {
     setRefineHistory([]);
     if (!app) return;
     setSimulatorLogs([
-      { time: "SYSTEM", text: `JARVIS 沙盒环境重置并加载微应用《${app.name}》`, type: "info" },
-      { time: "SANDBOX", text: "已注入 Live Console 检测探针与 H5 IndexedDB 物理防护锁...", type: "log" },
+      { time: "SYSTEM", text: `JARVIS sandbox reset and loaded micro app \"${app.name}\".`, type: "info" },
+      { time: "SANDBOX", text: "Live Console probe and H5 IndexedDB protection lock injected.", type: "log" },
     ]);
   }, []);
 
@@ -67,7 +67,7 @@ export function useStudioSimulatorState() {
     const handleRemoteLog = (event: MessageEvent) => {
       if (event.data && event.data.source === "jarvis-sandbox-frame-log") {
         appendSimulatorLog({
-          time: new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+          time: new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
           text: event.data.message,
           type: event.data.type || "log",
         });

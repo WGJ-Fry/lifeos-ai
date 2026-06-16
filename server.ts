@@ -19,12 +19,16 @@ import { attachRealtimeServer } from "./server/realtime";
 import { runMigrations } from "./server/migrations";
 import { requireCsrf, securityHeaders } from "./server/httpSecurity";
 import { startBackupScheduler } from "./server/backupSchedule";
-import { getInstallPairingToken, htmlWithInstallPairingManifest, setInstallPairingIntentCookie } from "./server/mobileInstall";
+import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
+import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
+import { getInstallPairingToken, htmlWithInstallPairingManifest, htmlWithPublicBaseHref, setInstallPairingIntentCookie } from "./server/mobileInstall";
+import { getConfiguredPublicBasePath } from "./server/publicBaseUrl";
 
 const app = express();
 const PORT = Number(process.env.LIFEOS_PORT || process.env.PORT || 3000);
 const HOST = process.env.LIFEOS_HOST || "127.0.0.1";
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || process.env.APP_URL || "";
+const RUNNING_BUNDLED_SERVER = typeof __dirname !== "undefined" && path.basename(__dirname) === "dist";
 
 if ((HOST === "0.0.0.0" || PUBLIC_BASE_URL) && process.env.LIFEOS_ALLOW_PUBLIC !== "1") {
   throw new Error("Public/LAN mode requires LIFEOS_ALLOW_PUBLIC=1. Set it only behind trusted HTTPS/tunnel protection.");
@@ -63,6 +67,14 @@ migrateLegacyJsonStore();
 runMigrations();
 startBackupScheduler();
 
+app.use((req, _res, next) => {
+  const basePath = getConfiguredPublicBasePath();
+  if (basePath && (req.url === basePath || req.url.startsWith(`${basePath}/`))) {
+    req.url = req.url.slice(basePath.length) || "/";
+  }
+  next();
+});
+
 app.use(express.json({ limit: "64mb" }));
 app.use(express.urlencoded({ limit: "64mb", extended: true }));
 app.use(securityHeaders);
@@ -82,7 +94,7 @@ async function startServer() {
   const server = http.createServer(app);
   attachRealtimeServer(server);
 
-  if (process.env.NODE_ENV !== "production") {
+  if (process.env.NODE_ENV !== "production" && !RUNNING_BUNDLED_SERVER) {
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -97,7 +109,7 @@ async function startServer() {
       try {
         const indexPath = path.join(process.cwd(), "index.html");
         const rawHtml = await fs.promises.readFile(indexPath, "utf8");
-        const installHtml = htmlWithInstallPairingManifest(rawHtml, req);
+        const installHtml = htmlWithPublicBaseHref(htmlWithInstallPairingManifest(rawHtml, req));
         const html = await vite.transformIndexHtml(req.originalUrl, installHtml);
         setInstallPairingIntentCookie(res, pairingToken);
         res.setHeader("Cache-Control", "no-store");
@@ -113,29 +125,52 @@ async function startServer() {
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
       const indexPath = path.join(distPath, "index.html");
+      const sendSpaIndex = (pairingToken = "") => {
+        fs.readFile(indexPath, "utf8", (error, html) => {
+          if (error) {
+            res.status(500).send("LifeOS web shell is unavailable.");
+            return;
+          }
+          if (pairingToken) {
+            setInstallPairingIntentCookie(res, pairingToken);
+            res.setHeader("Cache-Control", "no-store");
+          }
+          const manifestHtml = pairingToken ? htmlWithInstallPairingManifest(html, req) : html;
+          res.type("html").send(htmlWithPublicBaseHref(manifestHtml));
+        });
+      };
       if (
         (req.path === "/mobile/pair" && req.query.token) ||
         (req.path === "/mobile/chat" && req.query.pairingToken) ||
         /^\/mobile\/install\/[^/?#]+$/.test(req.path)
       ) {
         const pairingToken = getInstallPairingToken(req);
-        fs.readFile(indexPath, "utf8", (error, html) => {
-          if (error) {
-            res.sendFile(indexPath);
-            return;
-          }
-          setInstallPairingIntentCookie(res, pairingToken);
-          res.setHeader("Cache-Control", "no-store");
-          res.type("html").send(htmlWithInstallPairingManifest(html, req));
-        });
+        sendSpaIndex(pairingToken);
         return;
       }
-      res.sendFile(indexPath);
+      sendSpaIndex();
     });
   }
 
   server.listen(PORT, HOST, () => {
     console.log(`Server running on http://${HOST === "0.0.0.0" ? "localhost" : HOST}:${PORT}`);
+    maybeStartConfiguredCloudflareTunnel(String(PORT))
+      .then((result) => {
+        if (result.started && result.tunnel.url) {
+          console.log(`Cloudflare Tunnel running at ${result.tunnel.url}`);
+        }
+      })
+      .catch((error) => {
+        console.warn("Cloudflare Tunnel autostart failed:", error?.message || error);
+      });
+    try {
+      const tailscale = maybeStartConfiguredTailscaleServe(String(PORT));
+      if (tailscale.started && tailscale.serve?.url) {
+        console.log(`Tailscale HTTPS Serve running at ${tailscale.serve.url}`);
+      }
+    } catch (error: any) {
+      console.warn("Tailscale HTTPS Serve autostart failed:", error?.message || error);
+    }
   });
 
   const shutdown = () => {

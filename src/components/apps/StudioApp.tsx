@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, DragEvent, ChangeEvent, KeyboardE
 import { CustomApp } from "../../types";
 import { motion, AnimatePresence } from "motion/react";
 import { useSyncedClientState } from "../../hooks/useSyncedClientState";
+import { useI18n } from "../../i18n/I18nProvider";
 import { formatHtmlLikeCode } from "./studio/codeUtils";
 import { analyzeFile, generateStudioApp, refineCode } from "./studio/api";
 import StudioByokTab from "./studio/StudioByokTab";
@@ -36,6 +37,7 @@ export default function StudioApp({
   onOpenApp?: (id: string) => void,
   onAddApp?: (app: CustomApp) => void
 }) {
+  const { t } = useI18n();
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<StudioTab>("overview");
 
@@ -78,13 +80,13 @@ export default function StudioApp({
 
   const installGeneratedApp = (name: string, description: string, code: string) => {
     if (!code.trim()) {
-      throw new Error("AI 未返回可安装的微应用代码");
+      throw new Error(t("studio.app.errorNoInstallableCode"));
     }
 
     const generatedApp: CustomApp = {
       id: "custom-" + Date.now().toString(),
-      name: name || "智能重构应用",
-      description: description || "由 JARVIS 分析并重构生成的本地微应用。",
+      name: name || t("studio.app.defaultGeneratedName"),
+      description: description || t("studio.app.defaultGeneratedDescription"),
       visibility: "private",
       status: "active",
       createdAt: Date.now(),
@@ -101,15 +103,15 @@ export default function StudioApp({
     setIsImportWizardOpen(false);
     setPromptInput("");
     setWizardAppName("");
-    appendSimulatorLog({ time: "SYSTEM", text: `AI 微应用 “${generatedApp.name}” 已创建并载入编辑器。`, type: "info" });
+    appendSimulatorLog({ time: "SYSTEM", text: t("studio.app.logGeneratedLoaded", { name: generatedApp.name }), type: "info" });
   };
 
   const processImportedFile = async (file: File) => {
     setGenerationError(null);
     setIsGeneratingApp(true);
     setIsImportWizardOpen(true);
-    setWizardAppName("智能分析中...");
-    setPromptInput(`正在分析 ${file.name} 并重构为可安装微应用。`);
+    setWizardAppName(t("studio.app.analyzing"));
+    setPromptInput(t("studio.app.analyzingFile", { file: file.name }));
 
     try {
       const isImage = file.type.startsWith("image/");
@@ -127,14 +129,14 @@ export default function StudioApp({
               mimeType: file.type,
             });
             installGeneratedApp(
-              data.appName || "已识别的视觉卡片",
-              data.description || "根据您的原型截图，AI 已完成还原、适配并注入运行脚本。",
+              data.appName || t("studio.app.detectedVisualCard"),
+              data.description || t("studio.app.visualCardDescription"),
               data.uiCode || "",
             );
           } catch (err: any) {
             console.error(err);
-            setGenerationError(err.message || "解析过程出错");
-            setWizardAppName("AI 辨识失败");
+            setGenerationError(err.message || t("studio.app.parseFailed"));
+            setWizardAppName(t("studio.app.aiRecognitionFailed"));
           } finally {
             setIsGeneratingApp(false);
           }
@@ -151,14 +153,14 @@ export default function StudioApp({
               fileContent: textContent,
             });
             installGeneratedApp(
-              data.appName || "智能重构应用",
-              data.description || "已由智能管家无缝迁移和优化重构。",
+              data.appName || t("studio.app.defaultGeneratedName"),
+              data.description || t("studio.app.migratedDescription"),
               data.uiCode || "",
             );
           } catch (err: any) {
             console.error(err);
-            setGenerationError(err.message || "解析源码出错");
-            setWizardAppName("重构编译遇到问题");
+            setGenerationError(err.message || t("studio.app.sourceParseFailed"));
+            setWizardAppName(t("studio.app.rebuildProblem"));
           } finally {
             setIsGeneratingApp(false);
           }
@@ -167,7 +169,7 @@ export default function StudioApp({
       }
     } catch (err: any) {
       console.error(err);
-      setGenerationError(err.message || "无法读取本地文件");
+      setGenerationError(err.message || t("studio.app.readFileFailed"));
       setIsGeneratingApp(false);
     }
   };
@@ -199,13 +201,13 @@ export default function StudioApp({
         description: promptInput.trim()
       });
       if (!data.uiCode) {
-        throw new Error("AI 未能成功生成组件代码，请更换需求重试");
+        throw new Error(t("studio.app.aiGenerateFailed"));
       }
 
       installGeneratedApp(data.appName || finalAppName, promptInput.trim(), data.uiCode);
     } catch (err: any) {
       console.error(err);
-      setGenerationError(err.message || "智能生成出错");
+      setGenerationError(err.message || t("studio.app.smartGenerateFailed"));
     } finally {
       setIsGeneratingApp(false);
     }
@@ -224,17 +226,17 @@ export default function StudioApp({
         captureRefineVersion(refineInstruction, localCode);
 
         // Inject system console initialization log for sandbox
-        appendSimulatorLog({ time: "COMPILER", text: `🔄 编译更新成功: “${refineInstruction.trim().substring(0, 20)}${refineInstruction.length > 20 ? "..." : ""}”`, type: "info" });
+        appendSimulatorLog({ time: "COMPILER", text: t("studio.app.logCompileSuccess", { instruction: `${refineInstruction.trim().substring(0, 20)}${refineInstruction.length > 20 ? "..." : ""}` }), type: "info" });
 
         setLocalCode(data.refinedCode);
         setRunningCode(data.refinedCode); // Immediately refresh iframe simulation
         setRefineInstruction("");
       } else {
-        throw new Error("AI 返回了空白代码，请重新描述您的修改需求");
+        throw new Error(t("studio.app.emptyRefinedCode"));
       }
     } catch (err: any) {
       console.error(err);
-      setRefineError(err.message || "代码重构失败");
+      setRefineError(err.message || t("studio.app.refineFailed"));
     } finally {
       setIsRefining(false);
     }
@@ -260,7 +262,7 @@ export default function StudioApp({
     if (!localCode) return;
     try {
       setLocalCode(formatHtmlLikeCode(localCode));
-      appendSimulatorLog({ time: "PRETTIER", text: "已自动整理源代码空行与逻辑缩进 (Format Completed)", type: "info" });
+      appendSimulatorLog({ time: "PRETTIER", text: t("studio.app.logFormatCompleted"), type: "info" });
     } catch (e) {
       console.error("Format Failed:", e);
     }
@@ -274,7 +276,7 @@ export default function StudioApp({
       if (editingAppId) {
         onUpdateCode(editingAppId, localCode);
       }
-      appendSimulatorLog({ time: "COMPILER", text: "⚡ 已捕获保存热键 (Ctrl+S)，开始自诊断重载微应用...", type: "info" });
+      appendSimulatorLog({ time: "COMPILER", text: t("studio.app.logSaveHotkey"), type: "info" });
     }
     // Support Tab key to insert double spaces
     if (e.key === "Tab") {
@@ -292,9 +294,9 @@ export default function StudioApp({
 
   // Dynamic Habits and Memories
   const [memories, setMemories] = useSyncedClientState<any[]>("lifeos_memories", [
-    { id: "mem-1", title: "用户称呼与代词", time: "记忆于 1周前", content: "“先生/主人，男士，职场人士，讲话干脆直接不要罗嗦。”", type: "user" },
-    { id: "mem-2", title: "晨间常驻导航点", time: "记忆于 3天前", content: "“早晨常去的星巴克门店在南京西路110号。”", type: "location" },
-    { id: "mem-3", title: "UI审美偏好", time: "系统自动提取", content: "“喜爱深色系、Cyberpunk 以及极简的控制台风格，避免花哨色彩。”", type: "ui" }
+    { id: "mem-1", title: t("studio.app.memoryTitleIdentity"), time: t("studio.app.memoryTimeWeek"), content: t("studio.app.memoryContentIdentity"), type: "user" },
+    { id: "mem-2", title: t("studio.app.memoryTitleMorning"), time: t("studio.app.memoryTimeThreeDays"), content: t("studio.app.memoryContentMorning"), type: "location" },
+    { id: "mem-3", title: t("studio.app.memoryTitleUi"), time: t("studio.app.memoryTimeSystem"), content: t("studio.app.memoryContentUi"), type: "ui" }
   ]);
 
   const [newMemTitle, setNewMemTitle] = useState("");
@@ -303,7 +305,7 @@ export default function StudioApp({
 
   // Model Engine & TTS Voice States
   const [modelEngine, setModelEngine] = useSyncedClientState("lifeos_model_engine", "Gemini 2.0 Flash");
-  const [ttsVoice, setTtsVoice] = useSyncedClientState("lifeos_tts_voice", "Onyx (深沉星空男声)");
+  const [ttsVoice, setTtsVoice] = useSyncedClientState("lifeos_tts_voice", "Onyx");
 
   const handleDeleteMemory = (id: string) => {
     const updated = memories.filter(m => m.id !== id);
@@ -312,13 +314,13 @@ export default function StudioApp({
 
   const handleAddMemory = () => {
     if (!newMemTitle.trim() || !newMemContent.trim()) {
-      alert("请填写完整的标题和内容后提交。");
+      alert(t("studio.app.memoryRequired"));
       return;
     }
     const newMem = {
       id: "mem-" + Date.now(),
       title: newMemTitle.trim(),
-      time: "手动添加 刚刚",
+      time: t("studio.app.memoryTimeManualNow"),
       content: `“${newMemContent.trim()}”`,
       type: "custom"
     };
@@ -330,11 +332,11 @@ export default function StudioApp({
   };
 
   const handleClearAllData = () => {
-    if (window.confirm("⚠️ 确定要彻底擦除所有端侧历史、大模型密钥及中继网络订阅吗？该操作不可逆。")) {
+    if (window.confirm(t("studio.app.confirmClearAll"))) {
       Object.keys(localStorage)
         .filter((key) => key.startsWith("lifeos_") || key.startsWith("omnipreview_"))
         .forEach((key) => localStorage.removeItem(key));
-      alert("所有的本地资产及存储状态已被完全擦除，系统已恢复至最纯净的白纸状态。即将刷新应用以重载默认值。");
+      alert(t("studio.app.clearAllDone"));
       window.location.reload();
     }
   };
@@ -384,6 +386,7 @@ export default function StudioApp({
     routeMode,
     selectedNodeId,
     setProxyEnabled,
+    subSyncSucceeded,
     subSyncResult,
     syncSubscription,
     testAllPings,
@@ -396,9 +399,9 @@ export default function StudioApp({
   const handleCopyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(localCode);
-      alert("📋 代码已复制到剪贴板！您可以随时在其他编辑器中使用它。");
+      alert(t("studio.app.copySuccess"));
     } catch (err) {
-      alert("复制失败，您的浏览器可能未启用剪贴板 API 授权。");
+      alert(t("studio.app.copyFailed"));
     }
   };
 
@@ -515,6 +518,7 @@ export default function StudioApp({
                   proxyNodes={proxyNodes}
                   isSyncingSub={isSyncingSub}
                   isPinging={isPinging}
+                  subSyncSucceeded={subSyncSucceeded}
                   subSyncResult={subSyncResult}
                   onToggleProxy={toggleProxy}
                   onProxyUrlChange={handleProxyUrlChange}
@@ -557,7 +561,7 @@ export default function StudioApp({
               onPublish={() => {
                 onUpdateCode && onUpdateCode(activeAppToEdit.id, localCode);
                 setEditingAppId(null);
-                alert(`组件《${activeAppToEdit.name}》编译通过并成功更新！已全量上架部署，欢迎回到管家主面板体验运行。`);
+                alert(t("studio.app.publishSuccess", { name: activeAppToEdit.name }));
               }}
             />
 
@@ -575,7 +579,7 @@ export default function StudioApp({
                       onRollback={(version) => {
                         setLocalCode(version.code);
                         setRunningCode(version.code);
-                        appendSimulatorLog({ time: "ROLLBACK", text: `已回滚至变动: ${version.instruction.substring(0, 15)}...`, type: "info" });
+                        appendSimulatorLog({ time: "ROLLBACK", text: t("studio.app.logRollback", { instruction: version.instruction.substring(0, 15) }), type: "info" });
                       }}
                     />
 

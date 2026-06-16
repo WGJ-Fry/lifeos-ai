@@ -8,6 +8,287 @@ export type PwaCapabilityStatus = {
   recommendations: string[];
 };
 
+export type RemoteEntryKind =
+  | "configured-match"
+  | "configured-mismatch"
+  | "localhost"
+  | "same-lan"
+  | "tailscale"
+  | "temporary-cloudflare"
+  | "stable-https"
+  | "insecure-remote"
+  | "unknown";
+
+export type RemoteEntryStatus = {
+  kind: RemoteEntryKind;
+  okForRemote: boolean;
+  currentBase: string;
+  configuredBase: string;
+  titleKey: string;
+  bodyKey: string;
+};
+
+export type MobileConnectivityStep = {
+  id: "health" | "websocket";
+  ok: boolean;
+  url: string;
+  latencyMs: number;
+  status?: number;
+  error?: string;
+};
+
+export type MobileConnectivityResult = {
+  ok: boolean;
+  currentBase: string;
+  latencyMs: number;
+  steps: MobileConnectivityStep[];
+  error?: string;
+};
+
+function normalizeBaseUrl(value?: string | null) {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    const pathname = url.pathname.replace(/\/+$/, "");
+    return `${url.origin}${pathname === "/" ? "" : pathname}`.replace(/\/$/, "");
+  } catch {
+    return value.replace(/\/+$/, "");
+  }
+}
+
+function currentBaseFromHref(currentHref?: string) {
+  if (!currentHref && typeof window === "undefined") return "";
+  try {
+    const url = new URL(currentHref || window.location.href);
+    const pathname = url.pathname.replace(/\/mobile\/.*$/, "").replace(/\/+$/, "");
+    return `${url.origin}${pathname === "/" ? "" : pathname}`.replace(/\/$/, "");
+  } catch {
+    return "";
+  }
+}
+
+function currentBasePathFromHref(currentHref?: string) {
+  if (!currentHref && typeof window === "undefined") return "";
+  try {
+    const url = new URL(currentHref || window.location.href);
+    const pathname = url.pathname.replace(/\/mobile\/.*$/, "").replace(/\/+$/, "");
+    return pathname === "/" ? "" : pathname;
+  } catch {
+    return "";
+  }
+}
+
+function isPrivateIpv4(hostname: string) {
+  const parts = hostname.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  const [a, b] = parts;
+  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+}
+
+function isTailscaleIpv4(hostname: string) {
+  const parts = hostname.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  return parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127;
+}
+
+export function getRemoteEntryStatus(options: { currentHref?: string; configuredBaseUrl?: string | null } = {}): RemoteEntryStatus {
+  const currentBase = currentBaseFromHref(options.currentHref);
+  const configuredBase = normalizeBaseUrl(options.configuredBaseUrl);
+  const fallback: RemoteEntryStatus = {
+    kind: "unknown",
+    okForRemote: false,
+    currentBase,
+    configuredBase,
+    titleKey: "mobileDevice.remoteUnknownTitle",
+    bodyKey: "mobileDevice.remoteUnknownBody",
+  };
+  if (!currentBase) return fallback;
+
+  let url: URL;
+  try {
+    url = new URL(currentBase);
+  } catch {
+    return fallback;
+  }
+
+  if (configuredBase && normalizeBaseUrl(currentBase) !== configuredBase) {
+    return {
+      kind: "configured-mismatch",
+      okForRemote: false,
+      currentBase,
+      configuredBase,
+      titleKey: "mobileDevice.entryMismatchTitle",
+      bodyKey: "mobileDevice.entryMismatchBody",
+    };
+  }
+
+  const hostname = url.hostname.toLowerCase();
+  const https = url.protocol === "https:";
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
+  const isLan = isPrivateIpv4(hostname) || hostname.endsWith(".local");
+  const isTailscale = hostname.endsWith(".ts.net") || isTailscaleIpv4(hostname);
+  const isTryCloudflare = hostname.endsWith(".trycloudflare.com");
+
+  if (configuredBase) {
+    return {
+      kind: "configured-match",
+      okForRemote: https || isTailscale,
+      currentBase,
+      configuredBase,
+      titleKey: https || isTailscale ? "mobileDevice.remoteConfiguredTitle" : "mobileDevice.remoteInsecureTitle",
+      bodyKey: https || isTailscale ? "mobileDevice.remoteConfiguredBody" : "mobileDevice.remoteInsecureBody",
+    };
+  }
+
+  if (isLocalhost) {
+    return {
+      kind: "localhost",
+      okForRemote: false,
+      currentBase,
+      configuredBase,
+      titleKey: "mobileDevice.localEntryTitle",
+      bodyKey: "mobileDevice.localEntryBody",
+    };
+  }
+
+  if (isLan) {
+    return {
+      kind: "same-lan",
+      okForRemote: false,
+      currentBase,
+      configuredBase,
+      titleKey: "mobileDevice.lanEntryTitle",
+      bodyKey: "mobileDevice.lanEntryBody",
+    };
+  }
+
+  if (isTryCloudflare) {
+    return {
+      kind: "temporary-cloudflare",
+      okForRemote: true,
+      currentBase,
+      configuredBase,
+      titleKey: "mobileDevice.temporaryEntryTitle",
+      bodyKey: "mobileDevice.temporaryEntryBody",
+    };
+  }
+
+  if (isTailscale) {
+    return {
+      kind: "tailscale",
+      okForRemote: true,
+      currentBase,
+      configuredBase,
+      titleKey: https ? "mobileDevice.tailscaleEntryTitle" : "mobileDevice.tailscaleHttpEntryTitle",
+      bodyKey: https ? "mobileDevice.tailscaleEntryBody" : "mobileDevice.tailscaleHttpEntryBody",
+    };
+  }
+
+  if (https) {
+    return {
+      kind: "stable-https",
+      okForRemote: true,
+      currentBase,
+      configuredBase,
+      titleKey: "mobileDevice.remoteHttpsTitle",
+      bodyKey: "mobileDevice.remoteHttpsBody",
+    };
+  }
+
+  return {
+    kind: "insecure-remote",
+    okForRemote: false,
+    currentBase,
+    configuredBase,
+    titleKey: "mobileDevice.remoteInsecureTitle",
+    bodyKey: "mobileDevice.remoteInsecureBody",
+  };
+}
+
+async function probeMobileHealth(basePath: string, signal: AbortSignal): Promise<MobileConnectivityStep> {
+  const startedAt = Date.now();
+  const url = `${basePath}/api/v1/health`;
+  try {
+    const response = await fetch(url, { credentials: "same-origin", signal });
+    const body = await response.json().catch(() => ({}));
+    const ok = response.ok && body?.service === "lifeos-local-core";
+    return {
+      id: "health",
+      ok,
+      url,
+      status: response.status,
+      latencyMs: Date.now() - startedAt,
+      error: ok ? undefined : `HTTP ${response.status}`,
+    };
+  } catch (error: any) {
+    return {
+      id: "health",
+      ok: false,
+      url,
+      latencyMs: Date.now() - startedAt,
+      error: error?.name === "AbortError" ? "Connection test timed out" : error?.message || "Health check failed",
+    };
+  }
+}
+
+function probeMobileWebSocket(basePath: string, timeoutMs: number): Promise<MobileConnectivityStep> {
+  const startedAt = Date.now();
+  const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
+  const host = typeof window !== "undefined" ? window.location.host : "";
+  const url = `${protocol}://${host}${basePath}/api/v1/ws`;
+  return new Promise((resolve) => {
+    if (typeof WebSocket === "undefined" || !host) {
+      resolve({ id: "websocket", ok: false, url, latencyMs: 0, error: "WebSocket is unavailable" });
+      return;
+    }
+    let settled = false;
+    let ws: WebSocket | null = null;
+    const timer = globalThis.setTimeout(() => {
+      done({ id: "websocket", ok: false, url, latencyMs: Date.now() - startedAt, error: "WebSocket test timed out" });
+    }, timeoutMs);
+    const done = (step: MobileConnectivityStep) => {
+      if (settled) return;
+      settled = true;
+      globalThis.clearTimeout(timer);
+      try {
+        ws?.close();
+      } catch {}
+      resolve(step);
+    };
+    try {
+      ws = new WebSocket(url);
+      ws.addEventListener("open", () => done({ id: "websocket", ok: true, url, status: 101, latencyMs: Date.now() - startedAt }), { once: true });
+      ws.addEventListener("error", () => done({ id: "websocket", ok: false, url, latencyMs: Date.now() - startedAt, error: "WebSocket connection failed" }), { once: true });
+    } catch (error: any) {
+      done({ id: "websocket", ok: false, url, latencyMs: Date.now() - startedAt, error: error?.message || "WebSocket connection failed" });
+    }
+  });
+}
+
+export async function testMobileRemoteConnectivity(options: { currentHref?: string; timeoutMs?: number } = {}): Promise<MobileConnectivityResult> {
+  const timeoutMs = options.timeoutMs || 3000;
+  const basePath = currentBasePathFromHref(options.currentHref);
+  const currentBase = currentBaseFromHref(options.currentHref);
+  const controller = new AbortController();
+  const timer = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+  try {
+    const health = await probeMobileHealth(basePath, controller.signal);
+    const websocket = await probeMobileWebSocket(basePath, timeoutMs);
+    const steps = [health, websocket];
+    const ok = steps.every((step) => step.ok);
+    return {
+      ok,
+      currentBase,
+      latencyMs: Date.now() - startedAt,
+      steps,
+      error: ok ? undefined : steps.find((step) => !step.ok)?.error || "Mobile connectivity test failed",
+    };
+  } finally {
+    globalThis.clearTimeout(timer);
+  }
+}
+
 function standaloneDisplayMode() {
   if (typeof window === "undefined") return false;
   return window.matchMedia?.("(display-mode: standalone)")?.matches || Boolean((navigator as any).standalone);
@@ -46,21 +327,21 @@ export function getPwaCapabilityStatus(): PwaCapabilityStatus {
   };
 
   if (!status.standalone) {
-    status.recommendations.push("绑定成功后添加到主屏幕，之后可像普通 App 一样打开。");
+    status.recommendations.push("After pairing, add LifeOS to the home screen so it opens like a regular app.");
   }
   if (!status.serviceWorkerSupported) {
-    status.recommendations.push("当前浏览器不支持离线 shell，建议换用 Safari、Chrome 或 Edge。");
+    status.recommendations.push("This browser does not support the offline shell. Try Safari, Chrome, or Edge.");
   } else if (!status.serviceWorkerControlled) {
-    status.recommendations.push("离线 shell 正在接管，刷新一次后离线启动会更稳定。");
+    status.recommendations.push("The offline shell is taking control. Refresh once for more reliable offline startup.");
   }
   if (!status.backgroundSyncSupported) {
-    status.recommendations.push("后台同步不可用时，重新打开聊天页会继续补写离线消息。");
+    status.recommendations.push("When background sync is unavailable, reopen chat to continue writing back offline messages.");
   }
   if (!status.indexedDbSupported) {
-    status.recommendations.push("IndexedDB 不可用会影响设备凭证和长期离线状态，请检查浏览器隐私模式。");
+    status.recommendations.push("IndexedDB is unavailable, which affects device credentials and long-term offline state. Check private browsing settings.");
   }
   if (!status.online) {
-    status.recommendations.push("当前离线，消息会进入本机队列，网络恢复后再同步。");
+    status.recommendations.push("You are offline. Messages will enter the local queue and sync when the network returns.");
   }
 
   return status;

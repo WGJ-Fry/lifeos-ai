@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createDeviceWebSocketAuthMessage, getStoredDeviceCredentialAsync, rotateDeviceToken } from "../services/lifeosApi";
+import { createDeviceWebSocketAuthMessage, getStoredDeviceCredentialAsync, realtimeWebSocketUrl, rotateDeviceToken } from "../services/lifeosApi";
 
 export type RealtimeStatus = "unbound" | "connecting" | "connected" | "offline";
 
@@ -24,8 +24,7 @@ export function useLifeOSRealtime() {
       }
 
       setStatus("connecting");
-      const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-      const ws = new WebSocket(`${protocol}://${window.location.host}/api/v1/ws`);
+      const ws = new WebSocket(realtimeWebSocketUrl());
       socketRef.current = ws;
 
       let heartbeat: number | undefined;

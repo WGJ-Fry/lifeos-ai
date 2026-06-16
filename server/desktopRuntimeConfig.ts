@@ -47,14 +47,18 @@ export function normalizeDesktopRuntimeConfig(input: {
   const normalizedBaseUrl = normalizePublicBaseUrl(input.baseUrl);
   if (!normalizedBaseUrl) throw new Error("Desktop connection baseUrl must be a valid HTTP/HTTPS URL");
   const parsed = new URL(normalizedBaseUrl);
+  if ((mode === "configured" || mode === "cloudflare") && parsed.protocol !== "https:") {
+    throw new Error("Public remote connection modes require an HTTPS baseUrl");
+  }
   const port = normalizePort(parsed.port || fallbackPort, fallbackPort);
   const isLocal = mode === "local";
   const isLan = mode === "lan";
+  const isTailscaleHttpsServe = mode === "tailscale" && parsed.protocol === "https:";
   const publicBaseUrl = isLocal || isLan ? "" : normalizedBaseUrl;
   return {
     mode,
     label: normalizeLabel(input.label, mode),
-    host: isLocal ? "127.0.0.1" as const : "0.0.0.0" as const,
+    host: isLocal || isTailscaleHttpsServe ? "127.0.0.1" as const : "0.0.0.0" as const,
     port,
     publicBaseUrl,
     allowPublic: !isLocal,

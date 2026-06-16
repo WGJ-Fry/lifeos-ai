@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, LockKeyhole, Loader2, ShieldCheck } from "lucide-react";
 import { getAdminStatus, getHealth, loginAdmin, setupAdmin } from "../../services/lifeosApi";
+import LanguageSwitcher from "../../i18n/LanguageSwitcher";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type Mode = "loading" | "setup" | "login";
 
 export default function AdminLoginPage() {
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("loading");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,11 +34,11 @@ export default function AdminLoginPage() {
   const handleSubmit = async () => {
     setError(null);
     if (password.length < 8) {
-      setError("密码至少需要 8 位。");
+      setError(t("auth.passwordMin"));
       return;
     }
     if (mode === "setup" && password !== confirmPassword) {
-      setError("两次输入的密码不一致。");
+      setError(t("auth.passwordMismatch"));
       return;
     }
 
@@ -49,7 +52,7 @@ export default function AdminLoginPage() {
         window.location.href = session.onboardingRequired ? (session.nextPath || "/admin/onboarding") : "/admin/dashboard";
       }
     } catch (err: any) {
-      setError(err.message || "认证失败");
+      setError(err.message || t("auth.failed"));
     } finally {
       setSubmitting(false);
     }
@@ -58,26 +61,29 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen bg-[#060a10] text-zinc-100 flex items-center justify-center p-5">
       <div className="w-full max-w-sm rounded-[28px] border border-white/[0.08] bg-[#101722] p-6 shadow-2xl">
+        <div className="mb-4 flex justify-end">
+          <LanguageSwitcher compact />
+        </div>
         <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-500/10">
           {mode === "loading" ? <Loader2 className="h-5 w-5 animate-spin text-cyan-300" /> : <ShieldCheck className="h-5 w-5 text-cyan-300" />}
         </div>
 
-        <h1 className="text-xl font-bold">{mode === "setup" ? "设置管理员密码" : "管理员登录"}</h1>
+        <h1 className="text-xl font-bold">{mode === "setup" ? t("auth.setupTitle") : t("auth.loginTitle")}</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-400">
           {mode === "setup"
-            ? "首次启动需要设置本机管理员密码，用于保护设备绑定、记忆、聊天记录和 AI 工具接口。"
+            ? t("auth.setupDescription")
             : envManaged
-              ? "请输入环境变量 LIFEOS_ADMIN_PASSWORD 配置的管理员密码。"
-              : "请输入本机管理员密码。"}
+              ? t("auth.envDescription")
+              : t("auth.loginDescription")}
         </p>
 
         {publicSetupRisk ? (
           <div className="mt-5 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 text-sm leading-relaxed text-red-100">
             <div className="mb-1 flex items-center gap-2 font-bold text-red-50">
               <AlertTriangle className="h-4 w-4" />
-              公网/LAN 暴露未完成初始化
+              {t("auth.publicSetupTitle")}
             </div>
-            请立刻设置管理员密码，并确认只通过可信 HTTPS 隧道或受控网络访问。完成初始化前不要把这个地址分享给其他人。
+            {t("auth.publicSetupBody")}
           </div>
         ) : null}
 
@@ -87,13 +93,13 @@ export default function AdminLoginPage() {
           <div className="mt-6 space-y-3">
             {mode === "setup" ? (
               <div className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs leading-relaxed text-zinc-400">
-                <div className="mb-2 font-bold text-zinc-200">首次启动向导</div>
-                <div>1. 设置管理员密码</div>
-                <div>2. 进入设置页配置 AI Key</div>
-                <div>3. 绑定手机端开始使用</div>
+                <div className="mb-2 font-bold text-zinc-200">{t("auth.firstRunGuide")}</div>
+                <div>{t("auth.firstRunStep1")}</div>
+                <div>{t("auth.firstRunStep2")}</div>
+                <div>{t("auth.firstRunStep3")}</div>
               </div>
             ) : null}
-            <label htmlFor="admin-password" className="block text-xs font-bold uppercase tracking-wider text-zinc-500">密码</label>
+            <label htmlFor="admin-password" className="block text-xs font-bold uppercase tracking-wider text-zinc-500">{t("common.password")}</label>
             <input
               id="admin-password"
               type="password"
@@ -108,7 +114,7 @@ export default function AdminLoginPage() {
 
             {mode === "setup" && (
               <>
-                <label htmlFor="admin-confirm-password" className="block text-xs font-bold uppercase tracking-wider text-zinc-500">确认密码</label>
+                <label htmlFor="admin-confirm-password" className="block text-xs font-bold uppercase tracking-wider text-zinc-500">{t("common.confirmPassword")}</label>
                 <input
                   id="admin-confirm-password"
                   type="password"
@@ -128,7 +134,7 @@ export default function AdminLoginPage() {
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-500 py-3 text-sm font-bold text-[#061016] disabled:opacity-50"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <LockKeyhole className="h-4 w-4" />}
-              {mode === "setup" ? "完成初始化" : "进入控制台"}
+              {mode === "setup" ? t("auth.finishSetup") : t("auth.enterConsole")}
             </button>
           </div>
         )}

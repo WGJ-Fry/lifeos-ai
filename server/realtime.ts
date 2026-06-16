@@ -3,6 +3,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { insertAuditLog } from "./audit";
 import { getActiveDeviceBySignature } from "./auth";
 import { getActiveDeviceByToken, updateDevicePresence } from "./devices";
+import { stripConfiguredPublicBasePath } from "./publicBaseUrl";
 
 const wsClients = new Map<string, WebSocket>();
 
@@ -39,7 +40,7 @@ export function attachRealtimeServer(server: http.Server) {
 
   server.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url || "", `http://${request.headers.host}`);
-    if (url.pathname !== "/api/v1/ws") {
+    if (stripConfiguredPublicBasePath(url.pathname) !== "/api/v1/ws") {
       socket.destroy();
       return;
     }

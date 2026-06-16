@@ -47,7 +47,7 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>)
   }, [refreshQueueState]);
 
   const clearQueuedMessages = useCallback(() => {
-    if (!window.confirm("清空所有尚未同步的离线消息？这些消息不会写入电脑端 SQLite。")) return;
+    if (!window.confirm("Clear all unsynced offline messages? These messages will not be written to the desktop SQLite database.")) return;
     clearOfflineMessageQueue();
     refreshQueueState();
   }, [refreshQueueState]);

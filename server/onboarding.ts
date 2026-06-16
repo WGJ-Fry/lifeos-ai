@@ -30,31 +30,31 @@ export function getOnboardingStatus() {
   const steps: OnboardingStep[] = [
     {
       id: "ai",
-      label: "配置 AI Provider",
+      label: "Configure AI Provider",
       done: aiConfigured,
       actionPath: "/admin/onboarding",
-      message: aiConfigured ? "至少一个 AI Provider 已配置。" : "先配置 Gemini、OpenAI、OpenRouter 或本地模型。",
+      message: aiConfigured ? "At least one AI provider is configured." : "Configure Gemini, OpenAI, OpenRouter, or a local model first.",
     },
     {
       id: "backup",
-      label: "创建初始备份",
+      label: "Create Initial Backup",
       done: hasBackup,
       actionPath: "/admin/onboarding",
-      message: hasBackup ? `已有 ${backups.length} 份备份。` : "首次使用前创建 SQLite 快照，方便回滚。",
+      message: hasBackup ? `${backups.length} backup(s) available.` : "Create a SQLite snapshot before first use so you can roll back safely.",
     },
     {
       id: "device",
-      label: "绑定手机端",
+      label: "Pair Mobile",
       done: hasDevice,
       actionPath: "/admin/devices/pair",
-      message: hasDevice ? `已绑定 ${devices.filter((device) => device.status !== "revoked").length} 台设备。` : "绑定手机后才能把手机端作为日常入口。",
+      message: hasDevice ? `${devices.filter((device) => device.status !== "revoked").length} device(s) paired.` : "Pair a phone before using mobile as the daily entry point.",
     },
     {
       id: "security",
-      label: "安全自检",
+      label: "Security Check",
       done: securityReady,
       actionPath: "/admin/settings",
-      message: securityReady ? "没有阻断级安全风险。" : "仍有阻断级安全风险需要处理。",
+      message: securityReady ? "No blocking security risks found." : "Blocking security risks still need attention.",
     },
   ];
 

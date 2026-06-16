@@ -1,27 +1,32 @@
 const CACHE_NAME = "lifeos-ai-shell-v4";
-const OFFLINE_FALLBACK = "/offline.html";
+const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, "").replace(/\/+$/, "");
+const withBasePath = (path) => `${BASE_PATH}${path.startsWith("/") ? path : `/${path}`}`;
+const withoutBasePath = (pathname) => BASE_PATH && pathname.startsWith(`${BASE_PATH}/`) ? pathname.slice(BASE_PATH.length) || "/" : pathname;
+const OFFLINE_FALLBACK = withBasePath("/offline.html");
 const SHELL_ASSETS = [
-  "/",
-  "/mobile/chat",
-  "/mobile/device",
-  "/mobile/pair",
-  "/mobile/actions",
+  withBasePath("/"),
+  withBasePath("/mobile/chat"),
+  withBasePath("/mobile/device"),
+  withBasePath("/mobile/pair"),
+  withBasePath("/mobile/actions"),
   OFFLINE_FALLBACK,
-  "/manifest.webmanifest",
-  "/icon.svg",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/screenshots/real-mobile-chat.jpg",
-  "/screenshots/real-mobile-device.jpg",
+  withBasePath("/manifest.webmanifest"),
+  withBasePath("/icon.svg"),
+  withBasePath("/icons/icon-192.png"),
+  withBasePath("/icons/icon-512.png"),
+  withBasePath("/screenshots/real-mobile-chat.jpg"),
+  withBasePath("/screenshots/real-mobile-device.jpg"),
 ];
 
 function extractBuildAssets(html) {
-  return Array.from(new Set((html.match(/\/assets\/[^"'<>\\\s)]+/g) || []).map((asset) => asset.trim())));
+  const absoluteAssets = (html.match(/\/assets\/[^"'<>\\\s)]+/g) || []).map((asset) => asset.trim());
+  const relativeAssets = (html.match(/(?:^|["'(])\.\/assets\/[^"'<>\\\s)]+/g) || []).map((asset) => asset.replace(/^["'(]/, "").replace(/^\.\//, "/").trim());
+  return Array.from(new Set([...absoluteAssets, ...relativeAssets].map((asset) => withBasePath(asset))));
 }
 
 async function cacheBuildAssets(cache) {
   try {
-    const response = await fetch("/", { cache: "no-store" });
+    const response = await fetch(withBasePath("/"), { cache: "no-store" });
     if (!response.ok) return;
     const html = await response.text();
     const buildAssets = extractBuildAssets(html);
@@ -64,16 +69,17 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (url.origin !== self.location.origin || request.method !== "GET") return;
-  if (url.pathname.startsWith("/api/")) return;
+  const appPath = withoutBasePath(url.pathname);
+  if (appPath.startsWith("/api/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)
         .then((response) => {
           if (response.ok) return response;
-          return caches.match(request).then((cached) => cached || caches.match("/mobile/chat") || caches.match(OFFLINE_FALLBACK) || response);
+          return caches.match(request).then((cached) => cached || caches.match(withBasePath("/mobile/chat")) || caches.match(OFFLINE_FALLBACK) || response);
         })
-        .catch(() => caches.match(request).then((cached) => cached || caches.match("/mobile/chat") || caches.match(OFFLINE_FALLBACK))),
+        .catch(() => caches.match(request).then((cached) => cached || caches.match(withBasePath("/mobile/chat")) || caches.match(OFFLINE_FALLBACK))),
     );
     return;
   }

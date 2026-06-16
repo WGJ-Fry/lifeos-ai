@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { Calculator, Delete, History, Trash2, ArrowLeftRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useSyncedClientState } from "../../hooks/useSyncedClientState";
+import { useI18n } from "../../i18n/I18nProvider";
 
 export default function CalculatorApp() {
+  const { t } = useI18n();
   const [display, setDisplay] = useState("0");
   const [history, setHistory] = useSyncedClientState<string[]>("lifeos_calculator_history", ["120 + 24 = 144", "25 * 60 = 1500"]);
   const [showHistory, setShowHistory] = useState(false);
@@ -99,7 +101,7 @@ export default function CalculatorApp() {
       <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3 h-10 flex-shrink-0">
         <h3 className="font-semibold text-[14px] flex items-center gap-2">
           <Calculator className="w-4 h-4 text-indigo-400" />
-          全天候心流算沙盘
+          {t("apps.calculator.title")}
         </h3>
         <button
           onClick={() => setShowHistory(!showHistory)}
@@ -108,7 +110,7 @@ export default function CalculatorApp() {
               ? "bg-indigo-600/10 border-indigo-500/30 text-indigo-400" 
               : "bg-white/[0.01] border-white/[0.04] text-zinc-400 hover:text-zinc-200"
           }`}
-          title="运行历史日志"
+          title={t("apps.calculator.historyTitle")}
         >
           <History className="w-4 h-4" />
         </button>
@@ -125,20 +127,20 @@ export default function CalculatorApp() {
               className="absolute inset-0 bg-[#111113]/95 backdrop-blur-md z-20 flex flex-col justify-between p-3 rounded-2xl border border-white/[0.05]"
             >
               <div className="flex justify-between items-center pb-2 border-b border-white/[0.04]">
-                <span className="text-xs text-zinc-400 font-bold tracking-wider uppercase">运算历史面板</span>
+                <span className="text-xs text-zinc-400 font-bold tracking-wider uppercase">{t("apps.calculator.historyPanel")}</span>
                 {history.length > 0 && (
                   <button
                     onClick={clearHistory}
                     className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1 font-bold"
                   >
-                    <Trash2 className="w-3 h-3" /> 清理日志
+                    <Trash2 className="w-3 h-3" /> {t("apps.calculator.clearHistory")}
                   </button>
                 )}
               </div>
               
               <div className="flex-1 overflow-y-auto space-y-2 py-3 pr-1 hide-scrollbar">
                 {history.length === 0 ? (
-                  <div className="text-xs text-zinc-600 text-center py-10 font-bold">暂无历史运算对账单</div>
+                  <div className="text-xs text-zinc-600 text-center py-10 font-bold">{t("apps.calculator.emptyHistory")}</div>
                 ) : (
                   history.map((record, index) => (
                     <div
@@ -160,7 +162,7 @@ export default function CalculatorApp() {
                 onClick={() => setShowHistory(false)}
                 className="w-full text-center py-1.5 bg-white/[0.04] text-zinc-300 hover:text-white rounded-lg text-xs font-bold transition-colors"
               >
-                返回沙盘
+                {t("apps.calculator.back")}
               </button>
             </motion.div>
           )}
@@ -169,7 +171,7 @@ export default function CalculatorApp() {
         {/* LED Screen Layout Display */}
         <div className="bg-[#09090b] rounded-[18px] p-4.5 mb-2.5 flex flex-col items-end justify-end border border-white/[0.05] shadow-inner h-[80px] flex-shrink-0">
           <div className="text-[10px] text-zinc-600 font-mono tracking-wider truncate max-w-full">
-            {display.match(/[\+\-\*\/]/) ? "表达式就绪" : "直接输入数额或运算符"}
+            {display.match(/[\+\-\*\/]/) ? t("apps.calculator.expressionReady") : t("apps.calculator.inputHint")}
           </div>
           <span className="text-3xl font-light tracking-tight truncate max-w-full font-mono text-zinc-100">
             {display}
@@ -183,15 +185,15 @@ export default function CalculatorApp() {
           onClick={handleClear}
           className="col-span-2 bg-[#d946ef]/10 text-magenta-400 hover:bg-[#d946ef]/25 border border-[#d946ef]/20 transition-all text-xs font-bold py-2.5 rounded-xl uppercase text-indigo-300"
         >
-          复位清除 AC
+          {t("apps.calculator.clear")}
         </button>
         <button
           onClick={handleBackspace}
           className="col-span-2 bg-zinc-800/40 hover:bg-zinc-800 text-zinc-300 flex items-center justify-center gap-1.5 transition-all text-xs font-bold py-2.5 rounded-xl border border-white/[0.03]"
-          title="回退一位 (Backspace)"
+          title={t("apps.calculator.backspaceTitle")}
         >
           <Delete className="w-3.5 h-3.5 text-zinc-400" />
-          <span>回退一格</span>
+          <span>{t("apps.calculator.backspace")}</span>
         </button>
       </div>
 
@@ -222,7 +224,7 @@ export default function CalculatorApp() {
 
       {/* Touch keyboard guides footer stats */}
       <div className="text-[10px] text-zinc-600 text-center pt-2 font-medium flex-shrink-0">
-        集成全盘硬编码映射，支持键盘物理键位随时直接录入
+        {t("apps.calculator.keyboardHint")}
       </div>
 
     </div>

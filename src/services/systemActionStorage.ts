@@ -46,7 +46,7 @@ export function normalizeSystemActionLog(log: Partial<SystemActionLog>): SystemA
     label: log.label,
     url: redactActionUrl(log.url),
     scheme: log.scheme,
-    source: log.source || "手动操作",
+    source: log.source || "Manual action",
     target: log.target || log.url,
     paramsSummary: log.paramsSummary || summarizeActionParams(log.url),
     status: log.status,

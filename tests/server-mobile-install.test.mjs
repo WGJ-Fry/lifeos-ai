@@ -3,9 +3,11 @@ import test from "node:test";
 import {
   getInstallPairingToken,
   htmlWithInstallPairingManifest,
+  htmlWithPublicBaseHref,
   mobileManifest,
   normalizeInstallPairingToken,
   pairingInstallPath,
+  publicBaseHref,
 } from "../server/mobileInstall.ts";
 
 function request(path, query = {}) {
@@ -33,7 +35,7 @@ test("server mobile install helpers ignore malformed or unsafe pairing tokens", 
 test("server mobile manifest preserves pairing token for add-to-home-screen", () => {
   const manifest = mobileManifest("bind_manifest_token_123");
   assert.equal(manifest.start_url, "/mobile/install/bind_manifest_token_123");
-  assert.equal(manifest.shortcuts.find((shortcut) => shortcut.short_name === "绑定")?.url, "/mobile/install/bind_manifest_token_123");
+  assert.equal(manifest.shortcuts.find((shortcut) => shortcut.short_name === "Pair")?.url, "/mobile/install/bind_manifest_token_123");
 
   const defaultManifest = mobileManifest();
   assert.equal(defaultManifest.start_url, "/mobile/chat");
@@ -46,4 +48,16 @@ test("server install html injects dynamic manifest href only for valid pairing t
     /href="\/manifest\.webmanifest\?pairingToken=bind_html_token_123"/,
   );
   assert.equal(htmlWithInstallPairingManifest(html, request("/mobile/install/not-secret")), html);
+});
+
+test("server shell html injects a public base href for deep routes and reverse proxy subpaths", () => {
+  const html = '<html><head><link rel="manifest" href="manifest.webmanifest" /></head><body></body></html>';
+  assert.equal(publicBaseHref(), "/");
+  assert.equal(publicBaseHref("/lifeos/"), "/lifeos/");
+  assert.match(htmlWithPublicBaseHref(html), /<base href="\/" \/>/);
+  assert.match(htmlWithPublicBaseHref(html, "/lifeos"), /<base href="\/lifeos\/" \/>/);
+  assert.equal(
+    htmlWithPublicBaseHref('<html><head><base href="/old/" /></head></html>', "/lifeos"),
+    '<html><head><base href="/lifeos/" /></head></html>',
+  );
 });

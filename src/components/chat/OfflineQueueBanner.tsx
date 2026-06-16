@@ -1,6 +1,7 @@
 import { getOfflineMessageRetryLabel, getOfflineMessageStatusLabel } from "../../services/offlineMessageQueue";
 import type { OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import type { NetworkStatus } from "../../services/networkStatus";
+import { useI18n } from "../../i18n/I18nProvider";
 
 type OfflineQueueSummary = {
   count: number;
@@ -32,6 +33,7 @@ export default function OfflineQueueBanner({
   onSyncAll,
   network,
 }: OfflineQueueBannerProps) {
+  const { t } = useI18n();
   if (summary.count === 0 && network.quality !== "offline" && network.quality !== "poor") return null;
 
   return (
@@ -41,10 +43,10 @@ export default function OfflineQueueBanner({
           {summary.count === 0
             ? network.label
             : status === "syncing"
-              ? `正在同步 ${summary.syncing || summary.count} 条离线消息...`
+              ? t("offlineQueue.syncing", { count: summary.syncing || summary.count })
               : status === "error"
-                ? `还有 ${summary.failed || summary.count} 条离线消息同步失败`
-                : `还有 ${summary.pending || summary.count} 条离线消息等待同步`}
+                ? t("offlineQueue.syncFailed", { count: summary.failed || summary.count })
+                : t("offlineQueue.waiting", { count: summary.pending || summary.count })}
           {network.quality === "poor" && summary.count > 0 ? (
             <span className="mt-1 block text-[10px] text-amber-200/70">{network.label}</span>
           ) : null}
@@ -52,7 +54,7 @@ export default function OfflineQueueBanner({
             <span className="mt-1 block truncate text-[10px] text-amber-200/70">{summary.lastError}</span>
           ) : null}
           {summary.nextRetryAt && summary.failed > 0 ? (
-            <span className="mt-1 block text-[10px] text-amber-200/70">下次自动重试：{new Date(summary.nextRetryAt).toLocaleTimeString()}</span>
+            <span className="mt-1 block text-[10px] text-amber-200/70">{t("offlineQueue.nextRetry", { time: new Date(summary.nextRetryAt).toLocaleTimeString() })}</span>
           ) : null}
         </span>
         {summary.count > 0 ? (
@@ -62,20 +64,20 @@ export default function OfflineQueueBanner({
               disabled={status === "syncing" || network.quality === "offline"}
               className="shrink-0 rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1 text-[11px] font-bold text-amber-100 disabled:opacity-50"
             >
-              全部重试
+              {t("offlineQueue.retryAll")}
             </button>
             <button
               onClick={onClear}
               className="shrink-0 rounded-full border border-red-300/25 bg-red-300/10 px-3 py-1 text-[11px] font-bold text-red-100"
             >
-              清空
+              {t("offlineQueue.clear")}
             </button>
           </>
         ) : null}
       </div>
       {summary.count > 0 ? <div className="mt-3 space-y-2 border-t border-amber-200/15 pt-3">
         {items.slice(0, 3).map((item) => {
-          const preview = item.message.parts.find((part) => part.text)?.text || "附件消息";
+          const preview = item.message.parts.find((part) => part.text)?.text || t("offlineQueue.attachmentMessage");
           const retryLabel = getOfflineMessageRetryLabel(item);
           return (
             <div key={item.id} className="rounded-xl border border-amber-200/15 bg-black/10 p-2">
@@ -87,16 +89,16 @@ export default function OfflineQueueBanner({
               {retryLabel ? <div className="mt-1 text-[10px] text-amber-100/65">{retryLabel}</div> : null}
               <div className="mt-2 flex items-center gap-2">
                 <button onClick={() => onRetry(item.id)} className="rounded-full border border-amber-200/20 px-2 py-0.5 text-[10px] font-bold text-amber-100">
-                  单条重试
+                  {t("offlineQueue.retryOne")}
                 </button>
                 <button onClick={() => onRemove(item.id)} className="rounded-full border border-red-200/20 px-2 py-0.5 text-[10px] font-bold text-red-100">
-                  删除
+                  {t("offlineQueue.remove")}
                 </button>
               </div>
             </div>
           );
         })}
-        {items.length > 3 ? <div className="text-[10px] text-amber-100/60">还有 {items.length - 3} 条离线消息未显示</div> : null}
+        {items.length > 3 ? <div className="text-[10px] text-amber-100/60">{t("offlineQueue.moreHidden", { count: items.length - 3 })}</div> : null}
       </div> : null}
     </div>
   );

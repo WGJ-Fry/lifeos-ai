@@ -1,15 +1,20 @@
 // @ts-nocheck
 import assert from "node:assert/strict";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { WebSocketServer } from "ws";
 
 test("network diagnostics detects mocked Cloudflare and Tailscale CLIs", async (t) => {
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-network-bin-"));
   const oldPath = process.env.PATH || "";
   const oldPort = process.env.LIFEOS_PORT;
   const oldHost = process.env.LIFEOS_HOST;
+  const oldAllowPublic = process.env.LIFEOS_ALLOW_PUBLIC;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldTailscaleBin = process.env.LIFEOS_TAILSCALE_BIN;
 
   t.after(async () => {
     process.env.PATH = oldPath;
@@ -17,6 +22,12 @@ test("network diagnostics detects mocked Cloudflare and Tailscale CLIs", async (
     else process.env.LIFEOS_PORT = oldPort;
     if (oldHost === undefined) delete process.env.LIFEOS_HOST;
     else process.env.LIFEOS_HOST = oldHost;
+    if (oldAllowPublic === undefined) delete process.env.LIFEOS_ALLOW_PUBLIC;
+    else process.env.LIFEOS_ALLOW_PUBLIC = oldAllowPublic;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldTailscaleBin === undefined) delete process.env.LIFEOS_TAILSCALE_BIN;
+    else process.env.LIFEOS_TAILSCALE_BIN = oldTailscaleBin;
     await rm(binDir, { recursive: true, force: true });
   });
 
@@ -40,6 +51,10 @@ if [ "$1" = "status" ]; then
   echo '{"Self":{"Online":true,"HostName":"lifeos-mac","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}'
   exit 0
 fi
+if [ "$1" = "serve" ]; then
+  echo '{"TCP":{},"Web":{"lifeos-mac.tailnet.example.ts.net:443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:4567"}}}}}'
+  exit 0
+fi
 exit 1
 `);
   await chmod(cloudflaredPath, 0o755);
@@ -49,14 +64,19 @@ exit 1
   process.env.PATH = `${binDir}:${oldPath}`;
   process.env.LIFEOS_PORT = "4567";
   process.env.LIFEOS_HOST = "127.0.0.1";
+  process.env.LIFEOS_CLOUDFLARED_BIN = cloudflaredPath;
+  process.env.LIFEOS_TAILSCALE_BIN = tailscalePath;
+  delete process.env.LIFEOS_ALLOW_PUBLIC;
 
   const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?mock=${Date.now()}`);
   const diagnostics = getNetworkDiagnostics();
   assert.equal(diagnostics.cloudflare.installed, true);
   assert.match(diagnostics.cloudflare.version, /cloudflared version 2026\.6\.0/);
   assert.equal(diagnostics.cloudflare.running, true);
+  assert.equal(typeof diagnostics.cloudflare.managed.running, "boolean");
   assert.deepEqual(diagnostics.cloudflare.detectedUrls, ["https://amber-lifeos.trycloudflare.com"]);
   assert.equal(diagnostics.cloudflare.suggestedCommand, "cloudflared tunnel --url http://127.0.0.1:4567");
+  assert.match(diagnostics.cloudflare.installUrl, /^https:\/\/developers\.cloudflare\.com\//);
   assert.match(diagnostics.cloudflare.envTemplate, /PUBLIC_BASE_URL=https:\/\/amber-lifeos\.trycloudflare\.com/);
   assert.equal(diagnostics.tailscale.installed, true);
   assert.equal(diagnostics.tailscale.online, true);
@@ -64,24 +84,38 @@ exit 1
   assert.equal(diagnostics.tailscale.tailnetName, "tailnet.example.ts.net");
   assert.deepEqual(diagnostics.tailscale.urls, ["http://100.64.0.10:4567"]);
   assert.deepEqual(diagnostics.tailscale.magicDnsUrls, ["http://lifeos-mac.tailnet.example.ts.net:4567"]);
-  assert.deepEqual(diagnostics.tailscale.mobileUrls, ["http://lifeos-mac.tailnet.example.ts.net:4567", "http://100.64.0.10:4567"]);
-  assert.equal(diagnostics.tailscale.envTemplate, "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=http://lifeos-mac.tailnet.example.ts.net:4567 npm run start");
+  assert.equal(diagnostics.tailscale.httpsServeUrl, "https://lifeos-mac.tailnet.example.ts.net");
+  assert.equal(diagnostics.tailscale.serveRunning, true);
+  assert.equal(diagnostics.tailscale.serveCommand, "tailscale serve --bg https:443 http://127.0.0.1:4567");
+  assert.deepEqual(diagnostics.tailscale.mobileUrls, ["https://lifeos-mac.tailnet.example.ts.net", "http://lifeos-mac.tailnet.example.ts.net:4567", "http://100.64.0.10:4567"]);
+  assert.match(diagnostics.tailscale.installUrl, /^https:\/\/tailscale\.com\/download/);
+  assert.equal(diagnostics.tailscale.envTemplate, "LIFEOS_HOST=127.0.0.1 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net npm run start");
   assert.equal(diagnostics.lanEnvTemplate, "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start");
-  assert.equal(diagnostics.recommendedBaseUrl, "https://amber-lifeos.trycloudflare.com");
-  assert.equal(diagnostics.connectionCandidates[0].id, "cloudflare-0");
-  assert.equal(diagnostics.connectionCandidates[0].mobilePairUrl, "https://amber-lifeos.trycloudflare.com/mobile/pair");
+  assert.equal(diagnostics.recommendedBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
+  assert.equal(diagnostics.connectionCandidates[0].id, "tailscale-serve-https");
+  assert.equal(diagnostics.connectionCandidates[0].mobilePairUrl, "https://lifeos-mac.tailnet.example.ts.net/mobile/pair");
   assert.equal(diagnostics.connectionCandidates[0].secure, true);
-  assert.equal(diagnostics.connectionCandidates[0].envTemplate, "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com npm run start");
-  assert.match(diagnostics.connectionCandidates[0].restartInstruction, /复制启动环境/);
+  assert.equal(diagnostics.connectionCandidates[0].stability, "stable");
+  assert.equal(diagnostics.remoteReadiness.status, "needs-restart");
+  assert.equal(diagnostics.remoteReadiness.severity, "warning");
+  assert.equal(diagnostics.remoteReadiness.baseUrl, "https://lifeos-mac.tailnet.example.ts.net");
+  assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsRestart"), true);
+  assert.equal(diagnostics.connectionCandidates[0].envTemplate, "LIFEOS_HOST=127.0.0.1 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net npm run start");
+  assert.match(diagnostics.connectionCandidates[0].restartInstruction, /Copy the startup environment/);
+  const cloudflareCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "cloudflare-0");
+  assert.equal(cloudflareCandidate.stability, "temporary");
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-serve-https" && candidate.baseUrl === "https://lifeos-mac.tailnet.example.ts.net"), true);
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-magicdns-0" && candidate.baseUrl === "http://lifeos-mac.tailnet.example.ts.net:4567"), true);
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-ip-0" && candidate.baseUrl === "http://100.64.0.10:4567"), true);
-  const tailscaleCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-magicdns-0");
-  assert.match(tailscaleCandidate.envTemplate, /PUBLIC_BASE_URL=http:\/\/lifeos-mac\.tailnet\.example\.ts\.net:4567/);
+  const tailscaleCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-serve-https");
+  assert.match(tailscaleCandidate.envTemplate, /PUBLIC_BASE_URL=https:\/\/lifeos-mac\.tailnet\.example\.ts\.net/);
+  assert.match(tailscaleCandidate.notes[0], /HTTPS Serve is already active/);
 });
 
 test("network diagnostics normalizes configured public base URLs before UI and pairing use", async (t) => {
   const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
   const oldAppUrl = process.env.APP_URL;
+  const oldAllowPublic = process.env.LIFEOS_ALLOW_PUBLIC;
   const oldPath = process.env.PATH || "";
   const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-network-empty-bin-"));
 
@@ -90,12 +124,15 @@ test("network diagnostics normalizes configured public base URLs before UI and p
     else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
     if (oldAppUrl === undefined) delete process.env.APP_URL;
     else process.env.APP_URL = oldAppUrl;
+    if (oldAllowPublic === undefined) delete process.env.LIFEOS_ALLOW_PUBLIC;
+    else process.env.LIFEOS_ALLOW_PUBLIC = oldAllowPublic;
     process.env.PATH = oldPath;
     await rm(binDir, { recursive: true, force: true });
   });
 
   process.env.PUBLIC_BASE_URL = "https://user:password@example.com/lifeos/?token=pair-secret#debug";
   process.env.APP_URL = "";
+  delete process.env.LIFEOS_ALLOW_PUBLIC;
   process.env.PATH = binDir;
 
   const { getNetworkDiagnostics } = await import(`../server/networkDiagnostics.ts?public-url=${Date.now()}`);
@@ -104,19 +141,24 @@ test("network diagnostics normalizes configured public base URLs before UI and p
   assert.equal(diagnostics.recommendedBaseUrl, "https://example.com/lifeos");
   assert.equal(diagnostics.connectionCandidates[0].id, "configured-public");
   assert.equal(diagnostics.connectionCandidates[0].requiresRestart, false);
+  assert.equal(diagnostics.remoteReadiness.status, "blocked");
+  assert.equal(diagnostics.remoteReadiness.blockers.some((blocker) => blocker.id === "needsPublicOptIn"), true);
   assert.equal(JSON.stringify(diagnostics).includes("pair-secret"), false);
   assert.equal(JSON.stringify(diagnostics).includes("user:password"), false);
 });
 
 test("connection URL tests strip credentials, query secrets, and fragments from returned probe URL", async (t) => {
   const originalFetch = globalThis.fetch;
-  let fetchedUrl = "";
+  const fetchedUrls = [];
   globalThis.fetch = async (url) => {
-    fetchedUrl = String(url);
+    fetchedUrls.push(String(url));
+    const urlString = String(url);
     return {
       ok: true,
       status: 200,
-      json: async () => ({ service: "lifeos-local-core", publicAccessWarning: true }),
+      text: async () => urlString.endsWith("/api/v1/health")
+        ? JSON.stringify({ service: "lifeos-local-core", publicAccessWarning: true })
+        : "<!doctype html><title>LifeOS AI</title>",
     };
   };
   t.after(() => {
@@ -124,12 +166,111 @@ test("connection URL tests strip credentials, query secrets, and fragments from 
   });
 
   const { testConnectionUrl } = await import(`../server/networkDiagnostics.ts?test-url=${Date.now()}`);
-  const result = await testConnectionUrl("https://user:password@example.test/lifeos?token=connection-secret#debug");
+  const result = await testConnectionUrl("https://user:password@example.test/lifeos?token=connection-secret#debug", { includeWebSocket: false });
 
   assert.equal(result.ok, true);
-  assert.equal(result.url, "https://example.test/api/v1/health");
-  assert.equal(fetchedUrl, "https://example.test/api/v1/health");
+  assert.equal(result.url, "https://example.test/lifeos/api/v1/health");
+  assert.deepEqual(fetchedUrls, [
+    "https://example.test/lifeos/api/v1/health",
+    "https://example.test/lifeos/mobile/chat",
+  ]);
+  assert.equal(result.publicAccessWarning, true);
+  assert.deepEqual(result.steps.map((step) => step.id), ["health", "mobile-shell"]);
   assert.equal(JSON.stringify(result).includes("connection-secret"), false);
   assert.equal(JSON.stringify(result).includes("user:password"), false);
   assert.equal(JSON.stringify(result).includes("#debug"), false);
+});
+
+test("connection URL tests health, mobile shell, and websocket under a remote base path", async (t) => {
+  const server = createServer((req, res) => {
+    if (req.url === "/lifeos/api/v1/health") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ service: "lifeos-local-core", publicAccessWarning: false }));
+      return;
+    }
+    if (req.url === "/lifeos/mobile/chat") {
+      res.writeHead(200, { "content-type": "text/html" });
+      res.end("<!doctype html><html><title>LifeOS AI</title></html>");
+      return;
+    }
+    res.writeHead(404);
+    res.end("not found");
+  });
+  const wss = new WebSocketServer({ noServer: true });
+  server.on("upgrade", (req, socket, head) => {
+    if (req.url !== "/lifeos/api/v1/ws") {
+      socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      ws.close(1000, "ok");
+    });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(async () => {
+    await new Promise((resolve) => wss.close(resolve));
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  const { port } = server.address();
+  const { testConnectionUrl } = await import(`../server/networkDiagnostics.ts?websocket=${Date.now()}`);
+  const result = await testConnectionUrl(`http://127.0.0.1:${port}/lifeos`);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.publicAccessWarning, false);
+  assert.equal(result.url, `http://127.0.0.1:${port}/lifeos/api/v1/health`);
+  assert.deepEqual(result.steps.map((step) => step.id), ["health", "mobile-shell", "websocket"]);
+  assert.equal(result.steps.find((step) => step.id === "websocket").status, 101);
+});
+
+test("Tailscale HTTPS Serve helpers run controlled start and stop commands", async (t) => {
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-tailscale-serve-bin-"));
+  const commandLog = path.join(binDir, "tailscale.log");
+  const oldPath = process.env.PATH || "";
+  const oldPort = process.env.LIFEOS_PORT;
+
+  t.after(async () => {
+    process.env.PATH = oldPath;
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    await rm(binDir, { recursive: true, force: true });
+  });
+
+  const tailscalePath = path.join(binDir, "tailscale");
+  await writeFile(tailscalePath, `#!/bin/sh
+echo "$@" >> "${commandLog}"
+if [ "$1" = "version" ]; then
+  echo "1.66.4"
+  exit 0
+fi
+if [ "$1" = "status" ]; then
+  echo '{"Self":{"Online":true,"HostName":"lifeos-mac","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}'
+  exit 0
+fi
+if [ "$1" = "serve" ] && [ "$2" = "status" ]; then
+  echo '{"Web":{"lifeos-mac.tailnet.example.ts.net:443":{"Handlers":{"/":{"Proxy":"http://127.0.0.1:4567"}}}}}'
+  exit 0
+fi
+if [ "$1" = "serve" ]; then
+  echo "ok"
+  exit 0
+fi
+exit 1
+`);
+  await chmod(tailscalePath, 0o755);
+
+  process.env.PATH = `${binDir}:${oldPath}`;
+  process.env.LIFEOS_PORT = "4567";
+
+  const { startTailscaleHttpsServe, stopTailscaleHttpsServe } = await import(`../server/networkDiagnostics.ts?tailscale-serve=${Date.now()}`);
+  const started = startTailscaleHttpsServe("4567");
+  assert.equal(started.url, "https://lifeos-mac.tailnet.example.ts.net");
+  assert.equal(started.command, "tailscale serve --bg https:443 http://127.0.0.1:4567");
+
+  const stopped = stopTailscaleHttpsServe();
+  assert.equal(stopped.command, "tailscale serve --https=443 off");
+
+  const log = await import("node:fs/promises").then((fs) => fs.readFile(commandLog, "utf8"));
+  assert.match(log, /serve --bg https:443 http:\/\/127\.0\.0\.1:4567/);
+  assert.match(log, /serve --https=443 off/);
 });

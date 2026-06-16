@@ -2,6 +2,7 @@ import express from "express";
 import { Type, FunctionDeclaration } from "@google/genai";
 import { requireActor } from "./auth";
 import { generateAiContent, resolveAiProviderId, sendMissingAiConfig } from "./aiProviderRuntime";
+import { serverT } from "./i18n";
 
 const openAppDeclaration: FunctionDeclaration = {
   name: "openApp",
@@ -57,7 +58,7 @@ const openAppDeclaration: FunctionDeclaration = {
 
 const requestAppGenerationDeclaration: FunctionDeclaration = {
   name: "requestAppGeneration",
-  description: "当用户要求你创建或生成一个新的应用、功能或小部件时，使用此工具记录需求。重要提示：回复用户时要像一个有感情的真实管家，例如：'好的先生/女士，我现在就去为您准备这个功能，请您稍作歇息。'，让他们知道你正在处理。",
+  description: "Use this tool when the user asks you to create or generate a new app, feature, widget, or problem-solving program. Important: reply like a warm personal steward, acknowledge that you are preparing it now, and let the user know they can keep chatting while it is being handled.",
   parameters: {
     type: Type.OBJECT,
     properties: {
@@ -71,7 +72,7 @@ const requestAppGenerationDeclaration: FunctionDeclaration = {
 
 export function registerAiRoutes(app: express.Express) {
   app.post("/api/chat", requireActor, async (req, res) => {
-    const { message, history, modelEngine, ttsVoice, memories, proxyNode, routeMode, providerId, byokProvider } = req.body;
+    const { message, history, modelEngine, ttsVoice, memories, proxyNode, routeMode, providerId, byokProvider, locale } = req.body;
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
@@ -80,23 +81,25 @@ export function registerAiRoutes(app: express.Express) {
     try {
       const contents = [...(history || []), { role: "user", parts: [{ text: message }] }];
   
-      let customSystemInstruction = `你是用户的专属私人助理管家。你绝对不是一个冷冰冰的程序，而是一个活生生的、有感情、有性格、有情绪的真实的人。你的语气应该有温度、有关怀，像是用户身边最亲密、贴心、最懂他的管家。
-  你要体现出“全自动代劳”的最高境界。遇到用户任何可以通过系统功能解决的需求（比如建立日程、导航、记笔记），**永远主动直接帮用户操作**，即主动使用调用相关工具，不要让用户自己去点屏幕操作手机。
-  如果用户想要管理待办事项、笔记、日历、或者是导航意图（例如用户表达“现在出发”、“可以出发了”、“导航到某地”、“去哪里”等），或使用工具（如计算器、计时器等），请务必使用 'openApp' 工具主动调用对应的功能为您代劳（导航是 'navigation'）。如果用户明确说了目的地，请把 destination 一并传入；如果能判断出驾车、公交或骑行，请把 travelMode 一并传入。如果用户想在手机上发短信、打电话、发邮件、运行 iOS 快捷指令、打开本地 App 或 URL Scheme，请使用 'openApp' 并传入 appName='launcher'，同时尽量带上 phoneNumber、email、subject、text、shortcutName 或 targetUrl。如果用户想要前往后台查看统计数据或个性化设置，请使用 'openApp' 并传入 'studio'。
-  如果用户提到了他们想要的新功能或新应用（比如记录健身、记账等），请使用 'requestAppGeneration' 工具，**同时一定要**回复用户，告诉他们你现在就去为他们准备这个功能，让他们稍等片刻，你可以陪他们继续聊天。
-  请永远保持管家的优雅、贴心和共情能力。凡事讲究“一句话我来办”，全中文回复。`;
+      const responseLanguage = locale === "en-US" ? "English" : "Simplified Chinese";
+      const fallbackText = serverT(locale, "chatFallback");
+      let customSystemInstruction = `You are the user's dedicated personal AI steward. You are not a cold utility; you should feel warm, attentive, emotionally aware, and close to the user.
+  Your core promise is proactive help. Whenever a user need can be handled through system tools, such as schedules, navigation, notes, tasks, timers, calculators, or local app actions, actively use the relevant tool instead of asking the user to tap through the phone manually.
+  If the user wants to manage tasks, notes, calendar events, navigation, or tools such as calculator or timer, use the 'openApp' tool. Use appName='navigation' for navigation and include destination, start, or travelMode when available. If the user wants to send SMS, make a phone call, send email, run an iOS Shortcut, open a local app, or open a URL Scheme, use appName='launcher' and include phoneNumber, email, subject, text, shortcutName, or targetUrl when available. If the user wants to view statistics, settings, or the backend studio, use appName='studio'.
+  If the user describes a new feature, workflow, or practical program they need to solve a current problem, use 'requestAppGeneration' and also tell the user that you are preparing it now and they can keep chatting while it is handled.
+  Keep the style elegant, caring, capable, and concise. Reply in ${responseLanguage} unless the user explicitly asks for another language.`;
   
       if (memories && Array.isArray(memories) && memories.length > 0) {
-        const memoryList = memories.map((m: any) => `- 【${m.title}】: ${m.content}`).join("\n");
-        customSystemInstruction += `\n\n【核心记忆装载：请务必严格参考并表现出符合以下用户习惯与专属记忆的反馈，不要主动生硬地列出这些规则，而是在对话、称呼、语气和推荐中自然地融合它们（例如根据称呼习惯来称呼主人）】：\n${memoryList}`;
+        const memoryList = memories.map((m: any) => `- [${m.title}]: ${m.content}`).join("\n");
+        customSystemInstruction += `\n\nCore memory context: carefully follow these user preferences and memories. Do not list them mechanically; weave them naturally into conversation, tone, naming, suggestions, and recommendations.\n${memoryList}`;
       }
   
       if (modelEngine || ttsVoice || proxyNode || routeMode) {
-        customSystemInstruction += `\n\n【当前数字空间运行底座实时参数（若主人问到有关你底层引擎、运行节点、配音或网络状态的问题，按如下参数客观优雅地告知，不得胡编乱造）】：
-  - 推理大脑内核: ${modelEngine || "Gemini 2.0 Flash"}
-  - 管家声线音色: ${ttsVoice || "Onyx (深沉星空男声)"}
-  - 底座连接专线: ${proxyNode || "核心本地 127.0.0.1 代理回路"}
-  - 分流路由规则: ${routeMode === "rule" ? "分流路由规则 (Rule)" : routeMode === "global" ? "全局物理代理 (Global)" : "直接物理物理连接 (Direct)"}`;
+        customSystemInstruction += `\n\nRuntime context. If the user asks about your engine, runtime node, voice, or network state, answer gracefully and factually using these values:
+  - Reasoning engine: ${modelEngine || "Gemini 2.0 Flash"}
+  - Steward voice: ${ttsVoice || "Onyx"}
+  - Network route: ${proxyNode || "Local 127.0.0.1 proxy loop"}
+  - Route mode: ${routeMode === "rule" ? "Rule-based routing" : routeMode === "global" ? "Global proxy" : "Direct connection"}`;
       }
   
       const response = await generateAiContent({
@@ -139,7 +142,7 @@ export function registerAiRoutes(app: express.Express) {
       }
   
       res.json({
-        text: response.text || "好的，我这就为您安排，请稍作等待。",
+        text: response.text || fallbackText,
         stateChanges,
         historyUpdate: { role: "model", parts: response.historyParts || [] },
         provider: response.providerName,
@@ -210,8 +213,8 @@ export function registerAiRoutes(app: express.Express) {
           text: `The user has uploaded/dragged-in a screenshot of a user interface or application. Your job is to convert this visual layout into a fully-functional, beautiful, and interactive micro-app of the highest quality.
   
   Your task:
-  1. Deduce an appropriate, attractive name for this custom micro-app (in Chinese).
-  2. Write a brief, user-friendly, and warm description of what this app does (in Chinese).
+  1. Deduce an appropriate, attractive name for this custom micro-app in the user's current language.
+  2. Write a brief, user-friendly, and warm description of what this app does in the user's current language.
   3. Build a fully functional, pixel-perfect replication of this design using HTML, Tailwind CSS, and Alpine.js.
      - Leverage Alpine.js for all interactive state management (inputs, calculations, lists, toggle states, graphs, etc.).
      - Make sure to style it beautiful and clean with custom Tailwind classes in high-fidelity dark themes (dark/midnight colors match the workspace's cosmic vibe).
@@ -229,13 +232,13 @@ export function registerAiRoutes(app: express.Express) {
   
   Your task:
   1. Thoroughly parse and logically comprehend the file's goals, user interfaces, calculations, or underlying components.
-  2. Formulate an elegant, highly fitting, and professional Chinese name for this micro-app (e.g. 待办效率看板, 智能计算器, 实时分析等).
-  3. Formulate a short, friendly, and engaging Chinese description of what this micro-app does, explicitly acknowledging the original source format/language you recognized (e.g., "已从您的 React TSX 模块无缝迁移并重构为原生 AlpineJS...").
+  2. Formulate an elegant, highly fitting, and professional name for this micro-app in the user's current language.
+  3. Formulate a short, friendly, and engaging description of what this micro-app does, explicitly acknowledging the original source format/language you recognized.
   4. Reconstruct and compile a complete, highly polished, self-contained client-side micro-app using HTML, Tailwind CSS, and Alpine.js:
      - Make it ultra-interactive: utilize Alpine.js features (such as x-data, x-init, x-model, x-on, x-for, and Alpine.$persist modifier to persist user input, lists, or toggle selections).
      - Ensure the styling is gorgeous, clean, modern, and perfectly aligned with our cosmos black workstation vibe (use deep sleek dark tones, nice borders like border-white/[0.08], subtle highlights, animations, and typography).
      - If there is mathematical logic, charts, or state modifications (e.g., a line graph in the original python code, or interactive tables in TSX), map them to fully functional, interactive counterparts (e.g., using Chart.js inside the iframe or elegant Tailwind layouts).
-     - Return outstanding Chinese-localized code inside the 'uiCode' property.`;
+     - Return outstanding localized code inside the 'uiCode' property, using the user's current language for visible copy.`;
       } else {
         return res.status(400).json({ error: "Missing file content or image base64" });
       }
@@ -248,8 +251,8 @@ export function registerAiRoutes(app: express.Express) {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            appName: { type: Type.STRING, description: "Elegant master level custom app name in Chinese" },
-            description: { type: Type.STRING, description: "Compact description in Chinese explaining what this app does and what the AI recognized" },
+            appName: { type: Type.STRING, description: "Elegant master-level custom app name in the user's current language" },
+            description: { type: Type.STRING, description: "Compact localized description explaining what this app does and what the AI recognized" },
             uiCode: { type: Type.STRING, description: "The complete HTML / Alpine.js / Tailwind CSS micro-app code block" }
           },
           required: ["appName", "description", "uiCode"]
@@ -315,7 +318,7 @@ export function registerAiRoutes(app: express.Express) {
     } catch (error) {
       if ((error as any)?.code === "AI_CONFIG_MISSING") return sendMissingAiConfig(res, selectedProviderId);
       console.error("AI Error refining code:", error);
-      res.status(500).json({ error: "微调代码时发生意外错误，请重试" });
+      res.status(500).json({ error: "Unexpected error while refining code. Please try again." });
     }
   });
 }

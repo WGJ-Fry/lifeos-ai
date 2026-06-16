@@ -253,7 +253,7 @@ export function recoverStaleOfflineMessages(now = Date.now()) {
     return {
       ...item,
       status: "pending" as const,
-      lastError: "上次同步中断，已恢复为待同步",
+      lastError: "Previous sync was interrupted and has been restored to pending.",
     };
   });
   if (!changed) return;
@@ -271,16 +271,16 @@ export function getOfflineMessageNextRetryAt(item: OfflineQueuedMessage) {
 }
 
 export function getOfflineMessageStatusLabel(item: Pick<OfflineQueuedMessage, "status">) {
-  if (item.status === "failed") return "失败";
-  if (item.status === "syncing") return "同步中";
-  return "待同步";
+  if (item.status === "failed") return "Failed";
+  if (item.status === "syncing") return "Syncing";
+  return "Pending";
 }
 
 export function getOfflineMessageRetryLabel(item: OfflineQueuedMessage, now = Date.now()) {
   const nextRetryAt = getOfflineMessageNextRetryAt(item);
   if (!nextRetryAt) return "";
-  if (nextRetryAt <= now) return "可立即重试";
-  return `下次自动重试：${new Date(nextRetryAt).toLocaleTimeString()}`;
+  if (nextRetryAt <= now) return "Ready to retry";
+  return `Next automatic retry: ${new Date(nextRetryAt).toLocaleTimeString()}`;
 }
 
 export function formatOfflineMessageQueueBytes(bytes: number | undefined) {
@@ -291,15 +291,15 @@ export function formatOfflineMessageQueueBytes(bytes: number | undefined) {
 }
 
 export function getOfflineMessageQueueStorageLabel(storage: OfflineMessageQueueStorageStatus["storage"]) {
-  if (storage === "indexeddb") return "IndexedDB 主存储";
-  if (storage === "localStorage") return "localStorage 兼容存储";
-  if (storage === "memory") return "内存临时队列";
-  return "不可用";
+  if (storage === "indexeddb") return "IndexedDB primary storage";
+  if (storage === "localStorage") return "localStorage compatibility storage";
+  if (storage === "memory") return "In-memory temporary queue";
+  return "Unavailable";
 }
 
 export function getOfflineMessageQueueUsageLabel(storage: Pick<OfflineMessageQueueStorageStatus, "usageRatio" | "quotaBytes">) {
   const usage = storage.usageRatio !== undefined ? `${Math.round(storage.usageRatio * 100)}%` : "-";
-  return `${usage}${storage.quotaBytes ? `，可用配额 ${formatOfflineMessageQueueBytes(storage.quotaBytes)}` : ""}`;
+  return `${usage}${storage.quotaBytes ? `, quota ${formatOfflineMessageQueueBytes(storage.quotaBytes)}` : ""}`;
 }
 
 export function getOfflineMessagesReadyToSync(now = Date.now()) {
@@ -351,7 +351,7 @@ export function markOfflineMessageSyncing(id: string) {
 }
 
 export function markOfflineMessageFailed(id: string, error: unknown) {
-  const message = error instanceof Error ? error.message : String(error || "同步失败");
+  const message = error instanceof Error ? error.message : String(error || "Sync failed");
   writeQueue(readQueue().map((item) => (
     item.id === id
       ? { ...item, status: "failed", lastAttemptAt: Date.now(), lastError: message }
@@ -400,22 +400,22 @@ export async function getOfflineMessageQueueStorageStatus(): Promise<OfflineMess
 
   const recommendations: string[] = [];
   if (!available) {
-    recommendations.push("当前浏览器无法写入本机队列，断网消息可能无法保存。");
+    recommendations.push("This browser cannot write to the local queue. Offline messages may not be saved.");
   }
   if (!indexedAvailable) {
-    recommendations.push("IndexedDB 不可用，离线队列只能使用兼容存储，长期可靠性较弱。");
+    recommendations.push("IndexedDB is unavailable. The offline queue can only use compatibility storage, which is less reliable long term.");
   }
   if (nearItemLimit) {
-    recommendations.push("离线队列接近上限，请先打开聊天页同步，或清理不需要补写的消息。");
+    recommendations.push("The offline queue is near its limit. Open chat to sync or remove messages that do not need to be written back.");
   }
   if (usageRatio !== undefined && usageRatio > 0.8) {
-    recommendations.push("浏览器存储空间接近上限，请同步并清理旧队列，避免系统自动回收。");
+    recommendations.push("Browser storage is near its limit. Sync and clear old queue items to avoid automatic cleanup.");
   }
   if (persistentStorageGranted === false) {
-    recommendations.push("浏览器未授予持久化存储；长期离线或系统清理空间时，队列可能被回收。");
+    recommendations.push("Persistent storage has not been granted. The queue may be reclaimed during long offline periods or system cleanup.");
   }
   if (queue.length === 0 && recommendations.length === 0) {
-    recommendations.push("离线队列为空，本机没有待补写消息。");
+    recommendations.push("The offline queue is empty. There are no local messages waiting to be written back.");
   }
 
   return {

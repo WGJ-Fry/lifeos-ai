@@ -27,20 +27,19 @@ export function getNetworkStatus(nav: NavigatorLike = typeof navigator === "unde
   const saveData = connection?.saveData;
 
   if (!online) {
-    return { online, effectiveType, downlink, rtt, saveData, quality: "offline", label: "当前离线，消息会先保存在本机。" };
+    return { online, effectiveType, downlink, rtt, saveData, quality: "offline", label: "You are offline. Messages will be saved locally first." };
   }
 
   const slowEffectiveType = effectiveType === "slow-2g" || effectiveType === "2g";
   const slowDownlink = Number.isFinite(downlink) && Number(downlink) > 0 && Number(downlink) < 0.6;
   const slowRtt = Number.isFinite(rtt) && Number(rtt) > 900;
   if (saveData || slowEffectiveType || slowDownlink || slowRtt) {
-    return { online, effectiveType, downlink, rtt, saveData, quality: "poor", label: "当前网络较弱，发送失败时会进入离线队列。" };
+    return { online, effectiveType, downlink, rtt, saveData, quality: "poor", label: "The network is weak. Failed sends will enter the offline queue." };
   }
 
   if (effectiveType || Number.isFinite(downlink) || Number.isFinite(rtt)) {
-    return { online, effectiveType, downlink, rtt, saveData, quality: "ok", label: "网络可用。" };
+    return { online, effectiveType, downlink, rtt, saveData, quality: "ok", label: "Network is available." };
   }
 
-  return { online, effectiveType, downlink, rtt, saveData, quality: "unknown", label: "网络状态未知。" };
+  return { online, effectiveType, downlink, rtt, saveData, quality: "unknown", label: "Network status is unknown." };
 }
-

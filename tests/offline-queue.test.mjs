@@ -177,8 +177,8 @@ test("offline message queue deduplicates and persists retry state", async () => 
   assert.equal(storageStatus.maxItems, 100);
   assert.equal(storageStatus.persistentStorageGranted, false);
   assert.equal(storageStatus.usageRatio, 0.9);
-  assert.equal(storageStatus.recommendations.some((item) => item.includes("持久化存储")), true);
-  assert.equal(storageStatus.recommendations.some((item) => item.includes("存储空间接近上限")), true);
+  assert.equal(storageStatus.recommendations.some((item) => item.includes("Persistent storage")), true);
+  assert.equal(storageStatus.recommendations.some((item) => item.includes("storage is near its limit")), true);
 });
 
 test("offline message queue recovers interrupted sync and backs off failed retries", async () => {
@@ -202,23 +202,23 @@ test("offline message queue recovers interrupted sync and backs off failed retri
   queueModule.recoverStaleOfflineMessages(syncingBeforeRecovery.lastAttemptAt + 3 * 60 * 1000);
   const recovered = queueModule.getOfflineMessageQueue().find((item) => item.id === firstId);
   assert.equal(recovered.status, "pending");
-  assert.match(recovered.lastError, /同步中断/);
+  assert.match(recovered.lastError, /sync was interrupted/);
 
   const failed = queueModule.getOfflineMessageQueue().find((item) => item.id === secondId);
   assert.ok(failed.lastAttemptAt);
   assert.equal(queueModule.getOfflineMessageNextRetryAt(failed), failed.lastAttemptAt + queueModule.getOfflineMessageRetryDelayMs(failed));
-  assert.equal(queueModule.getOfflineMessageStatusLabel(failed), "失败");
-  assert.match(queueModule.getOfflineMessageRetryLabel(failed, failed.lastAttemptAt + 1_000), /下次自动重试：/);
-  assert.equal(queueModule.getOfflineMessageRetryLabel(failed, failed.lastAttemptAt + 15_000), "可立即重试");
+  assert.equal(queueModule.getOfflineMessageStatusLabel(failed), "Failed");
+  assert.match(queueModule.getOfflineMessageRetryLabel(failed, failed.lastAttemptAt + 1_000), /Next automatic retry:/);
+  assert.equal(queueModule.getOfflineMessageRetryLabel(failed, failed.lastAttemptAt + 15_000), "Ready to retry");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(0), "0 B");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(900), "900 B");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(2_048), "2 KB");
   assert.equal(queueModule.formatOfflineMessageQueueBytes(1_572_864), "1.5 MB");
-  assert.equal(queueModule.getOfflineMessageQueueStorageLabel("indexeddb"), "IndexedDB 主存储");
-  assert.equal(queueModule.getOfflineMessageQueueStorageLabel("localStorage"), "localStorage 兼容存储");
-  assert.equal(queueModule.getOfflineMessageQueueStorageLabel("memory"), "内存临时队列");
-  assert.equal(queueModule.getOfflineMessageQueueStorageLabel("unavailable"), "不可用");
-  assert.equal(queueModule.getOfflineMessageQueueUsageLabel({ usageRatio: 0.42, quotaBytes: 2_048 }), "42%，可用配额 2 KB");
+  assert.equal(queueModule.getOfflineMessageQueueStorageLabel("indexeddb"), "IndexedDB primary storage");
+  assert.equal(queueModule.getOfflineMessageQueueStorageLabel("localStorage"), "localStorage compatibility storage");
+  assert.equal(queueModule.getOfflineMessageQueueStorageLabel("memory"), "In-memory temporary queue");
+  assert.equal(queueModule.getOfflineMessageQueueStorageLabel("unavailable"), "Unavailable");
+  assert.equal(queueModule.getOfflineMessageQueueUsageLabel({ usageRatio: 0.42, quotaBytes: 2_048 }), "42%, quota 2 KB");
   assert.equal(queueModule.getOfflineMessageQueueUsageLabel({ usageRatio: undefined, quotaBytes: undefined }), "-");
   assert.deepEqual(queueModule.getOfflineMessagesReadyToSync(failed.lastAttemptAt + 14_999).map((item) => item.id), [firstId]);
   assert.deepEqual(queueModule.getOfflineMessagesReadyToSync(failed.lastAttemptAt + 15_000).map((item) => item.id).sort(), [firstId, secondId].sort());

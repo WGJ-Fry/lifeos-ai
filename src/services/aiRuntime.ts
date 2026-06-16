@@ -14,6 +14,7 @@ export type ChatCompletionInput = RuntimeSettings & {
   message: string;
   history: Array<Pick<Message, "role" | "parts">>;
   memories: unknown[];
+  locale?: "zh-CN" | "en-US";
 };
 
 export type ChatCompletionResponse = {
@@ -34,8 +35,8 @@ export async function parseAiResponse(response: Response) {
 
   const message =
     data?.code === "AI_CONFIG_MISSING"
-      ? data?.message || "AI 服务还没有配置好。请在电脑管理端打开“系统设置”，为当前模型配置对应的 Provider Key。"
-      : data?.message || data?.error || "网络好像不太通畅，请稍后再试。";
+      ? data?.message || "AI service is not configured yet. Open System Settings on the desktop console and configure the Provider Key for the current model."
+      : data?.message || data?.error || "The network seems unstable. Please try again later.";
 
   throw new Error(message);
 }

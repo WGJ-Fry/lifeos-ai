@@ -5,7 +5,7 @@ export function createChatSession(title?: string) {
   const now = Date.now();
   const session = {
     id: crypto.randomUUID(),
-    title: title?.trim()?.slice(0, 120) || "新的对话",
+    title: title?.trim()?.slice(0, 120) || "New Chat",
     createdAt: now,
     updatedAt: now,
   };

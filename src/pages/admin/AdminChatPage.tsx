@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bot, ImageIcon, MessageSquareText, RefreshCw, Smartphone, UserRound } from "lucide-react";
 import { ChatSession, StoredChatMessage, getChatSessionMessages, listChatSessions } from "../../services/lifeosApi";
+import { useI18n } from "../../i18n/I18nProvider";
 
 export default function AdminChatPage() {
+  const { t } = useI18n();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<StoredChatMessage[]>([]);
@@ -39,7 +41,7 @@ export default function AdminChatPage() {
       if (sessionId) await loadActiveMessages(sessionId);
       else setMessages([]);
     } catch (err: any) {
-      setError(err.message || "加载会话历史失败");
+      setError(err.message || t("adminChat.loadFailed"));
     } finally {
       setIsLoading(false);
     }
@@ -60,15 +62,15 @@ export default function AdminChatPage() {
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
             <div className="flex items-center gap-3">
-              <a href="/admin/dashboard" className="text-sm text-zinc-500 hover:text-cyan-300 font-bold">控制台</a>
+              <a href="/admin/dashboard" className="text-sm text-zinc-500 hover:text-cyan-300 font-bold">{t("adminChat.console")}</a>
               <span className="text-zinc-700">/</span>
-              <h1 className="text-2xl font-bold">会话历史</h1>
+              <h1 className="text-2xl font-bold">{t("adminChat.title")}</h1>
             </div>
-            <p className="text-sm text-zinc-400 mt-1">查看电脑端 SQLite 中保存的长期聊天记录。</p>
+            <p className="text-sm text-zinc-400 mt-1">{t("adminChat.description")}</p>
           </div>
           <button onClick={refresh} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-2 text-sm font-bold hover:bg-white/[0.06]">
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-            刷新
+            {t("common.refresh")}
           </button>
         </header>
 
@@ -79,14 +81,14 @@ export default function AdminChatPage() {
             <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
               <div className="font-bold flex items-center gap-2">
                 <MessageSquareText className="w-4 h-4 text-cyan-300" />
-                会话列表
+                {t("adminChat.sessionList")}
               </div>
-              <span className="text-xs text-zinc-500">{sessions.length} 个</span>
+              <span className="text-xs text-zinc-500">{t("adminChat.sessionCount", { count: sessions.length })}</span>
             </div>
 
             {sessions.length === 0 ? (
               <div className="p-8 text-sm text-zinc-400 text-center leading-relaxed">
-                暂无会话。打开手机端或 `/chat` 发送一条消息后，这里会出现历史记录。
+                {t("adminChat.empty")}
               </div>
             ) : (
               <div className="divide-y divide-white/[0.06]">
@@ -100,7 +102,7 @@ export default function AdminChatPage() {
                     >
                       <div className="font-bold text-sm text-zinc-100 truncate">{session.title}</div>
                       <div className="text-xs text-zinc-500 mt-1">
-                        更新于 {new Date(session.updatedAt).toLocaleString()}
+                        {t("adminChat.updatedAt", { time: new Date(session.updatedAt).toLocaleString() })}
                       </div>
                     </button>
                   );
@@ -112,8 +114,8 @@ export default function AdminChatPage() {
           <section className="rounded-[28px] border border-white/[0.08] bg-[#0b111a] overflow-hidden min-h-[620px] flex flex-col">
             <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
               <div>
-                <div className="font-bold">{activeSession?.title || "未选择会话"}</div>
-                <div className="text-xs text-zinc-500 mt-1">{messages.length} 条消息</div>
+                <div className="font-bold">{activeSession?.title || t("adminChat.unselected")}</div>
+                <div className="text-xs text-zinc-500 mt-1">{t("adminChat.messageCount", { count: messages.length })}</div>
               </div>
               {activeSession && (
                 <div className="hidden sm:block text-xs text-zinc-500 font-mono">
@@ -125,11 +127,11 @@ export default function AdminChatPage() {
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {isLoading ? (
                 <div className="h-full min-h-[420px] flex items-center justify-center text-sm text-zinc-500">
-                  正在加载会话...
+                  {t("adminChat.loading")}
                 </div>
               ) : messages.length === 0 ? (
                 <div className="h-full min-h-[420px] flex items-center justify-center text-sm text-zinc-500">
-                  当前会话暂无消息。
+                  {t("adminChat.emptyMessages")}
                 </div>
               ) : (
                 messages.map((message) => (
@@ -147,8 +149,9 @@ export default function AdminChatPage() {
 }
 
 function MessageRow({ message }: { message: StoredChatMessage }) {
+  const { t } = useI18n();
   const isUser = message.role === "user";
-  const displayRole = isUser ? "用户" : message.role === "assistant" ? "JARVIS" : message.role;
+  const displayRole = isUser ? t("adminChat.user") : message.role === "assistant" ? "JARVIS" : message.role;
 
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -172,7 +175,7 @@ function MessageRow({ message }: { message: StoredChatMessage }) {
           ))}
           {message.contentJson.widget && (
             <div className="inline-flex items-center rounded-lg border border-cyan-400/20 bg-cyan-500/10 px-2 py-1 text-xs font-bold text-cyan-200">
-              微应用：{message.contentJson.widget}
+              {t("adminChat.widget", { name: message.contentJson.widget })}
             </div>
           )}
         </div>
@@ -187,6 +190,7 @@ function MessageRow({ message }: { message: StoredChatMessage }) {
 }
 
 function MessagePart({ part }: { part: any; widget?: string }) {
+  const { t } = useI18n();
   if (part.text) {
     return <div className="whitespace-pre-wrap break-words">{part.text}</div>;
   }
@@ -196,7 +200,7 @@ function MessagePart({ part }: { part: any; widget?: string }) {
       <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-3">
         <div className="flex items-center gap-2 text-xs text-zinc-400 mb-2">
           <ImageIcon className="w-3.5 h-3.5" />
-          图片附件 · {part.inlineData.mimeType}
+          {t("adminChat.imageAttachment", { mime: part.inlineData.mimeType })}
         </div>
         <img
           src={`data:${part.inlineData.mimeType};base64,${part.inlineData.data}`}

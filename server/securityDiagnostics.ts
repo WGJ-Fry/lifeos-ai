@@ -41,64 +41,64 @@ export function getSecurityDiagnostics() {
   const items: SecurityCheckItem[] = [
     {
       id: "admin",
-      label: "管理员认证",
+      label: "Admin Authentication",
       status: isAdminConfigured() ? "ok" : "critical",
-      message: isAdminConfigured() ? "管理员认证已配置。" : "管理员认证尚未配置。",
-      action: "先完成首次启动向导，设置管理员密码。",
+      message: isAdminConfigured() ? "Admin authentication is configured." : "Admin authentication is not configured yet.",
+      action: "Complete the first-run guide and set an admin password first.",
     },
     {
       id: "password",
-      label: "管理员密码强度",
+      label: "Admin Password Strength",
       status: !publicMode ? (passwordPolicy?.meetsPolicy === false ? "warning" : "ok") : passwordPolicy?.meetsPolicy ? "ok" : "critical",
       message: passwordPolicy
         ? passwordPolicy.meetsPolicy
-          ? "密码策略已通过。"
-          : "当前密码策略偏弱。"
+          ? "Password policy passed."
+          : "Current password policy is weak."
         : publicMode
-          ? "未找到密码强度摘要，无法证明公网模式下密码足够强。"
-          : "本机模式未发现密码强度阻断项。",
-      action: passwordPolicy?.meetsPolicy ? "无需处理。" : "建议重设为 12 位以上，并混合短语、数字或符号。",
+          ? "No password strength summary found, so public mode cannot prove the password is strong enough."
+          : "No blocking password strength item found in local mode.",
+      action: passwordPolicy?.meetsPolicy ? "No action needed." : "Reset to at least 12 characters and mix phrases, numbers, or symbols.",
     },
     {
       id: "https",
-      label: "公网 HTTPS",
+      label: "Public HTTPS",
       status: !publicMode ? "ok" : publicBaseUrl.startsWith("https://") ? "ok" : "critical",
       message: !publicMode
-        ? "当前未配置公网地址。"
+        ? "No public address is configured."
         : publicBaseUrl.startsWith("https://")
-          ? "公网地址使用 HTTPS。"
-          : "公网/异地访问没有可信 HTTPS 地址。",
-      action: "使用 Cloudflare Tunnel、Tailscale 或可信 HTTPS 反向代理。",
+          ? "Public address uses HTTPS."
+          : "Public/remote access has no trusted HTTPS address.",
+      action: "Use Cloudflare Tunnel, Tailscale, or a trusted HTTPS reverse proxy.",
     },
     {
       id: "publicOptIn",
-      label: "公网显式授权",
+      label: "Explicit Public Access Approval",
       status: !publicMode || process.env.LIFEOS_ALLOW_PUBLIC === "1" ? "ok" : "critical",
-      message: !publicMode ? "未开启公网/LAN 暴露。" : process.env.LIFEOS_ALLOW_PUBLIC === "1" ? "已显式允许公网/LAN 模式。" : "缺少 LIFEOS_ALLOW_PUBLIC=1。",
-      action: "只有确认处于可信网络或隧道后才设置 LIFEOS_ALLOW_PUBLIC=1。",
+      message: !publicMode ? "Public/LAN exposure is not enabled." : process.env.LIFEOS_ALLOW_PUBLIC === "1" ? "Public/LAN mode is explicitly allowed." : "Missing LIFEOS_ALLOW_PUBLIC=1.",
+      action: "Set LIFEOS_ALLOW_PUBLIC=1 only after confirming a trusted network or tunnel.",
     },
     {
       id: "ai",
       label: "AI Provider",
       status: aiConfigured ? "ok" : "warning",
-      message: aiConfigured ? "至少一个 AI Provider 已配置。" : "还没有配置 AI Provider。",
-      action: "在系统设置或首次启动向导中配置 AI Key。",
+      message: aiConfigured ? "At least one AI provider is configured." : "No AI provider is configured yet.",
+      action: "Configure an AI Key in System Settings or the first-run guide.",
     },
     {
       id: "backup",
-      label: "初始备份",
+      label: "Initial Backup",
       status: backupCount > 0 ? "ok" : publicMode ? "critical" : "warning",
-      message: backupCount > 0 ? `已有 ${backupCount} 份备份。` : "尚未创建 SQLite 备份。",
-      action: "开启公网、升级或迁移前先创建备份。",
+      message: backupCount > 0 ? `${backupCount} backup(s) available.` : "No SQLite backup has been created.",
+      action: "Create a backup before public access, upgrade, or migration.",
     },
     {
       id: "backupSchedule",
-      label: "自动备份计划",
+      label: "Automatic Backup Schedule",
       status: backupSchedule.enabled ? "ok" : publicMode ? "critical" : "warning",
       message: backupSchedule.enabled
-        ? `自动备份已开启，每 ${backupSchedule.intervalHours} 小时执行一次。`
-        : "尚未开启自动备份计划。",
-      action: backupSchedule.enabled ? "无需处理。" : "在设置的备份与恢复中开启自动备份，避免长期使用后忘记备份。",
+        ? `Automatic backups are enabled every ${backupSchedule.intervalHours} hour(s).`
+        : "Automatic backups are not enabled yet.",
+      action: backupSchedule.enabled ? "No action needed." : "Enable automatic backups in Backup & Restore settings to avoid forgetting backups during long-term use.",
     },
   ];
 
