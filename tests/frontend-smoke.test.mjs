@@ -7,8 +7,9 @@ import path from "node:path";
 import test from "node:test";
 
 const rootDir = path.resolve(new URL("..", import.meta.url).pathname);
-const nodeCommand = process.platform === "win32" ? "node" : process.execPath;
+const nodeCommand = process.env.LIFEOS_NODE_BINARY || process.execPath;
 const nodeSpawnOptions = {};
+const childProcessPathEnv = process.env.PATH || process.env.Path || "";
 
 function request(port, pathname, options = {}) {
   return fetch(`http://127.0.0.1:${port}${pathname}`, {
@@ -69,6 +70,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
       LIFEOS_HOST: "127.0.0.1",
       PUBLIC_BASE_URL: "",
       APP_URL: "",
+      PATH: childProcessPathEnv,
+      Path: childProcessPathEnv,
     },
     stdio: ["ignore", "pipe", "pipe"],
     ...nodeSpawnOptions,
@@ -680,6 +683,8 @@ test("development server injects pairing manifest before Vite serves mobile inst
       LIFEOS_HOST: "127.0.0.1",
       PUBLIC_BASE_URL: "",
       APP_URL: "",
+      PATH: childProcessPathEnv,
+      Path: childProcessPathEnv,
     },
     stdio: ["ignore", "pipe", "pipe"],
     ...nodeSpawnOptions,

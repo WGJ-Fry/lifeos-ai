@@ -61,6 +61,11 @@ jobs:
       - name: Install Electron binary
         run: npm run electron:install
 
+      - name: Resolve Windows Node binary
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: echo "LIFEOS_NODE_BINARY=$((Get-Command node).Source)" >> $env:GITHUB_ENV
+
       - name: Desktop release smoke
         if: runner.os != 'Linux'
         env:
