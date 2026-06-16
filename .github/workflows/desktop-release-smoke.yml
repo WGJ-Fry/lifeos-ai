@@ -56,18 +56,28 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libxss1 libasound2t64 libgbm1 libxshmfence1
+          sudo apt-get install -y libnss3 libatk-bridge2.0-0 libgtk-3-0 libxss1 libasound2t64 libgbm1 libxshmfence1 xvfb
 
       - name: Install Electron binary
         run: npm run electron:install
 
       - name: Desktop release smoke
+        if: runner.os != 'Linux'
         env:
           NODE_OPTIONS: --experimental-sqlite
           LIFEOS_RELEASE_SMOKE_FAST: "1"
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
           ELECTRON_DISABLE_SANDBOX: "1"
         run: npm run desktop:release:smoke
+
+      - name: Desktop release smoke (Linux)
+        if: runner.os == 'Linux'
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+          LIFEOS_RELEASE_SMOKE_FAST: "1"
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          ELECTRON_DISABLE_SANDBOX: "1"
+        run: xvfb-run -a npm run desktop:release:smoke
 
       - name: Packaged app launch smoke
         if: runner.os == 'macOS'
@@ -76,10 +86,18 @@ jobs:
           LIFEOS_ARTIFACT_SMOKE_LAUNCH: "1"
         run: npm run desktop:artifact:smoke:launch
 
-      - name: Packaged app launch smoke (Windows/Linux)
-        if: runner.os != 'macOS'
+      - name: Packaged app launch smoke (Windows)
+        if: runner.os == 'Windows'
         env:
           NODE_OPTIONS: --experimental-sqlite
           LIFEOS_ARTIFACT_SMOKE_LAUNCH: "1"
           ELECTRON_DISABLE_SANDBOX: "1"
         run: node scripts/desktop-artifact-smoke.mjs
+
+      - name: Packaged app launch smoke (Linux)
+        if: runner.os == 'Linux'
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+          LIFEOS_ARTIFACT_SMOKE_LAUNCH: "1"
+          ELECTRON_DISABLE_SANDBOX: "1"
+        run: xvfb-run -a node scripts/desktop-artifact-smoke.mjs

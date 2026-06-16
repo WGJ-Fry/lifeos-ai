@@ -7,6 +7,8 @@ import path from "node:path";
 import test from "node:test";
 
 const rootDir = path.resolve(new URL("..", import.meta.url).pathname);
+const nodeCommand = process.platform === "win32" ? "node" : process.execPath;
+const nodeSpawnOptions = process.platform === "win32" ? { shell: true } : {};
 
 function request(port, pathname, options = {}) {
   return fetch(`http://127.0.0.1:${port}${pathname}`, {
@@ -57,7 +59,7 @@ async function getOpenPort() {
 test("production build serves desktop admin, mobile PWA, manifest, and service worker", async (t) => {
   const port = await getOpenPort();
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-frontend-smoke-"));
-  const child = spawn(process.execPath, ["dist/server.cjs"], {
+  const child = spawn(nodeCommand, ["dist/server.cjs"], {
     cwd: rootDir,
     env: {
       ...process.env,
@@ -69,6 +71,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
       APP_URL: "",
     },
     stdio: ["ignore", "pipe", "pipe"],
+    ...nodeSpawnOptions,
   });
   const childOutput = [];
   child.stdout.on("data", (chunk) => childOutput.push(chunk.toString()));
@@ -667,7 +670,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 test("development server injects pairing manifest before Vite serves mobile install pages", async (t) => {
   const port = await getOpenPort();
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-frontend-dev-smoke-"));
-  const child = spawn(process.execPath, ["--import", "tsx", "server.ts"], {
+  const child = spawn(nodeCommand, ["--import", "tsx", "server.ts"], {
     cwd: rootDir,
     env: {
       ...process.env,
@@ -679,6 +682,7 @@ test("development server injects pairing manifest before Vite serves mobile inst
       APP_URL: "",
     },
     stdio: ["ignore", "pipe", "pipe"],
+    ...nodeSpawnOptions,
   });
   const childOutput = [];
   child.stdout.on("data", (chunk) => childOutput.push(chunk.toString()));

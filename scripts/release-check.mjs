@@ -1401,7 +1401,13 @@ function checkCiWorkflow() {
   else warn("desktop release smoke workflow does not run npm run desktop:release:smoke");
   if (workflow.includes("runner.os == 'macOS'") && workflow.includes("npm run desktop:artifact:smoke:launch")) pass("desktop release smoke workflow launches the packaged macOS app");
   else warn("desktop release smoke workflow does not run packaged macOS app launch smoke");
-  if (workflow.includes("runner.os != 'macOS'") && workflow.includes("LIFEOS_ARTIFACT_SMOKE_LAUNCH") && workflow.includes("node scripts/desktop-artifact-smoke.mjs")) {
+  if (
+    workflow.includes("runner.os == 'Windows'") &&
+    workflow.includes("runner.os == 'Linux'") &&
+    workflow.includes("LIFEOS_ARTIFACT_SMOKE_LAUNCH") &&
+    workflow.includes("node scripts/desktop-artifact-smoke.mjs") &&
+    workflow.includes("xvfb-run -a node scripts/desktop-artifact-smoke.mjs")
+  ) {
     pass("desktop release smoke workflow launches packaged Windows and Linux apps");
   } else {
     warn("desktop release smoke workflow does not run packaged Windows/Linux app launch smoke");
