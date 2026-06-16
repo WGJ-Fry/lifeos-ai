@@ -48,6 +48,10 @@ async function stop(child) {
   });
 }
 
+async function cleanupDir(dir) {
+  await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+}
+
 async function waitForFileMatch(file, pattern, timeoutMs = 10_000) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
@@ -92,8 +96,8 @@ test("Electron desktop starts the local core and exposes admin health", async (t
 
   t.after(async () => {
     await stop(child);
-    await rm(dataDir, { recursive: true, force: true });
-    await rm(userDataDir, { recursive: true, force: true });
+    await cleanupDir(dataDir);
+    await cleanupDir(userDataDir);
   });
 
   const { health, port: actualPort } = await waitForHealth(port, child, output);
@@ -206,8 +210,8 @@ test("Electron desktop loads saved connection config before starting local core"
 
   t.after(async () => {
     await stop(child);
-    await rm(dataDir, { recursive: true, force: true });
-    await rm(userDataDir, { recursive: true, force: true });
+    await cleanupDir(dataDir);
+    await cleanupDir(userDataDir);
   });
 
   const { health, port: actualPort } = await waitForHealth(port, child, output);
@@ -235,8 +239,30 @@ test("Electron desktop autostarts saved Tailscale HTTPS Serve config", async (t)
     baseUrl: "https://lifeos-mac.tailnet.example.ts.net",
     updatedAt: Date.now(),
   }, null, 2)}\n`);
-  const tailscalePath = path.join(binDir, "tailscale");
-  await writeFile(tailscalePath, `#!/bin/sh
+  const tailscalePath = path.join(binDir, process.platform === "win32" ? "tailscale.cmd" : "tailscale");
+  if (process.platform === "win32") {
+    await writeFile(tailscalePath, `@echo off
+echo %*>>"${commandLog}"
+if "%1"=="version" (
+  echo 1.66.4
+  exit /b 0
+)
+if "%1"=="status" (
+  echo {"Self":{"Online":true,"HostName":"lifeos-mac","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}
+  exit /b 0
+)
+if "%1"=="serve" if "%2"=="status" (
+  echo {}
+  exit /b 0
+)
+if "%1"=="serve" (
+  echo ok
+  exit /b 0
+)
+exit /b 1
+`);
+  } else {
+    await writeFile(tailscalePath, `#!/bin/sh
 echo "$@" >> "${commandLog}"
 if [ "$1" = "version" ]; then
   echo "1.66.4"
@@ -256,13 +282,14 @@ if [ "$1" = "serve" ]; then
 fi
 exit 1
 `);
-  await chmod(tailscalePath, 0o755);
+    await chmod(tailscalePath, 0o755);
+  }
 
   const child = spawn(electronBinaryPath(), ["desktop/main.cjs"], {
     cwd: rootDir,
     env: {
       ...process.env,
-      PATH: `${binDir}:${process.env.PATH || ""}`,
+      PATH: `${binDir}${path.delimiter}${process.env.PATH || ""}`,
       ELECTRON_DISABLE_SECURITY_WARNINGS: "true",
       LIFEOS_PORT: "",
       LIFEOS_HOST: "",
@@ -281,9 +308,9 @@ exit 1
 
   t.after(async () => {
     await stop(child);
-    await rm(dataDir, { recursive: true, force: true });
-    await rm(userDataDir, { recursive: true, force: true });
-    await rm(binDir, { recursive: true, force: true });
+    await cleanupDir(dataDir);
+    await cleanupDir(userDataDir);
+    await cleanupDir(binDir);
   });
 
   const { health, port: actualPort } = await waitForHealth(port, child, output);
@@ -341,8 +368,8 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
 
   t.after(async () => {
     await stop(child);
-    await rm(dataDir, { recursive: true, force: true });
-    await rm(userDataDir, { recursive: true, force: true });
+    await cleanupDir(dataDir);
+    await cleanupDir(userDataDir);
   });
 
   const { health, port: actualPort } = await waitForHealth(port, child, output);
@@ -431,8 +458,8 @@ test("Electron desktop keeps a startup failure window open when local core fails
 
   t.after(async () => {
     await stop(child);
-    await rm(dataDir, { recursive: true, force: true });
-    await rm(userDataDir, { recursive: true, force: true });
+    await cleanupDir(dataDir);
+    await cleanupDir(userDataDir);
   });
 
   await new Promise((resolve) => setTimeout(resolve, 2500));
