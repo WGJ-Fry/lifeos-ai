@@ -3,7 +3,7 @@ import { getClientState, setClientState } from "./clientState";
 
 const REMOTE_ACCEPTANCE_STATE_KEY = "lifeos_remote_acceptance_records";
 const REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY = "lifeos_remote_acceptance_runbook_reports";
-const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat"]);
+const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat", "network-interruption", "diagnostic-export"]);
 const runbookEntryKinds = new Set(["temporary-cloudflare", "tailscale-https", "local", "stable-https", "insecure-http"]);
 const runbookManualSteps = [
   {
@@ -33,7 +33,7 @@ const runbookManualSteps = [
 ];
 
 export type RemoteAcceptanceItem = {
-  id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "ci-remote-mock";
+  id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "network-interruption" | "diagnostic-export" | "ci-remote-mock";
   status: "passed" | "needs-action" | "manual-required";
   evidence: string;
   action: string;
@@ -284,6 +284,8 @@ export function buildRemoteAcceptanceChecklist(input: {
   const restored = Boolean(report?.ok && /auto-restore|startup/i.test(report.label || ""));
   const restartRecord = manualRecord(input.records || [], "restart-restore", runtimeUrl);
   const cellularRecord = manualRecord(input.records || [], "cellular-mobile-chat", runtimeUrl);
+  const interruptionRecord = manualRecord(input.records || [], "network-interruption", runtimeUrl);
+  const diagnosticRecord = manualRecord(input.records || [], "diagnostic-export", runtimeUrl);
 
   return [
     {
@@ -320,6 +322,20 @@ export function buildRemoteAcceptanceChecklist(input: {
       evidence: cellularRecord ? `Manually accepted at ${new Date(cellularRecord.createdAt).toISOString()}: ${cellularRecord.note || cellularRecord.baseUrl}` : "Requires a real phone on cellular data opening /mobile/chat through the saved HTTPS entry.",
       action: "Turn off phone Wi-Fi, open the saved mobile entry, send a chat message, and confirm WebSocket/retry state is healthy.",
       acceptedAt: cellularRecord?.createdAt,
+    },
+    {
+      id: "network-interruption",
+      status: interruptionRecord ? "passed" : "manual-required",
+      evidence: interruptionRecord ? `Manually accepted at ${new Date(interruptionRecord.createdAt).toISOString()}: ${interruptionRecord.note || interruptionRecord.baseUrl}` : "Disconnect and reconnect the remote path, then confirm diagnostics refresh and the phone shows a clear recovery message.",
+      action: "Temporarily interrupt Tailscale/Tunnel/network, restore it, run remote health again, and verify the phone reconnect guidance.",
+      acceptedAt: interruptionRecord?.createdAt,
+    },
+    {
+      id: "diagnostic-export",
+      status: diagnosticRecord ? "passed" : "manual-required",
+      evidence: diagnosticRecord ? `Manually accepted at ${new Date(diagnosticRecord.createdAt).toISOString()}: ${diagnosticRecord.note || diagnosticRecord.baseUrl}` : "Export the admin diagnostic bundle after the real remote checks.",
+      action: "Export diagnostics from Settings and keep the redacted bundle with the release/acceptance evidence.",
+      acceptedAt: diagnosticRecord?.createdAt,
     },
     {
       id: "ci-remote-mock",

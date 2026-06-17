@@ -598,6 +598,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.markDone/);
   assert.match(remoteAcceptanceChecklistSource, /onAccept/);
   assert.match(remoteAcceptanceChecklistSource, /cellular-mobile-chat/);
+  assert.match(remoteAcceptanceChecklistSource, /network-interruption/);
+  assert.match(remoteAcceptanceChecklistSource, /diagnostic-export/);
   assert.match(remoteAcceptanceChecklistSource, /ci-remote-mock/);
   assert.match(remoteStabilitySectionSource, /acceptingId/);
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_ACCEPTANCE_OUT/);

@@ -28,7 +28,11 @@ export default function RemoteStabilitySection({
     try {
       const note = id === "cellular-mobile-chat"
         ? "Phone Wi-Fi disabled; /mobile/chat opened through the saved HTTPS entry; chat and realtime state confirmed."
-        : "Desktop app restarted; saved HTTPS entry restored; remote health confirmed after restart.";
+        : id === "restart-restore"
+          ? "Desktop app restarted; saved HTTPS entry restored; remote health confirmed after restart."
+          : id === "network-interruption"
+            ? "Remote path was interrupted and restored; diagnostics refreshed; phone recovery guidance and reconnect state confirmed."
+            : "Admin diagnostic bundle exported after real remote acceptance checks.";
       const result = await recordRemoteAcceptance(id, note);
       onDiagnostics?.(result.diagnostics);
       onStatus?.(t("connection.acceptance.recorded"));

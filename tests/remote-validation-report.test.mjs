@@ -300,6 +300,16 @@ test("remote acceptance checklist separates automated and real-world verificatio
       baseUrl: "https://lifeos.tailnet.example.ts.net",
       note: "Phone cellular /mobile/chat verified with token=secret",
     }, { type: "admin", id: "owner" });
+    saveRemoteAcceptanceRecord({
+      id: "network-interruption",
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      note: "Tailscale disconnected and reconnected with token=secret",
+    }, { type: "admin", id: "owner" });
+    saveRemoteAcceptanceRecord({
+      id: "diagnostic-export",
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      note: "Diagnostic bundle exported with token=secret",
+    }, { type: "admin", id: "owner" });
     const checklist = buildRemoteAcceptanceChecklist({
       diagnostics: {
         desktopRuntimeConfig: { mode: "tailscale", publicBaseUrl: "https://lifeos.tailnet.example.ts.net" },
@@ -323,7 +333,62 @@ test("remote acceptance checklist separates automated and real-world verificatio
   assert.equal(checklist.find((item) => item.id === "cloudflare-named-tunnel").status, "needs-action");
   assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").status, "passed");
   assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").evidence.includes("secret"), false);
+  assert.equal(checklist.find((item) => item.id === "network-interruption").status, "passed");
+  assert.equal(checklist.find((item) => item.id === "network-interruption").evidence.includes("secret"), false);
+  assert.equal(checklist.find((item) => item.id === "diagnostic-export").status, "passed");
+  assert.equal(checklist.find((item) => item.id === "diagnostic-export").evidence.includes("secret"), false);
   assert.equal(checklist.find((item) => item.id === "ci-remote-mock").status, "passed");
+});
+
+test("remote acceptance checklist requires real network interruption and diagnostic evidence", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-acceptance-manual-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { saveRemoteValidationReport, summarizeRemoteHealth } = await import("./server/remoteValidationReport.ts");
+    const { buildRemoteAcceptanceChecklist } = await import("./server/remoteAcceptance.ts");
+    const report = saveRemoteValidationReport({
+      label: "Remote health check after auto-restore",
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      result: {
+        ok: true,
+        status: 200,
+        url: "https://lifeos.tailnet.example.ts.net/api/v1/health",
+        latencyMs: 42,
+        steps: [
+          { id: "health", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/api/v1/health", latencyMs: 10 },
+          { id: "mobile-shell", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/mobile/chat", latencyMs: 12 },
+          { id: "websocket", ok: true, status: 101, url: "wss://lifeos.tailnet.example.ts.net/api/v1/ws", latencyMs: 20 },
+        ],
+      },
+    });
+    const health = summarizeRemoteHealth({
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" },
+      report,
+      now: report.createdAt + 1000,
+    });
+    const checklist = buildRemoteAcceptanceChecklist({
+      diagnostics: {
+        desktopRuntimeConfig: { mode: "tailscale", publicBaseUrl: "https://lifeos.tailnet.example.ts.net" },
+        tailscale: { serveRunning: true, httpsServeUrl: "https://lifeos.tailnet.example.ts.net" },
+        cloudflareNamedTunnel: { ready: false, baseUrl: "" },
+      },
+      health,
+      report,
+      records: [],
+    });
+    process.stdout.write(JSON.stringify(checklist));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    encoding: "utf8",
+  });
+  const checklist = JSON.parse(output);
+  assert.equal(checklist.find((item) => item.id === "network-interruption").status, "manual-required");
+  assert.equal(checklist.find((item) => item.id === "diagnostic-export").status, "manual-required");
 });
 
 test("remote acceptance records reject unsafe or non-HTTPS entries", async (t) => {

@@ -9,6 +9,8 @@ const itemKey = {
   "remote-smoke": "connection.acceptance.item.remoteSmoke",
   "restart-restore": "connection.acceptance.item.restartRestore",
   "cellular-mobile-chat": "connection.acceptance.item.cellular",
+  "network-interruption": "connection.acceptance.item.networkInterruption",
+  "diagnostic-export": "connection.acceptance.item.diagnosticExport",
   "ci-remote-mock": "connection.acceptance.item.ci",
 } as const;
 
@@ -144,7 +146,7 @@ export default function RemoteAcceptanceChecklistCard({
                 <div className="mt-2 break-words text-[11px] leading-relaxed opacity-85">{item.evidence}</div>
                 <div className="mt-2 text-[11px] leading-relaxed opacity-95">{item.action}</div>
                 {item.command ? <code className="mt-2 block break-all rounded-lg bg-black/25 px-2 py-1 text-[10px] opacity-90">{item.command}</code> : null}
-                {onAccept && item.status === "manual-required" && (item.id === "restart-restore" || item.id === "cellular-mobile-chat") ? (
+                {onAccept && item.status === "manual-required" && (item.id === "restart-restore" || item.id === "cellular-mobile-chat" || item.id === "network-interruption" || item.id === "diagnostic-export") ? (
                   <button
                     onClick={() => onAccept(item.id)}
                     disabled={acceptingId === item.id}

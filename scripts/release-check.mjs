@@ -195,6 +195,8 @@ function checkScripts() {
       remoteAcceptance.includes("temporary-cloudflare") &&
       remoteAcceptance.includes("cellular-mobile-chat") &&
       remoteAcceptance.includes("restart-restore") &&
+      remoteAcceptance.includes("network-interruption") &&
+      remoteAcceptance.includes("diagnostic-export") &&
       remoteAcceptance.includes("LIFEOS_REMOTE_ACCEPTANCE_OUT") &&
       remoteSmokeTest.includes("remote acceptance runbook writes long-term evidence")
     ) pass("remote acceptance runbook generates evidence for long-term manual validation");
@@ -508,6 +510,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("connection.acceptance.markDone") &&
     remoteAcceptanceChecklistSource.includes("onAccept") &&
     remoteAcceptanceChecklistSource.includes("cellular-mobile-chat") &&
+    remoteAcceptanceChecklistSource.includes("network-interruption") &&
+    remoteAcceptanceChecklistSource.includes("diagnostic-export") &&
     remoteAcceptanceChecklistSource.includes("ci-remote-mock") &&
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_ACCEPTANCE_OUT") &&
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_BASE_URL") &&
