@@ -11,6 +11,7 @@ import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { runRemoteHealthCheck } from "../remoteHealthMonitor";
+import { buildRemoteAcceptanceChecklist } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
@@ -54,9 +55,18 @@ function getAdminNetworkDiagnostics() {
   const diagnostics = getNetworkDiagnostics();
   const remoteValidationReport = getRemoteValidationReport();
   const latestBindingSession = getLatestBindingSession();
-  return {
+  const remoteHealthSummary = summarizeRemoteHealth({
+    baseUrl: diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteReadiness.baseUrl,
+    readiness: diagnostics.remoteReadiness,
+    report: remoteValidationReport,
+    pairingSession: latestBindingSession,
+  });
+  const enrichedDiagnostics = {
     ...diagnostics,
     cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
+  };
+  return {
+    ...enrichedDiagnostics,
     remoteValidationReport,
     latestBindingSession: latestBindingSession
       ? {
@@ -66,11 +76,11 @@ function getAdminNetworkDiagnostics() {
         expired: latestBindingSession.expiresAt <= Date.now() && !latestBindingSession.confirmedAt,
       }
       : null,
-    remoteHealthSummary: summarizeRemoteHealth({
-      baseUrl: diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteReadiness.baseUrl,
-      readiness: diagnostics.remoteReadiness,
+    remoteHealthSummary,
+    remoteAcceptanceChecklist: buildRemoteAcceptanceChecklist({
+      diagnostics: enrichedDiagnostics,
+      health: remoteHealthSummary,
       report: remoteValidationReport,
-      pairingSession: latestBindingSession,
     }),
   };
 }

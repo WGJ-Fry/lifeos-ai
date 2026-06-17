@@ -248,3 +248,57 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
   assert.equal(result.expiredQr.checks.find((check) => check.id === "qr-entry").status, "fail");
   assert.equal(result.expiredQr.recommendations.includes("refresh-pairing-qr"), true);
 });
+
+test("remote acceptance checklist separates automated and real-world verification", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-acceptance-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { saveRemoteValidationReport, summarizeRemoteHealth } = await import("./server/remoteValidationReport.ts");
+    const { buildRemoteAcceptanceChecklist } = await import("./server/remoteAcceptance.ts");
+    const report = saveRemoteValidationReport({
+      label: "Remote health check after auto-restore",
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      result: {
+        ok: true,
+        status: 200,
+        url: "https://lifeos.tailnet.example.ts.net/api/v1/health",
+        latencyMs: 42,
+        steps: [
+          { id: "health", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/api/v1/health", latencyMs: 10 },
+          { id: "mobile-shell", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/mobile/chat", latencyMs: 12 },
+          { id: "websocket", ok: true, status: 101, url: "wss://lifeos.tailnet.example.ts.net/api/v1/ws", latencyMs: 20 },
+        ],
+      },
+    });
+    const health = summarizeRemoteHealth({
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" },
+      report,
+      now: report.createdAt + 1000,
+    });
+    const checklist = buildRemoteAcceptanceChecklist({
+      diagnostics: {
+        desktopRuntimeConfig: { mode: "tailscale", publicBaseUrl: "https://lifeos.tailnet.example.ts.net" },
+        tailscale: { serveRunning: true, httpsServeUrl: "https://lifeos.tailnet.example.ts.net" },
+        cloudflareNamedTunnel: { ready: false, baseUrl: "" },
+      },
+      health,
+      report,
+    });
+    process.stdout.write(JSON.stringify(checklist));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    encoding: "utf8",
+  });
+  const checklist = JSON.parse(output);
+  assert.equal(checklist.find((item) => item.id === "tailscale-https-serve").status, "passed");
+  assert.equal(checklist.find((item) => item.id === "remote-smoke").status, "passed");
+  assert.equal(checklist.find((item) => item.id === "restart-restore").status, "passed");
+  assert.equal(checklist.find((item) => item.id === "cloudflare-named-tunnel").status, "needs-action");
+  assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").status, "manual-required");
+  assert.equal(checklist.find((item) => item.id === "ci-remote-mock").status, "passed");
+});

@@ -406,6 +406,9 @@ function checkAssets() {
   const networkDiagnosticsSource = exists("server/networkDiagnostics.ts") ? fs.readFileSync(path.join(rootDir, "server/networkDiagnostics.ts"), "utf8") : "";
   const desktopRuntimeConfigSource = exists("server/desktopRuntimeConfig.ts") ? fs.readFileSync(path.join(rootDir, "server/desktopRuntimeConfig.ts"), "utf8") : "";
   const connectionGuideSource = exists("src/pages/admin/ConnectionGuide.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionGuide.tsx"), "utf8") : "";
+  const remoteStabilitySectionSource = exists("src/pages/admin/RemoteStabilitySection.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteStabilitySection.tsx"), "utf8") : "";
+  const remoteAcceptanceChecklistSource = exists("src/pages/admin/RemoteAcceptanceChecklistCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteAcceptanceChecklistCard.tsx"), "utf8") : "";
+  const remoteAcceptanceSource = exists("server/remoteAcceptance.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteAcceptance.ts"), "utf8") : "";
   const connectionToolStatusSource = exists("src/pages/admin/ConnectionToolStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionToolStatus.tsx"), "utf8") : "";
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
@@ -461,11 +464,20 @@ function checkAssets() {
     connectionGuideSource.includes("connection.testSavedRemote") &&
     connectionGuideSource.includes("saved-desktop-config") &&
     connectionGuideSource.includes("remoteValidationReport") &&
-    connectionGuideSource.includes("RemoteHealthSummaryCard") &&
-    connectionGuideSource.includes("remoteHealthSummary") &&
+    connectionGuideSource.includes("RemoteStabilitySection") &&
+    remoteStabilitySectionSource.includes("RemoteHealthSummaryCard") &&
+    remoteStabilitySectionSource.includes("RemoteAcceptanceChecklistCard") &&
+    remoteStabilitySectionSource.includes("remoteHealthSummary") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.title") &&
+    remoteAcceptanceChecklistSource.includes("cellular-mobile-chat") &&
+    remoteAcceptanceChecklistSource.includes("ci-remote-mock") &&
+    remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
+    remoteAcceptanceSource.includes("manual-required") &&
+    remoteAcceptanceSource.includes("LIFEOS_REMOTE_BASE_URL=https://your-stable-entry npm run remote:smoke") &&
     connectionGuideSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("connection.remoteValidationFail") &&
     adminRoutesSource.includes("summarizeRemoteHealth") &&
+    adminRoutesSource.includes("buildRemoteAcceptanceChecklist") &&
     adminRoutesSource.includes("latestBindingSession") &&
     adminRoutesSource.includes("saveRemoteValidationReport") &&
     adminRoutesSource.includes("persist") &&
@@ -495,6 +507,8 @@ function checkAssets() {
     translationsSource.includes("connection.customTitle") &&
     translationsSource.includes("connection.readiness.status.ready") &&
     translationsSource.includes("connection.readiness.item.needsPublicOptIn") &&
+    translationsSource.includes("connection.acceptance.title") &&
+    translationsSource.includes("Long-Term Remote Acceptance Checklist") &&
     translationsSource.includes("/mobile/install/<token>") &&
     lifeosApiSourceForRouting.includes("getLifeOSBasePath") &&
     lifeosApiSourceForRouting.includes("apiUrl(url)") &&

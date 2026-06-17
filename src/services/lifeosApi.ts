@@ -319,6 +319,13 @@ export type NetworkDiagnostics = {
       detail?: string;
     }>;
   };
+  remoteAcceptanceChecklist: Array<{
+    id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "ci-remote-mock";
+    status: "passed" | "needs-action" | "manual-required";
+    evidence: string;
+    action: string;
+    command?: string;
+  }>;
   latestBindingSession: {
     id: string;
     expiresAt: number;
