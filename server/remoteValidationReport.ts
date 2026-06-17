@@ -160,7 +160,7 @@ export function summarizeRemoteHealth(input: {
   const entryKind = classifyEntryKind(baseUrl, input.readiness?.status);
   const pairingExpired = Boolean(input.pairingSession?.expiresAt && input.pairingSession.expiresAt <= now && !input.pairingSession.confirmedAt);
   const qrStatus = pairingExpired
-    ? "fail"
+    ? "warning"
     : !baseUrl
     ? "fail"
     : isTemporary
@@ -199,10 +199,6 @@ export function summarizeRemoteHealth(input: {
     status = "insecure";
     severity = "danger";
     recommendations.add("use-https");
-  } else if (pairingExpired) {
-    status = "stale";
-    severity = "warning";
-    recommendations.add("refresh-pairing-qr");
   } else if (isTemporary) {
     status = "temporary";
     severity = "warning";
@@ -223,6 +219,10 @@ export function summarizeRemoteHealth(input: {
     if (checks.find((check) => check.id === "websocket")?.status === "fail") recommendations.add("fix-websocket");
   } else {
     recommendations.add("ready");
+  }
+  if (pairingExpired) {
+    recommendations.add("refresh-pairing-qr");
+    if (severity === "ok") severity = "warning";
   }
 
   return {
