@@ -56,7 +56,7 @@ test("remote connection smoke verifies health, mobile shell, and websocket", asy
   });
 
   const { port } = server.address();
-  const result = await runRemoteConnectionSmoke(`http://127.0.0.1:${port}/lifeos?token=secret#debug`, { timeoutMs: 2000 });
+  const result = await runRemoteConnectionSmoke(`http://127.0.0.1:${port}/lifeos`, { timeoutMs: 2000 });
   assert.equal(result.ok, true);
   assert.equal(result.baseUrl, `http://127.0.0.1:${port}/lifeos`);
   assert.deepEqual(result.steps.map((step) => step.ok), [true, true, true]);
@@ -66,11 +66,18 @@ test("remote connection smoke verifies health, mobile shell, and websocket", asy
 test("remote connection smoke rejects unsafe or broken entries", async () => {
   assert.throws(() => normalizeRemoteBaseUrl("ftp://example.com/lifeos"), /HTTP or HTTPS/);
   assert.throws(() => normalizeRemoteBaseUrl("https://user:pass@example.com/lifeos"), /username or password/);
+  assert.throws(() => normalizeRemoteBaseUrl("https://example.com/lifeos?token=secret"), /query parameters or fragments/);
+  assert.throws(() => normalizeRemoteBaseUrl("https://example.com/lifeos#debug"), /query parameters or fragments/);
   const cli = spawnSync(process.execPath, ["scripts/remote-connection-smoke.mjs", "https://user:pass@example.com/lifeos"], {
     encoding: "utf8",
   });
   assert.equal(cli.status, 1);
   assert.match(cli.stderr, /username or password/);
+  const queryCli = spawnSync(process.execPath, ["scripts/remote-connection-smoke.mjs", "https://example.com/lifeos?token=secret"], {
+    encoding: "utf8",
+  });
+  assert.equal(queryCli.status, 1);
+  assert.match(queryCli.stderr, /query parameters or fragments/);
 
   const server = createServer((_req, res) => {
     res.writeHead(404);
@@ -95,8 +102,12 @@ test("remote connection smoke resolves env and saved desktop runtime config", as
   const configPath = path.join(dataDir, "desktop-runtime-config.json");
 
   assert.equal(
-    resolveRemoteBaseUrl("", { LIFEOS_REMOTE_BASE_URL: "https://env.example.com/lifeos?token=secret#debug" }),
+    resolveRemoteBaseUrl("", { LIFEOS_REMOTE_BASE_URL: "https://env.example.com/lifeos" }),
     "https://env.example.com/lifeos",
+  );
+  assert.throws(
+    () => resolveRemoteBaseUrl("", { LIFEOS_REMOTE_BASE_URL: "https://env.example.com/lifeos?token=secret#debug" }),
+    /query parameters or fragments/,
   );
 
   await writeFile(configPath, JSON.stringify({
@@ -149,7 +160,7 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
   });
 
   const { port } = server.address();
-  const report = await runRemoteAcceptanceRunbook(`http://127.0.0.1:${port}/lifeos?token=secret`, { timeoutMs: 2000 });
+  const report = await runRemoteAcceptanceRunbook(`http://127.0.0.1:${port}/lifeos`, { timeoutMs: 2000 });
   assert.equal(report.automatedChecks.ok, true);
   assert.equal(report.entryKind, "local");
   assert.equal(report.longTermReady, false);
@@ -158,7 +169,11 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
   assert.equal(JSON.stringify(report).includes("secret"), false);
 
   const outPath = path.join(dataDir, "acceptance.json");
-  const cli = await runNode(["scripts/remote-acceptance-runbook.mjs", `http://127.0.0.1:${port}/lifeos?token=secret`, "--out", outPath, "--json"]);
+  const unsafeCli = await runNode(["scripts/remote-acceptance-runbook.mjs", `http://127.0.0.1:${port}/lifeos?token=secret`, "--json"]);
+  assert.equal(unsafeCli.status, 1);
+  assert.match(unsafeCli.stderr, /query parameters or fragments/);
+
+  const cli = await runNode(["scripts/remote-acceptance-runbook.mjs", `http://127.0.0.1:${port}/lifeos`, "--out", outPath, "--json"]);
   assert.equal(cli.status, 0, `${cli.stdout}\n${cli.stderr}`);
   const written = await readFile(outPath, "utf8");
   assert.equal(written.includes("secret"), false);

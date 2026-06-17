@@ -20,6 +20,9 @@ export function normalizeRemoteBaseUrl(value) {
   if (parsed.username || parsed.password) {
     throw new Error("Remote base URL must not include username or password.");
   }
+  if (parsed.search || parsed.hash) {
+    throw new Error("Remote base URL must not include query parameters or fragments.");
+  }
   parsed.search = "";
   parsed.hash = "";
   const pathname = parsed.pathname === "/" ? "" : parsed.pathname.replace(/\/+$/, "");

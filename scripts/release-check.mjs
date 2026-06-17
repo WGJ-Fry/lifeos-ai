@@ -151,6 +151,7 @@ function checkScripts() {
 
   if (exists("scripts/remote-connection-smoke.mjs")) {
     const remoteSmoke = fs.readFileSync(path.join(rootDir, "scripts/remote-connection-smoke.mjs"), "utf8");
+    const remoteSmokeTest = exists("tests/remote-connection-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/remote-connection-smoke.test.mjs"), "utf8") : "";
     const testScript = packageJson.scripts?.test || "";
     if (
       packageJson.scripts?.["remote:smoke"]?.includes("remote-connection-smoke.mjs") &&
@@ -160,9 +161,11 @@ function checkScripts() {
       remoteSmoke.includes("LIFEOS_REMOTE_BASE_URL") &&
       remoteSmoke.includes("desktop-runtime-config.json") &&
       remoteSmoke.includes("resolveRemoteBaseUrl") &&
+      remoteSmoke.includes("query parameters or fragments") &&
+      remoteSmokeTest.includes("query parameters or fragments") &&
       testScript.includes("tests/remote-connection-smoke.test.mjs")
     ) pass("remote connection smoke verifies health, mobile shell, websocket, and saved desktop config");
-    else fail("remote connection smoke must cover health, mobile shell, websocket, env/config URL, and tests");
+    else fail("remote connection smoke must cover health, mobile shell, websocket, env/config URL, unsafe URL rejection, and tests");
   } else {
     fail("missing remote connection smoke script: scripts/remote-connection-smoke.mjs");
   }
