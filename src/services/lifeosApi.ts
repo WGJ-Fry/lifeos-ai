@@ -325,6 +325,7 @@ export type NetworkDiagnostics = {
     reason: string;
     mode: "cloudflare" | "tailscale" | "configured" | "unknown";
     baseUrl: string;
+    restoredBaseUrl: string;
     attempted: boolean;
     restored: boolean;
     started: boolean;

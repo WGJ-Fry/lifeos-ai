@@ -13,6 +13,7 @@ export type RemoteRecoveryReport = {
   reason: string;
   mode: "cloudflare" | "tailscale" | "configured" | "unknown";
   baseUrl: string;
+  restoredBaseUrl: string;
   attempted: boolean;
   restored: boolean;
   started: boolean;
@@ -42,21 +43,27 @@ export async function runRemoteHealthCheck(reason = "manual") {
   running = true;
   try {
     let recovery: Awaited<ReturnType<typeof restoreSavedRemoteEntry>> = { attempted: false, restored: false, started: false, mode: "unknown", reason: "not_needed" };
-    let result = await testConnectionUrl(baseUrl);
+    let checkBaseUrl = baseUrl;
+    let result = await testConnectionUrl(checkBaseUrl);
+    const healthOkBefore = result.ok;
     if (!result.ok) {
       recovery = await restoreSavedRemoteEntry();
-      if (recovery.restored) result = await testConnectionUrl(baseUrl);
+      if (recovery.restored) {
+        checkBaseUrl = remoteBaseUrl() || baseUrl;
+        result = await testConnectionUrl(checkBaseUrl);
+      }
     }
     const report = saveRemoteValidationReport({
       label: labelForReason(reason, recovery.restored),
-      baseUrl,
+      baseUrl: checkBaseUrl,
       result,
     }, { type: "system", id: "remote-health-monitor" });
     const recoveryReport = saveRemoteRecoveryReport({
       reason,
       baseUrl,
+      restoredBaseUrl: checkBaseUrl,
       recovery,
-      healthOkBefore: recovery.attempted ? false : result.ok,
+      healthOkBefore,
       healthOkAfter: result.ok,
     });
     return { skipped: false, reason, restored: recovery.restored, recovery: recoveryReport, report };
@@ -112,6 +119,7 @@ async function restoreSavedRemoteEntry() {
 function saveRemoteRecoveryReport(input: {
   reason: string;
   baseUrl: string;
+  restoredBaseUrl: string;
   recovery: Awaited<ReturnType<typeof restoreSavedRemoteEntry>>;
   healthOkBefore: boolean;
   healthOkAfter: boolean;
@@ -121,6 +129,7 @@ function saveRemoteRecoveryReport(input: {
     reason: input.reason,
     mode: input.recovery.mode,
     baseUrl: input.baseUrl,
+    restoredBaseUrl: input.restoredBaseUrl,
     attempted: input.recovery.attempted,
     restored: input.recovery.restored,
     started: input.recovery.started,

@@ -200,6 +200,8 @@ while true; do sleep 1; done
   assert.equal(result.recovery.attempted, true);
   assert.equal(result.recovery.restored, true);
   assert.equal(result.recovery.started, true);
+  assert.equal(result.recovery.baseUrl, `https://127.0.0.1:${result.report.baseUrl.split(":").pop()}`);
+  assert.equal(result.recovery.restoredBaseUrl, result.report.baseUrl);
   assert.equal(result.recovery.recoveryReason, "cloudflare_named_configured");
   assert.equal(result.recovery.healthOkBefore, false);
   assert.equal(result.recovery.healthOkAfter, true);

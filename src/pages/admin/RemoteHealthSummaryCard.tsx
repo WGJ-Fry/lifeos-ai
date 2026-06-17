@@ -93,6 +93,9 @@ export default function RemoteHealthSummaryCard({
             <div className="mt-3 rounded-xl border border-white/10 bg-black/15 p-3 text-xs">
               <div className="font-bold">{t("connection.recovery.title")}</div>
               <div className="mt-1 break-all opacity-80">{recovery.baseUrl}</div>
+              {recovery.restoredBaseUrl && recovery.restoredBaseUrl !== recovery.baseUrl ? (
+                <div className="mt-1 break-all opacity-80">{t("connection.recovery.restoredBaseUrl", { url: recovery.restoredBaseUrl })}</div>
+              ) : null}
               <div className="mt-1 opacity-90">
                 {t("connection.recovery.summary", {
                   mode: recovery.mode,
