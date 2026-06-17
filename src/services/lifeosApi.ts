@@ -689,6 +689,22 @@ export function importRemoteAcceptanceReport(report: unknown) {
   });
 }
 
+export function runRemoteAcceptance() {
+  return requestJson<{
+    record: {
+      id: string;
+      baseUrl: string;
+      entryKind: string;
+      longTermReady: boolean;
+      importedAt: number;
+      automatedChecks: { ok: boolean; passed: number; total: number };
+      manualAcceptance: Array<{ id: string; title: string; required: boolean }>;
+    };
+    result: NonNullable<NetworkDiagnostics["remoteValidationReport"]>;
+    diagnostics: NetworkDiagnostics;
+  }>("/api/v1/admin/network-diagnostics/acceptance-run", { method: "POST" });
+}
+
 export function startTailscaleHttpsServe() {
   return requestJson<{
     serve: {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useI18n } from "../../i18n/I18nProvider";
-import { importRemoteAcceptanceReport, recordRemoteAcceptance } from "../../services/lifeosApi";
+import { importRemoteAcceptanceReport, recordRemoteAcceptance, runRemoteAcceptance } from "../../services/lifeosApi";
 import type { NetworkDiagnostics } from "../../services/lifeosApi";
 import RemoteAcceptanceChecklistCard from "./RemoteAcceptanceChecklistCard";
 import RemoteHealthSummaryCard from "./RemoteHealthSummaryCard";
@@ -17,6 +17,7 @@ export default function RemoteStabilitySection({
   const { t } = useI18n();
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [importingReport, setImportingReport] = useState(false);
+  const [runningAcceptance, setRunningAcceptance] = useState(false);
   const [reportText, setReportText] = useState("");
   const acceptanceBaseUrl = diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteHealthSummary.baseUrl;
   const acceptanceCommand = acceptanceBaseUrl
@@ -51,6 +52,18 @@ export default function RemoteStabilitySection({
       setImportingReport(false);
     }
   };
+  const handleRunAcceptance = async () => {
+    setRunningAcceptance(true);
+    try {
+      const result = await runRemoteAcceptance();
+      onDiagnostics?.(result.diagnostics);
+      onStatus?.(result.record.longTermReady ? t("connection.acceptance.runReady") : t("connection.acceptance.runNotReady"));
+    } catch (error: any) {
+      onStatus?.(error.message || t("connection.acceptance.runFailed"));
+    } finally {
+      setRunningAcceptance(false);
+    }
+  };
 
   return (
     <>
@@ -62,7 +75,9 @@ export default function RemoteStabilitySection({
         importingReport={importingReport}
         reportText={reportText}
         runbooks={diagnostics.remoteAcceptanceRunbooks}
+        runningAcceptance={runningAcceptance}
         onImportReport={handleImportReport}
+        onRunAcceptance={handleRunAcceptance}
         onAccept={handleRecordAcceptance}
         onReportTextChange={setReportText}
       />

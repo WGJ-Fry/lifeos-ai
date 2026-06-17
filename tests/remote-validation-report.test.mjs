@@ -409,3 +409,52 @@ test("remote acceptance runbook import persists smoke evidence and rejects unsaf
   assert.match(result.attempts.join("\\n"), /username, password, token, query, or fragment/);
   assert.match(result.attempts.join("\\n"), /unsupported entry kind/);
 });
+
+test("remote acceptance can be generated from an automated connection test", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-acceptance-generated-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { getRemoteValidationReport } = await import("./server/remoteValidationReport.ts");
+    const { getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRunbookFromConnectionTest } = await import("./server/remoteAcceptance.ts");
+    const tailscale = saveRemoteAcceptanceRunbookFromConnectionTest({
+      baseUrl: "https://lifeos.tailnet.example.ts.net",
+      result: {
+        ok: true,
+        status: 200,
+        url: "https://lifeos.tailnet.example.ts.net/api/v1/health",
+        latencyMs: 33,
+        steps: [
+          { id: "health", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/api/v1/health", latencyMs: 10 },
+          { id: "mobile-shell", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/mobile/chat", latencyMs: 11 },
+          { id: "websocket", ok: true, status: 101, url: "wss://lifeos.tailnet.example.ts.net/api/v1/ws", latencyMs: 12 },
+        ],
+      },
+    }, { type: "admin", id: "owner" });
+    const temporary = saveRemoteAcceptanceRunbookFromConnectionTest({
+      baseUrl: "https://demo.trycloudflare.com",
+      result: {
+        ok: true,
+        status: 200,
+        url: "https://demo.trycloudflare.com/api/v1/health",
+        latencyMs: 20,
+        steps: [{ id: "health", ok: true, status: 200, url: "https://demo.trycloudflare.com/api/v1/health", latencyMs: 20 }],
+      },
+    }, { type: "admin", id: "owner" });
+    process.stdout.write(JSON.stringify({ tailscale, temporary, validation: getRemoteValidationReport(), records: getRemoteAcceptanceRunbookRecords() }));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+  assert.equal(result.tailscale.entryKind, "tailscale-https");
+  assert.equal(result.tailscale.longTermReady, true);
+  assert.equal(result.temporary.entryKind, "temporary-cloudflare");
+  assert.equal(result.temporary.longTermReady, false);
+  assert.match(result.temporary.longTermReason, /Temporary/);
+  assert.equal(result.validation.label, "remote-acceptance:temporary-cloudflare");
+  assert.equal(result.records.length, 2);
+});

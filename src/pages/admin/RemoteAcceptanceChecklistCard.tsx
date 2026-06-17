@@ -37,8 +37,10 @@ export default function RemoteAcceptanceChecklistCard({
   importingReport,
   reportText,
   runbooks,
+  runningAcceptance,
   onAccept,
   onImportReport,
+  onRunAcceptance,
   onReportTextChange,
 }: {
   acceptanceCommand: string;
@@ -47,8 +49,10 @@ export default function RemoteAcceptanceChecklistCard({
   importingReport?: boolean;
   reportText?: string;
   runbooks?: NetworkDiagnostics["remoteAcceptanceRunbooks"];
+  runningAcceptance?: boolean;
   onAccept?: (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => void;
   onImportReport?: () => void;
+  onRunAcceptance?: () => void;
   onReportTextChange?: (value: string) => void;
 }) {
   const { t } = useI18n();
@@ -81,6 +85,13 @@ export default function RemoteAcceptanceChecklistCard({
               </button>
             </div>
             <code className="mt-2 block break-all rounded-lg bg-black/30 px-2 py-1.5 text-[10px] leading-relaxed text-cyan-50/90">{acceptanceCommand}</code>
+            <button
+              onClick={onRunAcceptance}
+              disabled={runningAcceptance}
+              className="mt-2 inline-flex rounded-lg border border-cyan-200/20 bg-cyan-200/10 px-2.5 py-1.5 text-[11px] font-bold text-cyan-50 disabled:opacity-50"
+            >
+              {runningAcceptance ? t("connection.acceptance.running") : t("connection.acceptance.runNow")}
+            </button>
           </div>
           <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
             <div className="text-xs font-bold text-zinc-100">{t("connection.acceptance.importTitle")}</div>

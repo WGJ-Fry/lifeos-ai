@@ -11,7 +11,7 @@ import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { runRemoteHealthCheck } from "../remoteHealthMonitor";
-import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookReport } from "../remoteAcceptance";
+import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookFromConnectionTest, saveRemoteAcceptanceRunbookReport } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
@@ -245,6 +245,29 @@ export function registerAdminRoutes(app: express.Express) {
       res.json({ record, diagnostics: getAdminNetworkDiagnostics() });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "Remote acceptance report could not be imported", diagnostics: getAdminNetworkDiagnostics() });
+    }
+  });
+
+  app.post("/api/v1/admin/network-diagnostics/acceptance-run", requireAdmin, async (_req, res) => {
+    try {
+      const diagnostics = getAdminNetworkDiagnostics();
+      const baseUrl = diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteHealthSummary.baseUrl;
+      if (!baseUrl) return res.status(400).json({ error: "Save a Tailscale HTTPS Serve, Cloudflare Named Tunnel, or trusted HTTPS remote entry first.", diagnostics });
+      const result = await testConnectionUrl(baseUrl);
+      const record = saveRemoteAcceptanceRunbookFromConnectionTest({
+        baseUrl,
+        result,
+      }, (_req as any).actor || { type: "admin", id: "owner" });
+      insertAuditLog("remote_acceptance_run_completed", "network", record.id, {
+        baseUrl: record.baseUrl,
+        entryKind: record.entryKind,
+        longTermReady: record.longTermReady,
+        automatedPassed: record.automatedChecks.passed,
+        automatedTotal: record.automatedChecks.total,
+      }, (_req as any).actor?.type, (_req as any).actor?.id);
+      res.json({ record, result, diagnostics: getAdminNetworkDiagnostics() });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Remote acceptance run failed", diagnostics: getAdminNetworkDiagnostics() });
     }
   });
 

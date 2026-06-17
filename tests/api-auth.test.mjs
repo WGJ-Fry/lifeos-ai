@@ -304,6 +304,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: JSON.stringify({ mode: "cloudflare", label: "Unsafe", baseUrl: "https://unsafe.example.com" }),
   });
   assert.equal(blockedDesktopConnectionConfig.status, 401);
+  const blockedRemoteAcceptanceRun = await request(port, "/api/v1/admin/network-diagnostics/acceptance-run", {
+    method: "POST",
+  });
+  assert.equal(blockedRemoteAcceptanceRun.status, 401);
   const invalidDesktopConnectionConfig = await request(port, "/api/v1/admin/desktop-connection-config", {
     method: "PUT",
     headers: adminHeaders,

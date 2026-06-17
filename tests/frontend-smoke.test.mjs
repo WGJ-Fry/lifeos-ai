@@ -573,6 +573,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.commandTitle/);
   assert.match(remoteAcceptanceChecklistSource, /navigator\.clipboard\.writeText/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.copyCommand/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.runNow/);
+  assert.match(remoteAcceptanceChecklistSource, /onRunAcceptance/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.importTitle/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.latestEvidence/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.automatedPassed/);
@@ -587,14 +589,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_BASE_URL/);
   assert.match(remoteStabilitySectionSource, /npm run remote:acceptance/);
   assert.match(remoteStabilitySectionSource, /importRemoteAcceptanceReport/);
+  assert.match(remoteStabilitySectionSource, /runRemoteAcceptance/);
   assert.match(remoteStabilitySectionSource, /JSON\.parse/);
   assert.match(translationsSource, /长期异地验收清单/);
   assert.match(translationsSource, /远程验收命令/);
+  assert.match(translationsSource, /运行自动验收/);
   assert.match(translationsSource, /导入真实验收结果/);
   assert.match(translationsSource, /最近导入的真实验收/);
   assert.match(translationsSource, /remote-acceptance\.json/);
   assert.match(translationsSource, /Long-Term Remote Acceptance Checklist/);
   assert.match(translationsSource, /Remote Acceptance Command/);
+  assert.match(translationsSource, /Run Automated Acceptance/);
   assert.match(translationsSource, /Import Real Acceptance Evidence/);
   assert.match(translationsSource, /Latest Imported Real Acceptance/);
   assert.match(translationsSource, /我已真实验收/);

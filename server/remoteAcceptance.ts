@@ -5,6 +5,32 @@ const REMOTE_ACCEPTANCE_STATE_KEY = "lifeos_remote_acceptance_records";
 const REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY = "lifeos_remote_acceptance_runbook_reports";
 const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat"]);
 const runbookEntryKinds = new Set(["temporary-cloudflare", "tailscale-https", "local", "stable-https", "insecure-http"]);
+const runbookManualSteps = [
+  {
+    id: "cellular-mobile-chat",
+    title: "Phone cellular /mobile/chat",
+    instruction: "Turn off phone Wi-Fi, open the saved mobile entry on cellular data, send one chat message, and confirm realtime/retry state is healthy.",
+    required: true,
+  },
+  {
+    id: "restart-restore",
+    title: "Desktop restart restore",
+    instruction: "Quit and reopen the desktop app, run the remote health check again, and confirm the same HTTPS entry still serves /api/v1/health, /mobile/chat, and WebSocket.",
+    required: true,
+  },
+  {
+    id: "network-interruption",
+    title: "Network interruption recovery",
+    instruction: "Disconnect and reconnect the remote path, then confirm diagnostics refresh and the phone gets a clear recovery message.",
+    required: true,
+  },
+  {
+    id: "diagnostic-export",
+    title: "Export diagnostic evidence",
+    instruction: "Export the admin diagnostic bundle after the manual checks.",
+    required: true,
+  },
+];
 
 export type RemoteAcceptanceItem = {
   id: "tailscale-https-serve" | "cloudflare-named-tunnel" | "remote-smoke" | "restart-restore" | "cellular-mobile-chat" | "ci-remote-mock";
@@ -53,6 +79,22 @@ type AcceptanceDiagnostics = {
   cloudflareNamedTunnel?: { ready?: boolean; configured?: boolean; baseUrl?: string; hostname?: string };
 };
 
+type ConnectionTestResult = {
+  ok: boolean;
+  status: number;
+  url: string;
+  latencyMs: number;
+  error?: string;
+  steps?: Array<{
+    id: string;
+    ok: boolean;
+    status: number;
+    url: string;
+    latencyMs: number;
+    error?: string;
+  }>;
+};
+
 function sameUrl(left = "", right = "") {
   try {
     const leftUrl = new URL(left);
@@ -95,6 +137,23 @@ function safeNumber(value: unknown, fallback = 0) {
 
 function safeNote(value: unknown) {
   return String(value || "").replace(/\b(token|key|secret|password)=\S+/gi, "$1=[redacted]").trim().slice(0, 240);
+}
+
+function entryKind(baseUrl: string): RemoteAcceptanceRunbookRecord["entryKind"] {
+  const parsed = new URL(baseUrl);
+  const host = parsed.hostname.toLowerCase();
+  if (host.endsWith(".trycloudflare.com")) return "temporary-cloudflare";
+  if (host.includes(".ts.net") || host.includes(".tailscale")) return "tailscale-https";
+  if (host.includes("localhost") || host === "127.0.0.1") return "local";
+  if (parsed.protocol === "https:") return "stable-https";
+  return "insecure-http";
+}
+
+function longTermReason(kind: RemoteAcceptanceRunbookRecord["entryKind"], smokeOk: boolean) {
+  if (kind === "temporary-cloudflare") return "Temporary trycloudflare.com entries are for testing only. Use Tailscale HTTPS Serve or Cloudflare Named Tunnel for long-term use.";
+  if (kind === "local" || kind === "insecure-http") return "Remote entry is not an accepted HTTPS long-term remote entry.";
+  if (!smokeOk) return "Remote smoke checks did not all pass.";
+  return "Remote entry is HTTPS, non-temporary, and passed automated smoke checks.";
 }
 
 export function getRemoteAcceptanceRecords(): RemoteAcceptanceRecord[] {
@@ -155,6 +214,37 @@ export function saveRemoteAcceptanceRunbookReport(report: any, actor?: { type: s
   const records = getRemoteAcceptanceRunbookRecords().filter((item) => !sameUrl(item.baseUrl, record.baseUrl));
   setClientState(REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY, [...records, record].slice(-5), actor);
   return record;
+}
+
+export function saveRemoteAcceptanceRunbookFromConnectionTest(input: {
+  baseUrl: string;
+  result: ConnectionTestResult;
+}, actor?: { type: string; id: string }) {
+  const baseUrl = sanitizeBaseUrl(input.baseUrl);
+  const kind = entryKind(baseUrl);
+  const report = {
+    generatedAt: new Date().toISOString(),
+    baseUrl,
+    entryKind: kind,
+    longTermReady: input.result.ok && kind !== "temporary-cloudflare" && kind !== "local" && kind !== "insecure-http",
+    longTermReason: longTermReason(kind, input.result.ok),
+    automatedChecks: {
+      ok: input.result.ok,
+      passed: (input.result.steps || []).filter((step) => step.ok).length,
+      total: input.result.steps?.length || 1,
+      latencyMs: input.result.latencyMs,
+      steps: input.result.steps || [{
+        id: "health",
+        ok: input.result.ok,
+        status: input.result.status,
+        url: input.result.url,
+        latencyMs: input.result.latencyMs,
+        error: input.result.error,
+      }],
+    },
+    manualAcceptance: runbookManualSteps,
+  };
+  return saveRemoteAcceptanceRunbookReport(report, actor);
 }
 
 export function saveRemoteAcceptanceRecord(input: {

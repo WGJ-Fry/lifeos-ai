@@ -489,6 +489,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("connection.acceptance.commandTitle") &&
     remoteAcceptanceChecklistSource.includes("navigator.clipboard.writeText") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.copyCommand") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.runNow") &&
+    remoteAcceptanceChecklistSource.includes("onRunAcceptance") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.importTitle") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.latestEvidence") &&
     remoteAcceptanceChecklistSource.includes("runbooks.latest") &&
@@ -501,11 +503,13 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_BASE_URL") &&
     remoteStabilitySectionSource.includes("npm run remote:acceptance") &&
     remoteStabilitySectionSource.includes("importRemoteAcceptanceReport") &&
+    remoteStabilitySectionSource.includes("runRemoteAcceptance") &&
     remoteStabilitySectionSource.includes("remoteAcceptanceRunbooks") &&
     remoteStabilitySectionSource.includes("JSON.parse") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRecord") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookReport") &&
+    remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookFromConnectionTest") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRunbookRecords") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRecords") &&
     remoteAcceptanceSource.includes("Remote acceptance URL must not contain username, password, token, query, or fragment") &&
@@ -514,6 +518,7 @@ function checkAssets() {
     remoteAcceptanceSource.includes("LIFEOS_REMOTE_BASE_URL=https://your-stable-entry npm run remote:smoke") &&
     lifeosApiSourceForRouting.includes("recordRemoteAcceptance") &&
     lifeosApiSourceForRouting.includes("importRemoteAcceptanceReport") &&
+    lifeosApiSourceForRouting.includes("runRemoteAcceptance") &&
     remoteStabilitySectionSource.includes("handleRecordAcceptance") &&
     connectionGuideSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("connection.remoteValidationFail") &&
@@ -521,7 +526,9 @@ function checkAssets() {
     adminRoutesSource.includes("buildRemoteAcceptanceChecklist") &&
     adminRoutesSource.includes("remoteAcceptanceRunbooks") &&
     adminRoutesSource.includes("/api/v1/admin/network-diagnostics/acceptance-report") &&
+    adminRoutesSource.includes("/api/v1/admin/network-diagnostics/acceptance-run") &&
     adminRoutesSource.includes("remote_acceptance_report_imported") &&
+    adminRoutesSource.includes("remote_acceptance_run_completed") &&
     adminRoutesSource.includes("latestBindingSession") &&
     adminRoutesSource.includes("saveRemoteValidationReport") &&
     adminRoutesSource.includes("persist") &&
@@ -553,10 +560,12 @@ function checkAssets() {
     translationsSource.includes("connection.readiness.item.needsPublicOptIn") &&
     translationsSource.includes("connection.acceptance.title") &&
     translationsSource.includes("connection.acceptance.commandTitle") &&
+    translationsSource.includes("connection.acceptance.runNow") &&
     translationsSource.includes("connection.acceptance.importTitle") &&
     translationsSource.includes("connection.acceptance.latestEvidence") &&
     translationsSource.includes("connection.acceptance.markDone") &&
     translationsSource.includes("Remote Acceptance Command") &&
+    translationsSource.includes("Run Automated Acceptance") &&
     translationsSource.includes("Import Real Acceptance Evidence") &&
     translationsSource.includes("Latest Imported Real Acceptance") &&
     translationsSource.includes("Long-Term Remote Acceptance Checklist") &&
