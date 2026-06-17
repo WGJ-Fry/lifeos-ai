@@ -45,6 +45,18 @@ export type MobileConnectivityResult = {
   error?: string;
 };
 
+export type MobileRecoveryHintKey =
+  | "mobileDevice.connectivityGuidanceTemporary"
+  | "mobileDevice.connectivityGuidanceTailscale"
+  | "mobileDevice.connectivityGuidanceLan"
+  | "mobileDevice.connectivityGuidanceLocalhost"
+  | "mobileDevice.connectivityGuidanceHttps"
+  | "mobileDevice.connectivityGuidanceWebSocket"
+  | "mobileDevice.connectivityGuidanceHealth"
+  | "mobileDevice.connectivityGuidanceOfflineQueue"
+  | "mobileDevice.connectivityGuidanceFailedQueue"
+  | "mobileDevice.connectivityGuidanceDefault";
+
 function normalizeBaseUrl(value?: string | null) {
   if (!value) return "";
   try {
@@ -287,6 +299,27 @@ export async function testMobileRemoteConnectivity(options: { currentHref?: stri
   } finally {
     globalThis.clearTimeout(timer);
   }
+}
+
+export function getMobileRecoveryHints(
+  result: MobileConnectivityResult,
+  entryKind?: RemoteEntryKind,
+  queue?: { pending?: number; failed?: number; syncing?: number },
+): MobileRecoveryHintKey[] {
+  const hints = new Set<MobileRecoveryHintKey>();
+  const healthFailed = result.steps.some((step) => step.id === "health" && !step.ok);
+  const websocketFailed = result.steps.some((step) => step.id === "websocket" && !step.ok);
+  if (entryKind === "temporary-cloudflare") hints.add("mobileDevice.connectivityGuidanceTemporary");
+  else if (entryKind === "tailscale") hints.add("mobileDevice.connectivityGuidanceTailscale");
+  else if (entryKind === "same-lan") hints.add("mobileDevice.connectivityGuidanceLan");
+  else if (entryKind === "localhost") hints.add("mobileDevice.connectivityGuidanceLocalhost");
+  else if (entryKind === "stable-https" || entryKind === "configured-match") hints.add("mobileDevice.connectivityGuidanceHttps");
+  else hints.add("mobileDevice.connectivityGuidanceDefault");
+  if (healthFailed) hints.add("mobileDevice.connectivityGuidanceHealth");
+  if (websocketFailed) hints.add("mobileDevice.connectivityGuidanceWebSocket");
+  if ((queue?.pending || 0) + (queue?.syncing || 0) > 0) hints.add("mobileDevice.connectivityGuidanceOfflineQueue");
+  if ((queue?.failed || 0) > 0) hints.add("mobileDevice.connectivityGuidanceFailedQueue");
+  return Array.from(hints);
 }
 
 function standaloneDisplayMode() {

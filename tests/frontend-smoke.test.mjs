@@ -349,8 +349,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /testMobileRemoteConnectivity/);
   assert.match(mobileDeviceSource, /reportMobileConnectivity/);
   assert.match(mobileDeviceSource, /MobileConnectivityCard/);
+  assert.match(mobileDeviceSource, /queueSummary=\{queueSummary\}/);
   assert.match(mobileDeviceSource, /onRetry=\{handleConnectivityTest\}/);
   const mobileConnectivityCardSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileConnectivityCard.tsx"), "utf8");
+  assert.match(mobileConnectivityCardSource, /getMobileRecoveryHints/);
+  assert.match(mobileConnectivityCardSource, /queueSummary/);
   assert.match(mobileConnectivityCardSource, /tailscale:\/\//);
   assert.match(mobileConnectivityCardSource, /mobileDevice\.openTailscale/);
   assert.match(mobileConnectivityCardSource, /mobileDevice\.rebindRemoteEntry/);
@@ -359,6 +362,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /测试当前手机连通性/);
   assert.match(translationsSource, /打开 Tailscale/);
   assert.match(translationsSource, /重新绑定远程入口/);
+  assert.match(translationsSource, /离线消息同步失败/);
   assert.match(translationsSource, /实时聊天通道/);
   assert.match(translationsSource, /Tailscale HTTPS 入口/);
   assert.match(translationsSource, /同局域网入口/);
@@ -370,6 +374,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(pwaCapabilitiesSource, /backgroundSyncSupported/);
   assert.match(pwaCapabilitiesSource, /indexedDbSupported/);
   assert.match(pwaCapabilitiesSource, /getRemoteEntryStatus/);
+  assert.match(pwaCapabilitiesSource, /getMobileRecoveryHints/);
+  assert.match(pwaCapabilitiesSource, /connectivityGuidanceFailedQueue/);
   assert.match(pwaCapabilitiesSource, /testMobileRemoteConnectivity/);
   assert.match(pwaCapabilitiesSource, /\/api\/v1\/health/);
   assert.match(pwaCapabilitiesSource, /\/api\/v1\/ws/);

@@ -211,3 +211,34 @@ test("mobile remote connectivity reports websocket failures", async (t) => {
   assert.equal(result.steps[1].ok, false);
   assert.equal(result.error, "WebSocket connection failed");
 });
+
+test("mobile recovery hints combine entry type, failed probes, and offline queue state", async () => {
+  const { getMobileRecoveryHints } = await import(`../src/services/pwaCapabilities.ts?case=mobile-recovery-hints-${Date.now()}`);
+  const result = {
+    ok: false,
+    currentBase: "https://abc.trycloudflare.com",
+    latencyMs: 100,
+    steps: [
+      { id: "health", ok: false, url: "/api/v1/health", latencyMs: 40, error: "HTTP 503" },
+      { id: "websocket", ok: false, url: "wss://abc.trycloudflare.com/api/v1/ws", latencyMs: 60, error: "WebSocket failed" },
+    ],
+    error: "HTTP 503",
+  };
+  const hints = getMobileRecoveryHints(result, "temporary-cloudflare", { pending: 2, failed: 1 });
+  assert.deepEqual(hints, [
+    "mobileDevice.connectivityGuidanceTemporary",
+    "mobileDevice.connectivityGuidanceHealth",
+    "mobileDevice.connectivityGuidanceWebSocket",
+    "mobileDevice.connectivityGuidanceOfflineQueue",
+    "mobileDevice.connectivityGuidanceFailedQueue",
+  ]);
+
+  const tailscaleHints = getMobileRecoveryHints({
+    ...result,
+    steps: [{ id: "health", ok: true, url: "/api/v1/health", latencyMs: 10 }, result.steps[1]],
+  }, "tailscale", { pending: 0, failed: 0 });
+  assert.deepEqual(tailscaleHints, [
+    "mobileDevice.connectivityGuidanceTailscale",
+    "mobileDevice.connectivityGuidanceWebSocket",
+  ]);
+});

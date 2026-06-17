@@ -838,11 +838,15 @@ function checkAssets() {
   if (
     pwaCapabilitiesSource.includes("getPwaCapabilityStatus") &&
     pwaCapabilitiesSource.includes("getRemoteEntryStatus") &&
+    pwaCapabilitiesSource.includes("getMobileRecoveryHints") &&
     pwaCapabilitiesSource.includes("testMobileRemoteConnectivity") &&
     pwaCapabilitiesSource.includes("/api/v1/health") &&
     pwaCapabilitiesSource.includes("/api/v1/ws") &&
     pwaCapabilitiesSource.includes("temporary-cloudflare") &&
     pwaCapabilitiesSource.includes("configured-mismatch") &&
+    pwaCapabilitiesSource.includes("connectivityGuidanceHealth") &&
+    pwaCapabilitiesSource.includes("connectivityGuidanceOfflineQueue") &&
+    pwaCapabilitiesSource.includes("connectivityGuidanceFailedQueue") &&
     pwaCapabilitiesSource.includes("serviceWorkerControlled") &&
     pwaCapabilitiesSource.includes("backgroundSyncSupported") &&
     pwaCapabilitiesSource.includes("indexedDbSupported") &&
@@ -852,6 +856,9 @@ function checkAssets() {
     mobileDeviceSource.includes("testMobileRemoteConnectivity") &&
     mobileDeviceSource.includes("reportMobileConnectivity") &&
     mobileDeviceSource.includes("onRetry={handleConnectivityTest}") &&
+    mobileDeviceSource.includes("queueSummary={queueSummary}") &&
+    mobileConnectivityCardSource.includes("getMobileRecoveryHints") &&
+    mobileConnectivityCardSource.includes("queueSummary") &&
     mobileConnectivityCardSource.includes("tailscale://") &&
     mobileConnectivityCardSource.includes("mobileDevice.openTailscale") &&
     mobileConnectivityCardSource.includes("mobileDevice.rebindRemoteEntry") &&
@@ -867,11 +874,17 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("remote entry status detects configured public base mismatches") &&
     pwaCapabilitiesTestSource.includes("mobile remote connectivity probes health and websocket") &&
     pwaCapabilitiesTestSource.includes("mobile remote connectivity reports websocket failures") &&
+    pwaCapabilitiesTestSource.includes("mobile recovery hints combine entry type") &&
     pwaCapabilitiesTestSource.includes("degraded offline sync support") &&
     frontendSmokeTestSource.includes("mobileDevice\\.pwaTitle") &&
+    frontendSmokeTestSource.includes("queueSummary=\\{queueSummary\\}") &&
+    frontendSmokeTestSource.includes("getMobileRecoveryHints") &&
+    translationsSource.includes("connectivityGuidanceHealth") &&
+    translationsSource.includes("connectivityGuidanceOfflineQueue") &&
+    translationsSource.includes("connectivityGuidanceFailedQueue") &&
     translationsSource.includes("mobileDevice.pwaTitle")
-  ) pass("mobile device page surfaces PWA install and background sync capability status");
-  else warn("mobile device page lacks PWA install/background sync capability status or coverage");
+  ) pass("mobile device page surfaces PWA install, background sync, and remote recovery guidance");
+  else warn("mobile device page lacks PWA install/background sync/remote recovery guidance or coverage");
   if (
     offlineQueueSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueSource.includes("getOfflineMessageRetryLabel") &&

@@ -352,7 +352,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /PWA pairing intent rejects malformed and unsafe tokens/);
   assert.match(result.stdout, /PWA install path carries pairing token through iOS add-to-home-screen/);
   assert.match(result.stdout, /PWA install path rejects malformed and unsafe pairing tokens/);
-  assert.match(result.stdout, /mobile device page surfaces PWA install and background sync capability status/);
+  assert.match(result.stdout, /mobile device page surfaces PWA install, background sync, and remote recovery guidance/);
   assert.match(result.stdout, /mobile device page supports token paste rebinding without naked pair links/);
   assert.match(result.stdout, /mobile device page can revoke its own server-side binding with audit coverage/);
   assert.match(result.stdout, /mobile device credentials migrate away from localStorage and expose storage status/);
