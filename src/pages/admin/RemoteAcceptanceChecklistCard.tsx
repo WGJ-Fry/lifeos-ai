@@ -40,6 +40,7 @@ export default function RemoteAcceptanceChecklistCard({
   reportText,
   runbooks,
   runningAcceptance,
+  smokeCommand,
   onAccept,
   onImportReport,
   onRunAcceptance,
@@ -52,17 +53,18 @@ export default function RemoteAcceptanceChecklistCard({
   reportText?: string;
   runbooks?: NetworkDiagnostics["remoteAcceptanceRunbooks"];
   runningAcceptance?: boolean;
+  smokeCommand: string;
   onAccept?: (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => void;
   onImportReport?: () => void;
   onRunAcceptance?: () => void;
   onReportTextChange?: (value: string) => void;
 }) {
   const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
-  const handleCopyCommand = async () => {
-    await navigator.clipboard.writeText(acceptanceCommand).catch(() => undefined);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
+  const [copiedCommand, setCopiedCommand] = useState<"smoke" | "acceptance" | null>(null);
+  const handleCopyCommand = async (kind: "smoke" | "acceptance", command: string) => {
+    await navigator.clipboard.writeText(command).catch(() => undefined);
+    setCopiedCommand(kind);
+    window.setTimeout(() => setCopiedCommand(null), 1400);
   };
 
   return (
@@ -75,15 +77,31 @@ export default function RemoteAcceptanceChecklistCard({
           <div className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-500/10 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
+                <div className="text-xs font-bold text-cyan-50">{t("connection.acceptance.smokeTitle")}</div>
+                <p className="mt-1 text-[11px] leading-relaxed text-cyan-100/75">{t("connection.acceptance.smokeBody")}</p>
+              </div>
+              <button
+                onClick={() => handleCopyCommand("smoke", smokeCommand)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-200/20 bg-cyan-200/10 px-2.5 py-1.5 text-[11px] font-bold text-cyan-50"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                {copiedCommand === "smoke" ? t("connection.acceptance.commandCopied") : t("connection.acceptance.copySmokeCommand")}
+              </button>
+            </div>
+            <code className="mt-2 block break-all rounded-lg bg-black/30 px-2 py-1.5 text-[10px] leading-relaxed text-cyan-50/90">{smokeCommand}</code>
+          </div>
+          <div className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-500/10 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
                 <div className="text-xs font-bold text-cyan-50">{t("connection.acceptance.commandTitle")}</div>
                 <p className="mt-1 text-[11px] leading-relaxed text-cyan-100/75">{t("connection.acceptance.commandBody")}</p>
               </div>
               <button
-                onClick={handleCopyCommand}
+                onClick={() => handleCopyCommand("acceptance", acceptanceCommand)}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-200/20 bg-cyan-200/10 px-2.5 py-1.5 text-[11px] font-bold text-cyan-50"
               >
                 <Copy className="h-3.5 w-3.5" />
-                {copied ? t("connection.acceptance.commandCopied") : t("connection.acceptance.copyCommand")}
+                {copiedCommand === "acceptance" ? t("connection.acceptance.commandCopied") : t("connection.acceptance.copyCommand")}
               </button>
             </div>
             <code className="mt-2 block break-all rounded-lg bg-black/30 px-2 py-1.5 text-[10px] leading-relaxed text-cyan-50/90">{acceptanceCommand}</code>

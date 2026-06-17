@@ -20,6 +20,9 @@ export default function RemoteStabilitySection({
   const [runningAcceptance, setRunningAcceptance] = useState(false);
   const [reportText, setReportText] = useState("");
   const acceptanceBaseUrl = diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteHealthSummary.baseUrl;
+  const smokeCommand = acceptanceBaseUrl
+    ? `LIFEOS_REMOTE_BASE_URL="${acceptanceBaseUrl}" npm run remote:smoke`
+    : `npm run remote:smoke`;
   const acceptanceCommand = acceptanceBaseUrl
     ? `LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" LIFEOS_REMOTE_BASE_URL="${acceptanceBaseUrl}" npm run remote:acceptance`
     : `LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" npm run remote:acceptance`;
@@ -80,6 +83,7 @@ export default function RemoteStabilitySection({
         reportText={reportText}
         runbooks={diagnostics.remoteAcceptanceRunbooks}
         runningAcceptance={runningAcceptance}
+        smokeCommand={smokeCommand}
         onImportReport={handleImportReport}
         onRunAcceptance={handleRunAcceptance}
         onAccept={handleRecordAcceptance}

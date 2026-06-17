@@ -599,6 +599,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteHealthSummaryCardSource, /restoredBaseUrl/);
   assert.match(translationsSource, /connection\.recovery\.restoredBaseUrl/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.title/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.smokeTitle/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.copySmokeCommand/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.commandTitle/);
   assert.match(remoteAcceptanceChecklistSource, /navigator\.clipboard\.writeText/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.copyCommand/);
@@ -618,11 +620,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteStabilitySectionSource, /acceptingId/);
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_ACCEPTANCE_OUT/);
   assert.match(remoteStabilitySectionSource, /LIFEOS_REMOTE_BASE_URL/);
+  assert.match(remoteStabilitySectionSource, /npm run remote:smoke/);
   assert.match(remoteStabilitySectionSource, /npm run remote:acceptance/);
   assert.match(remoteStabilitySectionSource, /importRemoteAcceptanceReport/);
   assert.match(remoteStabilitySectionSource, /runRemoteAcceptance/);
   assert.match(remoteStabilitySectionSource, /JSON\.parse/);
   assert.match(translationsSource, /长期异地验收清单/);
+  assert.match(translationsSource, /快速连通检查/);
+  assert.match(translationsSource, /Quick Connectivity Smoke/);
   assert.match(translationsSource, /远程验收命令/);
   assert.match(translationsSource, /运行自动验收/);
   assert.match(translationsSource, /导入真实验收结果/);

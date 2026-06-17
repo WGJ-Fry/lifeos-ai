@@ -499,6 +499,8 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("RemoteAcceptanceChecklistCard") &&
     remoteStabilitySectionSource.includes("remoteHealthSummary") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.title") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.smokeTitle") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.copySmokeCommand") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.commandTitle") &&
     remoteAcceptanceChecklistSource.includes("navigator.clipboard.writeText") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.copyCommand") &&
@@ -516,6 +518,7 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("ci-remote-mock") &&
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_ACCEPTANCE_OUT") &&
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_BASE_URL") &&
+    remoteStabilitySectionSource.includes("npm run remote:smoke") &&
     remoteStabilitySectionSource.includes("npm run remote:acceptance") &&
     remoteStabilitySectionSource.includes("importRemoteAcceptanceReport") &&
     remoteStabilitySectionSource.includes("runRemoteAcceptance") &&
