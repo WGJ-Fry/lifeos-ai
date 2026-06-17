@@ -453,6 +453,9 @@ export function registerAdminRoutes(app: express.Express) {
       releaseManifestAvailable: Boolean(bundle.release?.manifestAvailable),
       releaseChecksumAvailable: Boolean(bundle.release?.checksumAvailable),
       releaseArtifactCount: bundle.release?.artifactCount || 0,
+      remoteStatus: bundle.remote?.healthSummary?.status || "unknown",
+      remoteAcceptancePassed: Array.isArray(bundle.remote?.acceptanceChecklist) ? bundle.remote.acceptanceChecklist.filter((item: any) => item.status === "passed").length : 0,
+      remoteAcceptanceManualRequired: Array.isArray(bundle.remote?.acceptanceChecklist) ? bundle.remote.acceptanceChecklist.filter((item: any) => item.status === "manual-required").length : 0,
       securityOverall: bundle.security?.overall || "unknown",
       publicMode: Boolean(bundle.security?.publicMode),
     }, (req as any).actor?.type, (req as any).actor?.id);

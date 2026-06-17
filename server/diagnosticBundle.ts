@@ -6,6 +6,8 @@ import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices } from "./devices";
 import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
+import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords } from "./remoteAcceptance";
+import { getRemoteValidationReport, summarizeRemoteHealth } from "./remoteValidationReport";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
 
 function countTable(table: string) {
@@ -99,6 +101,20 @@ export function createDiagnosticBundle() {
   const providers = listAiProviderStatuses();
   const backups = listBackups().map(publicBackupRecord);
   const pendingRestore = getPendingRestore();
+  const network = getNetworkDiagnostics();
+  const remoteValidationReport = getRemoteValidationReport();
+  const remoteAcceptanceRecords = getRemoteAcceptanceRecords();
+  const remoteHealthSummary = summarizeRemoteHealth({
+    baseUrl: network.desktopRuntimeConfig?.publicBaseUrl || network.remoteReadiness.baseUrl,
+    readiness: network.remoteReadiness,
+    report: remoteValidationReport,
+  });
+  const remoteAcceptanceChecklist = buildRemoteAcceptanceChecklist({
+    diagnostics: network,
+    health: remoteHealthSummary,
+    report: remoteValidationReport,
+    records: remoteAcceptanceRecords,
+  });
   const bundle = {
     generatedAt: new Date().toISOString(),
     service: {
@@ -129,7 +145,16 @@ export function createDiagnosticBundle() {
         updatedAt: provider.updatedAt,
       })),
     },
-    network: getNetworkDiagnostics(),
+    network,
+    remote: {
+      healthSummary: remoteHealthSummary,
+      validationReport: remoteValidationReport,
+      acceptanceChecklist: remoteAcceptanceChecklist,
+      acceptanceRecords: {
+        total: remoteAcceptanceRecords.length,
+        latest: remoteAcceptanceRecords.slice(-5),
+      },
+    },
     security: getSecurityDiagnostics(),
     release: getReleaseDiagnostics(),
     devices: {

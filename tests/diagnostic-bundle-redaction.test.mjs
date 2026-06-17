@@ -75,6 +75,28 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     command: `PUBLIC_BASE_URL=${process.env.PUBLIC_BASE_URL} npm run start`,
     localPath: path.join(dataDir, "lifeos.db"),
   });
+  const remoteValidationModule = await import(`../server/remoteValidationReport.ts?diagnostic=${Date.now()}`);
+  const remoteAcceptanceModule = await import(`../server/remoteAcceptance.ts?diagnostic=${Date.now()}`);
+  remoteValidationModule.saveRemoteValidationReport({
+    label: "Remote health check after auto-restore",
+    baseUrl: "https://example.com/lifeos",
+    result: {
+      ok: true,
+      status: 200,
+      url: "https://user:password@example.com/lifeos/api/v1/health?token=remote-secret#frag",
+      latencyMs: 12,
+      steps: [
+        { id: "health", ok: true, status: 200, url: "https://example.com/lifeos/api/v1/health?token=remote-secret", latencyMs: 4 },
+        { id: "mobile-shell", ok: true, status: 200, url: "https://example.com/lifeos/mobile/chat?token=remote-secret", latencyMs: 4 },
+        { id: "websocket", ok: true, status: 101, url: "wss://example.com/lifeos/api/v1/ws?token=remote-secret", latencyMs: 4 },
+      ],
+    },
+  }, { type: "system", id: "diagnostic-test" });
+  remoteAcceptanceModule.saveRemoteAcceptanceRecord({
+    id: "cellular-mobile-chat",
+    baseUrl: "https://example.com/lifeos",
+    note: "Phone cellular passed token=remote-secret",
+  }, { type: "admin", id: "owner" });
 
   const { createDiagnosticBundle } = await import(`../server/diagnosticBundle.ts?diagnostic=${Date.now()}`);
   const bundle = createDiagnosticBundle();
@@ -86,6 +108,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(serialized.includes("sk-diagnostic-openai-secret"), false);
   assert.equal(serialized.includes("sk-or-diagnostic-secret"), false);
   assert.equal(serialized.includes("local-secret"), false);
+  assert.equal(serialized.includes("remote-secret"), false);
   assert.equal(serialized.includes("private-release-token-should-not-leak"), false);
   assert.equal(serialized.includes("user:password"), false);
   assert.equal(serialized.includes(dataDir), false);
@@ -96,6 +119,10 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.environment.LOCAL_MODEL_BASE_URL_CONFIGURED, true);
   assert.equal(bundle.network.publicBaseUrl, "https://example.com/lifeos");
   assert.equal(bundle.network.recommendedBaseUrl, "https://example.com/lifeos");
+  assert.equal(bundle.remote.healthSummary.status, "healthy");
+  assert.equal(bundle.remote.validationReport.ok, true);
+  assert.equal(bundle.remote.acceptanceChecklist.some((item) => item.id === "cellular-mobile-chat" && item.status === "passed"), true);
+  assert.equal(bundle.remote.acceptanceRecords.total, 1);
   assert.equal(bundle.release.manifestAvailable, true);
   assert.equal(bundle.release.checksumAvailable, true);
   assert.equal(bundle.release.artifactCount, 1);

@@ -361,7 +361,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /mobile action permission center summarizes, clears, and audits local app launches/);
   assert.match(result.stdout, /mobile action URL scheme whitelist rejects blocked and malformed schemes/);
   assert.match(result.stdout, /data export redaction covers AI keys, tokens, auth headers, crypto fields, URLs, and local paths/);
-  assert.match(result.stdout, /admin diagnostic bundle includes redacted release manifest and checksum metadata/);
+  assert.match(result.stdout, /admin diagnostic bundle includes redacted release, remote health, and acceptance evidence/);
   assert.match(result.stdout, /admin settings diagnostics surfaces release manifest and checksum status/);
   assert.match(result.stdout, /client state API responses and realtime broadcasts redact sensitive values/);
   assert.match(result.stdout, /client state stores normalized URL scheme allowlists in SQLite/);

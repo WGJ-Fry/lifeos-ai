@@ -916,11 +916,16 @@ function checkAssets() {
     diagnosticBundleSource.includes("getReleaseDiagnostics") &&
     diagnosticBundleSource.includes("publicReleaseArtifactSummary") &&
     diagnosticBundleSource.includes("release: getReleaseDiagnostics()") &&
+    diagnosticBundleSource.includes("remote: {") &&
+    diagnosticBundleSource.includes("acceptanceChecklist") &&
+    diagnosticBundleSource.includes("acceptanceRecords") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&
+    diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
+    diagnosticBundleTestSource.includes("bundle.remote.acceptanceRecords.total") &&
     apiAuthTestSource.includes("diagnosticBundle.release.artifactCount") &&
     adminRoutesSource.includes("releaseArtifactCount")
-  ) pass("admin diagnostic bundle includes redacted release manifest and checksum metadata");
-  else warn("admin diagnostic bundle lacks release manifest/checksum metadata or coverage");
+  ) pass("admin diagnostic bundle includes redacted release, remote health, and acceptance evidence");
+  else warn("admin diagnostic bundle lacks release/remote acceptance metadata or coverage");
   const configDiagnosticsPanelSource = exists("src/pages/admin/settings/ConfigDiagnosticsPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/ConfigDiagnosticsPanel.tsx"), "utf8") : "";
   if (
     adminRoutesSource.includes("release:") &&
