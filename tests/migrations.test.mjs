@@ -92,14 +92,18 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const columns = db.prepare("PRAGMA table_info(devices)").all().map((column) => column.name);
   const migration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 1").get();
   const connectivityMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 4").get();
+  const bindingBaseUrlMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 5").get();
   const connectivityColumns = db.prepare("PRAGMA table_info(device_connectivity_reports)").all().map((column) => column.name);
+  const bindingSessionColumns = db.prepare("PRAGMA table_info(binding_sessions)").all().map((column) => column.name);
   const legacyDevice = db.prepare("SELECT id, access_token_expires_at as accessTokenExpiresAt FROM devices WHERE id = 'legacy-device'").get();
   db.close();
 
   assert.ok(columns.includes("access_token_expires_at"));
   assert.equal(migration.name, "device_token_expiry");
   assert.equal(connectivityMigration.name, "device_connectivity_reports");
+  assert.equal(bindingBaseUrlMigration.name, "binding_session_base_url");
   assert.ok(connectivityColumns.includes("current_base_url"));
   assert.ok(connectivityColumns.includes("websocket_ok"));
+  assert.ok(bindingSessionColumns.includes("base_url"));
   assert.equal(legacyDevice.accessTokenExpiresAt, null);
 });

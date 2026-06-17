@@ -105,6 +105,7 @@ export function registerDeviceRoutes(app: express.Express) {
     const session: BindingSession = {
       id: crypto.randomUUID(),
       tokenHash: tokenHash(token),
+      baseUrl,
       createdAt: now,
       expiresAt: now + 5 * 60 * 1000,
     };
@@ -135,6 +136,7 @@ export function registerDeviceRoutes(app: express.Express) {
     res.json({
       id: session.id,
       expiresAt: session.expiresAt,
+      baseUrl: session.baseUrl,
       confirmedAt: session.confirmedAt,
       device: device ? sanitizeDevice(device) : null,
     });

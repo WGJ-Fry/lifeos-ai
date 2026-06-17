@@ -147,7 +147,7 @@ export function summarizeRemoteHealth(input: {
   baseUrl?: string;
   readiness?: { status?: string; baseUrl?: string };
   report?: RemoteValidationReport | null;
-  pairingSession?: { expiresAt?: number; confirmedAt?: number } | null;
+  pairingSession?: { baseUrl?: string | null; expiresAt?: number; confirmedAt?: number } | null;
   now?: number;
 }): RemoteHealthSummary {
   const baseUrl = safeSanitizeUrl(input.baseUrl || input.readiness?.baseUrl || input.report?.baseUrl || "");
@@ -159,8 +159,12 @@ export function summarizeRemoteHealth(input: {
   const isTemporary = baseUrl.includes(".trycloudflare.com") || input.readiness?.status === "temporary";
   const entryKind = classifyEntryKind(baseUrl, input.readiness?.status);
   const pairingExpired = Boolean(input.pairingSession?.expiresAt && input.pairingSession.expiresAt <= now && !input.pairingSession.confirmedAt);
+  const pairingBaseUrl = safeSanitizeUrl(input.pairingSession?.baseUrl || "");
+  const pairingEntryMismatch = Boolean(input.pairingSession && !input.pairingSession.confirmedAt && baseUrl && pairingBaseUrl && !sameBaseUrl(baseUrl, pairingBaseUrl));
   const qrStatus = pairingExpired
     ? "warning"
+    : pairingEntryMismatch
+      ? "warning"
     : !baseUrl
     ? "fail"
     : isTemporary
@@ -183,7 +187,7 @@ export function summarizeRemoteHealth(input: {
     {
       id: "qr-entry",
       status: qrStatus,
-      detail: pairingExpired ? "expired" : baseUrl || undefined,
+      detail: pairingExpired ? "expired" : pairingEntryMismatch ? pairingBaseUrl : baseUrl || undefined,
     },
   ];
 
@@ -221,6 +225,10 @@ export function summarizeRemoteHealth(input: {
     recommendations.add("ready");
   }
   if (pairingExpired) {
+    recommendations.add("refresh-pairing-qr");
+    if (severity === "ok") severity = "warning";
+  }
+  if (pairingEntryMismatch) {
     recommendations.add("refresh-pairing-qr");
     if (severity === "ok") severity = "warning";
   }

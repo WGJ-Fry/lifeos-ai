@@ -437,6 +437,7 @@ function checkAssets() {
   const connectionToolStatusSource = exists("src/pages/admin/ConnectionToolStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionToolStatus.tsx"), "utf8") : "";
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
+  const devicesSource = exists("server/devices.ts") ? fs.readFileSync(path.join(rootDir, "server/devices.ts"), "utf8") : "";
   const networkDiagnosticsTestSource = exists("tests/network-diagnostics.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/network-diagnostics.test.mjs"), "utf8") : "";
   const cloudflareTunnelSource = exists("server/cloudflareTunnel.ts") ? fs.readFileSync(path.join(rootDir, "server/cloudflareTunnel.ts"), "utf8") : "";
   const cloudflareTunnelTestSource = exists("tests/cloudflare-tunnel.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/cloudflare-tunnel.test.mjs"), "utf8") : "";
@@ -540,6 +541,7 @@ function checkAssets() {
     remoteAcceptanceSource.includes("LIFEOS_REMOTE_BASE_URL=https://your-stable-entry npm run remote:smoke") &&
     remoteValidationReportSource.includes("entryKind") &&
     remoteValidationReportSource.includes("classifyEntryKind") &&
+    remoteValidationReportSource.includes("pairingEntryMismatch") &&
     remoteHealthMonitorSource.includes("restoredBaseUrl") &&
     remoteHealthMonitorSource.includes("checkBaseUrl = remoteBaseUrl() || baseUrl") &&
     remoteHealthMonitorSource.includes("baseUrl: checkBaseUrl") &&
@@ -552,12 +554,15 @@ function checkAssets() {
     connectionGuideSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("connection.remoteValidationFail") &&
     adminRoutesSource.includes("summarizeRemoteHealth") &&
+    adminRoutesSource.includes("latestBindingSession.baseUrl") &&
     adminRoutesSource.includes("getRemoteRecoveryReport") &&
     adminRoutesSource.includes("buildRemoteAcceptanceChecklist") &&
     adminRoutesSource.includes("remoteAcceptanceRunbooks") &&
     adminRoutesSource.includes("/api/v1/admin/network-diagnostics/acceptance-report") &&
     adminRoutesSource.includes("/api/v1/admin/network-diagnostics/acceptance-run") &&
     adminRoutesSource.includes("remote_acceptance_report_imported") &&
+    devicesSource.includes("base_url") &&
+    exists("server/migrations/005_binding_session_base_url.sql") &&
     adminRoutesSource.includes("remote_acceptance_run_completed") &&
     adminRoutesSource.includes("latestBindingSession") &&
     adminRoutesSource.includes("saveRemoteValidationReport") &&

@@ -61,6 +61,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS binding_sessions (
     id TEXT PRIMARY KEY,
     token_hash TEXT NOT NULL UNIQUE,
+    base_url TEXT,
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
     confirmed_at INTEGER,

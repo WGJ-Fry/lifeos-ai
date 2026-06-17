@@ -29,6 +29,7 @@ export type DeviceConnectivityReport = {
 export type BindingSession = {
   id: string;
   tokenHash: string;
+  baseUrl?: string;
   expiresAt: number;
   createdAt: number;
   confirmedAt?: number;
@@ -54,6 +55,7 @@ function mapBindingSession(row: any): BindingSession {
   return {
     id: row.id,
     tokenHash: row.token_hash,
+    baseUrl: row.base_url || undefined,
     createdAt: row.created_at,
     expiresAt: row.expires_at,
     confirmedAt: row.confirmed_at || undefined,
@@ -165,11 +167,12 @@ export function revokeDeviceRecord(deviceId: string, revokedAt: number) {
 
 export function insertBindingSession(session: BindingSession) {
   db.prepare(`
-    INSERT INTO binding_sessions (id, token_hash, created_at, expires_at, confirmed_at, confirmed_device_id)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO binding_sessions (id, token_hash, base_url, created_at, expires_at, confirmed_at, confirmed_device_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
     session.id,
     session.tokenHash,
+    session.baseUrl || null,
     session.createdAt,
     session.expiresAt,
     session.confirmedAt || null,

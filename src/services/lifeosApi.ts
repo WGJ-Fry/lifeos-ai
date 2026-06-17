@@ -359,6 +359,7 @@ export type NetworkDiagnostics = {
   };
   latestBindingSession: {
     id: string;
+    baseUrl: string | null;
     expiresAt: number;
     confirmedAt: number | null;
     expired: boolean;
@@ -844,6 +845,7 @@ export function getBindingSession(bindingId: string) {
   return requestJson<{
     id: string;
     expiresAt: number;
+    baseUrl?: string;
     confirmedAt?: number;
     device: BoundDevice | null;
   }>(`/api/v1/devices/bind/${bindingId}`);

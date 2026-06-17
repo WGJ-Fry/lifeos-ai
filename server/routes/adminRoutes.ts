@@ -72,6 +72,7 @@ function getAdminNetworkDiagnostics() {
     latestBindingSession: latestBindingSession
       ? {
         id: latestBindingSession.id,
+        baseUrl: latestBindingSession.baseUrl || null,
         expiresAt: latestBindingSession.expiresAt,
         confirmedAt: latestBindingSession.confirmedAt || null,
         expired: latestBindingSession.expiresAt <= Date.now() && !latestBindingSession.confirmedAt,

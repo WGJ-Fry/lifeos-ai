@@ -239,8 +239,9 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
     const insecure = summarizeRemoteHealth({ baseUrl: "http://100.64.0.10:3000", readiness: { status: "blocked", baseUrl: "http://100.64.0.10:3000" }, report: null, now });
     const stale = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report: { ...report, createdAt: now - 11 * 60 * 1000 }, now });
     const expiredQr = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report, pairingSession: { expiresAt: now - 1 }, now });
+    const mismatchedQr = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report, pairingSession: { baseUrl: "https://old.trycloudflare.com", expiresAt: now + 60_000 }, now });
     const custom = summarizeRemoteHealth({ baseUrl: "https://remote.example.com", readiness: { status: "blocked", baseUrl: "https://remote.example.com" }, report: null, now });
-    process.stdout.write(JSON.stringify({ healthy, temporary, insecure, stale, expiredQr, custom }));
+    process.stdout.write(JSON.stringify({ healthy, temporary, insecure, stale, expiredQr, mismatchedQr, custom }));
   `], {
     cwd: process.cwd(),
     env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
@@ -265,6 +266,11 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
   assert.equal(result.expiredQr.checks.find((check) => check.id === "qr-entry").status, "warning");
   assert.equal(result.expiredQr.recommendations.includes("ready"), true);
   assert.equal(result.expiredQr.recommendations.includes("refresh-pairing-qr"), true);
+  assert.equal(result.mismatchedQr.status, "healthy");
+  assert.equal(result.mismatchedQr.severity, "warning");
+  assert.equal(result.mismatchedQr.checks.find((check) => check.id === "qr-entry").status, "warning");
+  assert.equal(result.mismatchedQr.checks.find((check) => check.id === "qr-entry").detail, "https://old.trycloudflare.com");
+  assert.equal(result.mismatchedQr.recommendations.includes("refresh-pairing-qr"), true);
 });
 
 test("remote acceptance checklist separates automated and real-world verification", async (t) => {

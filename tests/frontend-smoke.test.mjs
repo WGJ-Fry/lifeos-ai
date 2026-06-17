@@ -591,6 +591,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.check\.websocket/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.replaceTemporaryTunnel/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.refreshPairingQr/);
+  const remoteValidationReportSource = await readFile(path.join(rootDir, "server", "remoteValidationReport.ts"), "utf8");
+  assert.match(remoteValidationReportSource, /pairingEntryMismatch/);
+  assert.match(remoteValidationReportSource, /pairingSession\?: \{ baseUrl\?: string \| null/);
   assert.match(remoteHealthSummaryCardSource, /connection\.recovery\.title/);
   assert.match(remoteHealthSummaryCardSource, /connection\.recovery\.summary/);
   assert.match(remoteHealthSummaryCardSource, /restoredBaseUrl/);
