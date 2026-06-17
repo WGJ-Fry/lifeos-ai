@@ -155,3 +155,90 @@ while true; do sleep 1; done
 
   tunnelManager.stopManagedCloudflareTunnel();
 });
+
+test("Cloudflare Named Tunnel reconnects automatically after an unexpected disconnect", async (t) => {
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-reconnect-bin-"));
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-reconnect-data-"));
+  const credentialsFile = path.join(dataDir, "named-tunnel.json");
+  const countFile = path.join(dataDir, "cloudflared-count");
+  const oldDataDir = process.env.LIFEOS_DATA_DIR;
+  const oldPort = process.env.LIFEOS_PORT;
+  const oldPublicBaseUrl = process.env.PUBLIC_BASE_URL;
+  const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldReconnectDelay = process.env.LIFEOS_CLOUDFLARE_RECONNECT_DELAY_MS;
+
+  t.after(async () => {
+    if (oldDataDir === undefined) delete process.env.LIFEOS_DATA_DIR;
+    else process.env.LIFEOS_DATA_DIR = oldDataDir;
+    if (oldPort === undefined) delete process.env.LIFEOS_PORT;
+    else process.env.LIFEOS_PORT = oldPort;
+    if (oldPublicBaseUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = oldPublicBaseUrl;
+    if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
+    else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldReconnectDelay === undefined) delete process.env.LIFEOS_CLOUDFLARE_RECONNECT_DELAY_MS;
+    else process.env.LIFEOS_CLOUDFLARE_RECONNECT_DELAY_MS = oldReconnectDelay;
+    await rm(binDir, { recursive: true, force: true });
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const cloudflaredPath = path.join(binDir, "cloudflared");
+  await writeFile(cloudflaredPath, `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "cloudflared version 2026.6.0"
+  exit 0
+fi
+count=0
+if [ -f "${countFile}" ]; then
+  count=$(cat "${countFile}")
+fi
+count=$((count + 1))
+echo "$count" > "${countFile}"
+echo "INF Registered tunnel connection attempt $count" >&2
+if [ "$count" = "1" ]; then
+  sleep 0.2
+  exit 12
+fi
+while true; do sleep 1; done
+`);
+  await chmod(cloudflaredPath, 0o755);
+  await writeFile(credentialsFile, "{}");
+
+  process.env.LIFEOS_DATA_DIR = dataDir;
+  process.env.LIFEOS_PORT = "4568";
+  process.env.LIFEOS_CLOUDFLARED_BIN = cloudflaredPath;
+  process.env.LIFEOS_CLOUDFLARE_RECONNECT_DELAY_MS = "100";
+  delete process.env.PUBLIC_BASE_URL;
+
+  const cacheKey = Date.now();
+  const tunnelManager = await import(`../server/cloudflareTunnel.ts?cloudflare-named-reconnect=${cacheKey}`);
+  tunnelManager.generateCloudflareNamedTunnelConfig({
+    name: "lifeos-ai",
+    hostname: "lifeos.example.com",
+    credentialsFile,
+  });
+
+  const started = await tunnelManager.startConfiguredCloudflareNamedTunnel(1000);
+  assert.equal(started.running, true);
+  assert.equal(started.kind, "named");
+
+  const deadline = Date.now() + 2500;
+  let status = tunnelManager.getManagedCloudflareTunnelStatus();
+  while (Date.now() < deadline) {
+    status = tunnelManager.getManagedCloudflareTunnelStatus();
+    if (status.running && status.reconnectAttempts >= 1 && status.lastOutput.includes("attempt 2")) break;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  assert.equal(status.running, true);
+  assert.equal(status.kind, "named");
+  assert.equal(status.url, "https://lifeos.example.com");
+  assert.equal(status.reconnectAttempts, 1);
+  assert.match(status.lastOutput, /attempt 2/);
+  assert.equal(await readFile(countFile, "utf8"), "2\n");
+
+  tunnelManager.stopManagedCloudflareTunnel();
+  const stopped = tunnelManager.getManagedCloudflareTunnelStatus();
+  assert.equal(stopped.running, false);
+  assert.equal(stopped.reconnectScheduledAt, null);
+});

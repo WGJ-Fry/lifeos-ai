@@ -375,6 +375,11 @@ export type NetworkDiagnostics = {
       command: string;
       lastOutput: string;
       lastError: string;
+      kind: "quick" | "named" | "";
+      reconnectAttempts: number;
+      lastReconnectAt: number | null;
+      reconnectScheduledAt: number | null;
+      reconnectReason: string;
     };
     version: string;
     detectedUrls: string[];

@@ -346,7 +346,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /first-launch onboarding has authoritative status, completion, audit, and login routing/);
   assert.match(result.stdout, /connection guide ranks usable URLs for pairing QR and tunnel setup/);
   assert.match(result.stdout, /device pairing QR page exposes recommended URL safety and reachability test/);
-  assert.match(result.stdout, /connection diagnostics have Cloudflare\/Tailscale mock coverage and sanitize test URLs/);
+  assert.match(result.stdout, /connection diagnostics have Cloudflare\/Tailscale mock coverage, Named Tunnel reconnect, and sanitize test URLs/);
   assert.match(result.stdout, /public mode health and dashboard expose actionable security risk items/);
   assert.match(result.stdout, /PWA preserves pending pairing token across iOS add-to-home-screen/);
   assert.match(result.stdout, /PWA pairing intent rejects malformed and unsafe tokens/);

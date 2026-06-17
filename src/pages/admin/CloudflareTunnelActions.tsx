@@ -36,12 +36,28 @@ export default function CloudflareTunnelActions({
         </button>
       ) : null}
       {cloudflare.managed.url ? (
-        <div className="rounded-xl border border-emerald-400/15 bg-emerald-500/10 p-2 text-[11px] leading-relaxed text-emerald-100">
-          {t("connection.cloudflareManagedUrl", { url: cloudflare.managed.url })}
+        <div className="space-y-1 rounded-xl border border-emerald-400/15 bg-emerald-500/10 p-2 text-[11px] leading-relaxed text-emerald-100">
+          <div>
+            {cloudflare.managed.kind === "named"
+              ? t("connection.cloudflareNamedManagedUrl", { url: cloudflare.managed.url })
+              : t("connection.cloudflareManagedUrl", { url: cloudflare.managed.url })}
+          </div>
+          {cloudflare.managed.kind === "named" ? (
+            <div className="text-emerald-100/80">
+              {cloudflare.managed.reconnectAttempts > 0
+                ? t("connection.cloudflareReconnectRestored", { count: cloudflare.managed.reconnectAttempts })
+                : t("connection.cloudflareReconnectReady")}
+            </div>
+          ) : null}
         </div>
       ) : cloudflare.managed.lastError ? (
         <div className="rounded-xl border border-amber-400/15 bg-amber-500/10 p-2 text-[11px] leading-relaxed text-amber-100">
           {cloudflare.managed.lastError}
+          {cloudflare.managed.reconnectScheduledAt ? (
+            <div className="mt-1">
+              {t("connection.cloudflareReconnectScheduled", { time: new Date(cloudflare.managed.reconnectScheduledAt).toLocaleTimeString() })}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

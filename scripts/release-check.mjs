@@ -655,12 +655,17 @@ function checkAssets() {
     cloudflareTunnelSource.includes("loadNamedTunnelSettings") &&
     cloudflareTunnelSource.includes("saveNamedTunnelSettings") &&
     cloudflareTunnelSource.includes("settingsSaved") &&
+    cloudflareTunnelSource.includes("scheduleNamedTunnelReconnect") &&
+    cloudflareTunnelSource.includes("reconnectAttempts") &&
+    cloudflareTunnelSource.includes("reconnectScheduledAt") &&
     cloudflareTunnelTestSource.includes("settingsSaved") &&
+    cloudflareTunnelTestSource.includes("reconnects automatically after an unexpected disconnect") &&
+    packageJson.scripts.test.includes("tests/cloudflare-tunnel.test.mjs") &&
     cloudflareTunnelTestSource.includes("delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME") &&
     networkDiagnosticsTestSource.includes("connection URL tests strip credentials, query secrets, and fragments") &&
     networkDiagnosticsTestSource.includes("connection URL tests health, mobile shell, and websocket under a remote base path")
-  ) pass("connection diagnostics have Cloudflare/Tailscale mock coverage and sanitize test URLs");
-  else warn("connection diagnostics lack Cloudflare/Tailscale mock coverage or URL sanitization checks");
+  ) pass("connection diagnostics have Cloudflare/Tailscale mock coverage, Named Tunnel reconnect, and sanitize test URLs");
+  else warn("connection diagnostics lack Cloudflare/Tailscale mock coverage, Named Tunnel reconnect, or URL sanitization checks");
 
   const pairingIntentSource = exists("src/services/mobilePairingIntent.ts") ? fs.readFileSync(path.join(rootDir, "src/services/mobilePairingIntent.ts"), "utf8") : "";
   const mobilePairingIntentTestSource = exists("tests/mobile-pairing-intent.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/mobile-pairing-intent.test.mjs"), "utf8") : "";
