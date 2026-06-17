@@ -1,5 +1,6 @@
 import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
-import { testConnectionUrl } from "./networkDiagnostics.ts";
+import { maybeStartConfiguredCloudflareTunnel } from "./cloudflareTunnel.ts";
+import { maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
 import { getRemoteValidationReport, saveRemoteValidationReport } from "./remoteValidationReport.ts";
 
 let monitorTimer: ReturnType<typeof setInterval> | null = null;
@@ -23,16 +24,46 @@ export async function runRemoteHealthCheck(reason = "manual") {
   if (running) return { skipped: true, reason: "already_running", report: getRemoteValidationReport() };
   running = true;
   try {
-    const result = await testConnectionUrl(baseUrl);
+    let restored = false;
+    let result = await testConnectionUrl(baseUrl);
+    if (!result.ok) {
+      restored = await restoreSavedRemoteEntry();
+      if (restored) result = await testConnectionUrl(baseUrl);
+    }
     const report = saveRemoteValidationReport({
-      label: reason === "startup" ? "Startup remote health check" : "Scheduled remote health check",
+      label: labelForReason(reason, restored),
       baseUrl,
       result,
     }, { type: "system", id: "remote-health-monitor" });
-    return { skipped: false, reason, report };
+    return { skipped: false, reason, restored, report };
   } finally {
     running = false;
   }
+}
+
+function labelForReason(reason: string, restored: boolean) {
+  if (restored) return "Remote health check after auto-restore";
+  if (reason === "startup") return "Startup remote health check";
+  if (reason === "manual") return "Manual remote health check";
+  return "Scheduled remote health check";
+}
+
+async function restoreSavedRemoteEntry() {
+  const config = getDesktopRuntimeConfig();
+  if (!config || !config.publicBaseUrl) return false;
+  try {
+    if (config.mode === "cloudflare") {
+      await maybeStartConfiguredCloudflareTunnel(String(config.port || process.env.LIFEOS_PORT || process.env.PORT || "3000"), 5000);
+      return true;
+    }
+    if (config.mode === "tailscale") {
+      const result = maybeStartConfiguredTailscaleServe(String(config.port || process.env.LIFEOS_PORT || process.env.PORT || "3000"));
+      return Boolean(result.started || result.reason === "already_running");
+    }
+  } catch {
+    return false;
+  }
+  return false;
 }
 
 export function startRemoteHealthMonitor() {

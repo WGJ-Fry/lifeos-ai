@@ -1,7 +1,7 @@
 // @ts-nocheck
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -94,4 +94,107 @@ test("remote health monitor persists the saved stable remote entry report", asyn
   assert.equal(report.ok, true, JSON.stringify(report, null, 2));
   assert.equal(report.passed, 3);
   assert.match(report.baseUrl, /^http:\/\/127\.0\.0\.1:\d+\/lifeos$/);
+});
+
+test("remote health monitor restores saved Cloudflare Named Tunnel before refreshing report", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-restore-"));
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-bin-"));
+  const tlsDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-tls-"));
+  const credentialsFile = path.join(dataDir, "named.json");
+  const cloudflaredPath = path.join(binDir, "cloudflared");
+  const certFile = path.join(tlsDir, "localhost.crt");
+  const keyFile = path.join(tlsDir, "localhost.key");
+  await writeFile(credentialsFile, "{}");
+  execFileSync("openssl", [
+    "req",
+    "-x509",
+    "-newkey",
+    "rsa:2048",
+    "-nodes",
+    "-keyout",
+    keyFile,
+    "-out",
+    certFile,
+    "-days",
+    "1",
+    "-subj",
+    "/CN=127.0.0.1",
+    "-addext",
+    "subjectAltName=IP:127.0.0.1",
+  ], { stdio: "ignore" });
+  await writeFile(cloudflaredPath, `#!/bin/sh
+echo "INF Registered tunnel connection" >&2
+while true; do sleep 1; done
+`);
+  await chmod(cloudflaredPath, 0o755);
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+    await rm(binDir, { recursive: true, force: true });
+    await rm(tlsDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { createServer } = await import("node:https");
+    const { readFileSync } = await import("node:fs");
+    const { WebSocketServer } = await import("ws");
+    let healthHits = 0;
+    const server = createServer({
+      cert: readFileSync(${JSON.stringify(certFile)}),
+      key: readFileSync(${JSON.stringify(keyFile)}),
+    }, (req, res) => {
+      if (req.url === "/api/v1/health") {
+        healthHits += 1;
+        if (healthHits === 1) {
+          res.writeHead(503, { "content-type": "application/json" });
+          res.end(JSON.stringify({ service: "starting" }));
+          return;
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ service: "lifeos-local-core" }));
+        return;
+      }
+      if (req.url === "/mobile/chat") {
+        res.writeHead(200, { "content-type": "text/html" });
+        res.end("<!doctype html><title>LifeOS AI</title><div id=\\\"root\\\"></div>");
+        return;
+      }
+      res.writeHead(404);
+      res.end("not found");
+    });
+    const wss = new WebSocketServer({ noServer: true });
+    server.on("upgrade", (req, socket, head) => {
+      if (req.url !== "/api/v1/ws") {
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => ws.close(1000, "ok"));
+    });
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const { port } = server.address();
+    process.env.LIFEOS_PORT = String(port);
+    process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME = "lifeos-ai";
+    process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME = \`127.0.0.1:\${port}\`;
+    process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS = ${JSON.stringify(credentialsFile)};
+    const { generateCloudflareNamedTunnelConfig, stopManagedCloudflareTunnel } = await import("./server/cloudflareTunnel.ts");
+    const { runRemoteHealthCheck } = await import("./server/remoteHealthMonitor.ts");
+    generateCloudflareNamedTunnelConfig({});
+    const result = await runRemoteHealthCheck("manual");
+    stopManagedCloudflareTunnel();
+    await new Promise((resolve) => wss.close(resolve));
+    await new Promise((resolve) => server.close(resolve));
+    process.stdout.write(JSON.stringify({ restored: result.restored, report: result.report }));
+  `], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_CLOUDFLARED_BIN: cloudflaredPath,
+      NODE_EXTRA_CA_CERTS: certFile,
+    },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+  assert.equal(result.restored, true);
+  assert.equal(result.report.ok, true, JSON.stringify(result.report, null, 2));
+  assert.equal(result.report.passed, 3);
 });

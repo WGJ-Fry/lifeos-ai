@@ -135,7 +135,7 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:feed"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:feed"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
   }
@@ -165,6 +165,22 @@ function checkScripts() {
     else fail("remote connection smoke must cover health, mobile shell, websocket, env/config URL, and tests");
   } else {
     fail("missing remote connection smoke script: scripts/remote-connection-smoke.mjs");
+  }
+
+  if (exists("scripts/remote-connection-mock-smoke.mjs")) {
+    const remoteMockSmoke = fs.readFileSync(path.join(rootDir, "scripts/remote-connection-mock-smoke.mjs"), "utf8");
+    const qualityWorkflow = fs.readFileSync(path.join(rootDir, ".github", "workflows", "quality.yml"), "utf8");
+    if (
+      packageJson.scripts?.["remote:mock-smoke"]?.includes("remote-connection-mock-smoke.mjs") &&
+      remoteMockSmoke.includes("runRemoteConnectionSmoke") &&
+      remoteMockSmoke.includes("/api/v1/health") &&
+      remoteMockSmoke.includes("/mobile/chat") &&
+      remoteMockSmoke.includes("/api/v1/ws") &&
+      qualityWorkflow.includes("npm run remote:mock-smoke")
+    ) pass("GitHub Actions remote mock smoke covers health, mobile shell, and websocket");
+    else fail("remote mock smoke must be wired into package scripts and GitHub Actions with health/mobile/websocket coverage");
+  } else {
+    fail("missing remote mock smoke script: scripts/remote-connection-mock-smoke.mjs");
   }
 
   if (exists("scripts/desktop-release-smoke.mjs")) {
