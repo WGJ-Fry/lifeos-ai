@@ -298,6 +298,7 @@ export type NetworkDiagnostics = {
   remoteHealthSummary: {
     status: "healthy" | "unchecked" | "failing" | "stale" | "temporary" | "insecure" | "missing";
     severity: "ok" | "warning" | "danger";
+    entryKind: "missing" | "temporary-cloudflare" | "tailscale" | "stable-https" | "insecure-http" | "custom";
     baseUrl: string;
     lastCheckedAt: number | null;
     ageMs: number | null;

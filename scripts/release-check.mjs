@@ -427,6 +427,7 @@ function checkAssets() {
   const remoteHealthSummaryCardSource = exists("src/pages/admin/RemoteHealthSummaryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteHealthSummaryCard.tsx"), "utf8") : "";
   const remoteAcceptanceChecklistSource = exists("src/pages/admin/RemoteAcceptanceChecklistCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteAcceptanceChecklistCard.tsx"), "utf8") : "";
   const remoteAcceptanceSource = exists("server/remoteAcceptance.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteAcceptance.ts"), "utf8") : "";
+  const remoteValidationReportSource = exists("server/remoteValidationReport.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteValidationReport.ts"), "utf8") : "";
   const connectionToolStatusSource = exists("src/pages/admin/ConnectionToolStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionToolStatus.tsx"), "utf8") : "";
   const customRemoteEntrySource = exists("src/pages/admin/CustomRemoteEntryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/CustomRemoteEntryCard.tsx"), "utf8") : "";
   const devicePairSource = exists("src/pages/admin/DevicePairPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DevicePairPage.tsx"), "utf8") : "";
@@ -511,6 +512,8 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("remoteAcceptanceRunbooks") &&
     remoteStabilitySectionSource.includes("remoteRecoveryReport") &&
     remoteStabilitySectionSource.includes("JSON.parse") &&
+    remoteHealthSummaryCardSource.includes("entryKindKey") &&
+    remoteHealthSummaryCardSource.includes("summary.entryKind") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.title") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.summary") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
@@ -523,6 +526,9 @@ function checkAssets() {
     remoteAcceptanceSource.includes("Remote acceptance report URLs must not contain username, password, token, query, or fragment") &&
     remoteAcceptanceSource.includes("manual-required") &&
     remoteAcceptanceSource.includes("LIFEOS_REMOTE_BASE_URL=https://your-stable-entry npm run remote:smoke") &&
+    remoteValidationReportSource.includes("entryKind") &&
+    remoteValidationReportSource.includes("classifyEntryKind") &&
+    lifeosApiSourceForRouting.includes("entryKind") &&
     lifeosApiSourceForRouting.includes("recordRemoteAcceptance") &&
     lifeosApiSourceForRouting.includes("importRemoteAcceptanceReport") &&
     lifeosApiSourceForRouting.includes("runRemoteAcceptance") &&
@@ -569,6 +575,8 @@ function checkAssets() {
     translationsSource.includes("connection.acceptance.title") &&
     translationsSource.includes("connection.acceptance.commandTitle") &&
     translationsSource.includes("connection.recovery.title") &&
+    translationsSource.includes("connection.health.entry.tailscale") &&
+    translationsSource.includes("connection.health.entry.temporaryCloudflare") &&
     translationsSource.includes("connection.acceptance.runNow") &&
     translationsSource.includes("connection.acceptance.importTitle") &&
     translationsSource.includes("connection.acceptance.latestEvidence") &&

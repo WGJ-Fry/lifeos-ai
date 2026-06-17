@@ -33,6 +33,15 @@ const recommendationKey = {
   ready: "connection.health.recommendation.ready",
 } as const;
 
+const entryKindKey = {
+  missing: "connection.health.entry.missing",
+  "temporary-cloudflare": "connection.health.entry.temporaryCloudflare",
+  tailscale: "connection.health.entry.tailscale",
+  "stable-https": "connection.health.entry.stableHttps",
+  "insecure-http": "connection.health.entry.insecureHttp",
+  custom: "connection.health.entry.custom",
+} as const;
+
 function checkTone(status: NetworkDiagnostics["remoteHealthSummary"]["checks"][number]["status"]) {
   if (status === "ok") return "border-emerald-400/20 bg-emerald-500/10 text-emerald-100";
   if (status === "warning") return "border-amber-400/20 bg-amber-500/10 text-amber-100";
@@ -60,7 +69,12 @@ export default function RemoteHealthSummaryCard({
       <div className="flex items-start gap-3">
         <Icon className="mt-0.5 h-4 w-4 shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold">{t(statusKey[summary.status] as any)}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-sm font-bold">{t(statusKey[summary.status] as any)}</div>
+            <span className="rounded-full border border-white/10 bg-black/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+              {t(entryKindKey[summary.entryKind] as any)}
+            </span>
+          </div>
           <div className="mt-1 break-all font-mono text-[11px] opacity-80">{summary.baseUrl || t("connection.readiness.noAddress")}</div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
             {summary.checks.map((check) => (

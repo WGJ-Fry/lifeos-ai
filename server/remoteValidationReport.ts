@@ -29,6 +29,7 @@ export type RemoteValidationReport = {
 export type RemoteHealthSummary = {
   status: "healthy" | "unchecked" | "failing" | "stale" | "temporary" | "insecure" | "missing";
   severity: "ok" | "warning" | "danger";
+  entryKind: "missing" | "temporary-cloudflare" | "tailscale" | "stable-https" | "insecure-http" | "custom";
   baseUrl: string;
   lastCheckedAt: number | null;
   ageMs: number | null;
@@ -132,6 +133,16 @@ function stepStatus(report: RemoteValidationReport | null, id: ProbeStep["id"]):
   };
 }
 
+function classifyEntryKind(baseUrl: string, readinessStatus?: string): RemoteHealthSummary["entryKind"] {
+  if (!baseUrl) return "missing";
+  if (!baseUrl.startsWith("https://")) return "insecure-http";
+  const lower = baseUrl.toLowerCase();
+  if (lower.includes(".trycloudflare.com")) return "temporary-cloudflare";
+  if (lower.includes(".ts.net") || lower.includes(".tailscale")) return "tailscale";
+  if (readinessStatus === "ready" || readinessStatus === "needs-restart") return "stable-https";
+  return "custom";
+}
+
 export function summarizeRemoteHealth(input: {
   baseUrl?: string;
   readiness?: { status?: string; baseUrl?: string };
@@ -146,6 +157,7 @@ export function summarizeRemoteHealth(input: {
   const reportIsCurrent = Boolean(report && baseUrl && sameBaseUrl(baseUrl, report.baseUrl));
   const isHttps = baseUrl.startsWith("https://");
   const isTemporary = baseUrl.includes(".trycloudflare.com") || input.readiness?.status === "temporary";
+  const entryKind = classifyEntryKind(baseUrl, input.readiness?.status);
   const pairingExpired = Boolean(input.pairingSession?.expiresAt && input.pairingSession.expiresAt <= now && !input.pairingSession.confirmedAt);
   const qrStatus = pairingExpired
     ? "fail"
@@ -216,6 +228,7 @@ export function summarizeRemoteHealth(input: {
   return {
     status,
     severity,
+    entryKind,
     baseUrl,
     lastCheckedAt: report?.createdAt || null,
     ageMs,

@@ -237,7 +237,8 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
     const insecure = summarizeRemoteHealth({ baseUrl: "http://100.64.0.10:3000", readiness: { status: "blocked", baseUrl: "http://100.64.0.10:3000" }, report: null, now });
     const stale = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report: { ...report, createdAt: now - 11 * 60 * 1000 }, now });
     const expiredQr = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report, pairingSession: { expiresAt: now - 1 }, now });
-    process.stdout.write(JSON.stringify({ healthy, temporary, insecure, stale, expiredQr }));
+    const custom = summarizeRemoteHealth({ baseUrl: "https://remote.example.com", readiness: { status: "blocked", baseUrl: "https://remote.example.com" }, report: null, now });
+    process.stdout.write(JSON.stringify({ healthy, temporary, insecure, stale, expiredQr, custom }));
   `], {
     cwd: process.cwd(),
     env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
@@ -246,13 +247,18 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
   const result = JSON.parse(output);
   assert.equal(result.healthy.status, "healthy");
   assert.equal(result.healthy.severity, "ok");
+  assert.equal(result.healthy.entryKind, "tailscale");
   assert.equal(result.healthy.checks.every((check) => check.status === "ok"), true);
   assert.equal(result.temporary.status, "temporary");
+  assert.equal(result.temporary.entryKind, "temporary-cloudflare");
   assert.equal(result.temporary.checks.find((check) => check.id === "qr-entry").status, "warning");
   assert.equal(result.insecure.status, "insecure");
+  assert.equal(result.insecure.entryKind, "insecure-http");
   assert.equal(result.insecure.checks.find((check) => check.id === "https").status, "fail");
   assert.equal(result.stale.status, "stale");
   assert.equal(result.expiredQr.status, "stale");
+  assert.equal(result.expiredQr.entryKind, "tailscale");
+  assert.equal(result.custom.entryKind, "custom");
   assert.equal(result.expiredQr.checks.find((check) => check.id === "qr-entry").status, "fail");
   assert.equal(result.expiredQr.recommendations.includes("refresh-pairing-qr"), true);
 });
