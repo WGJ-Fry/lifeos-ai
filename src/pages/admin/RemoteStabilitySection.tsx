@@ -16,6 +16,10 @@ export default function RemoteStabilitySection({
 }) {
   const { t } = useI18n();
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const acceptanceBaseUrl = diagnostics.desktopRuntimeConfig?.publicBaseUrl || diagnostics.remoteHealthSummary.baseUrl;
+  const acceptanceCommand = acceptanceBaseUrl
+    ? `LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" LIFEOS_REMOTE_BASE_URL="${acceptanceBaseUrl}" npm run remote:acceptance`
+    : `LIFEOS_REMOTE_ACCEPTANCE_OUT="./remote-acceptance.json" npm run remote:acceptance`;
   const handleRecordAcceptance = async (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => {
     setAcceptingId(id);
     try {
@@ -35,7 +39,12 @@ export default function RemoteStabilitySection({
   return (
     <>
       <RemoteHealthSummaryCard summary={diagnostics.remoteHealthSummary} />
-      <RemoteAcceptanceChecklistCard acceptingId={acceptingId} checklist={diagnostics.remoteAcceptanceChecklist || []} onAccept={handleRecordAcceptance} />
+      <RemoteAcceptanceChecklistCard
+        acceptanceCommand={acceptanceCommand}
+        acceptingId={acceptingId}
+        checklist={diagnostics.remoteAcceptanceChecklist || []}
+        onAccept={handleRecordAcceptance}
+      />
     </>
   );
 }

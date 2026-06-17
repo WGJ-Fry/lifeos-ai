@@ -1,4 +1,5 @@
-import { AlertTriangle, CheckCircle2, ClipboardCheck, Clock3 } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Clock3, Copy } from "lucide-react";
 import type { NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 
@@ -30,15 +31,24 @@ function StatusIcon({ status }: { status: NetworkDiagnostics["remoteAcceptanceCh
 }
 
 export default function RemoteAcceptanceChecklistCard({
+  acceptanceCommand,
   checklist,
   acceptingId,
   onAccept,
 }: {
+  acceptanceCommand: string;
   checklist: NetworkDiagnostics["remoteAcceptanceChecklist"];
   acceptingId?: string | null;
   onAccept?: (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => void;
 }) {
   const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const handleCopyCommand = async () => {
+    await navigator.clipboard.writeText(acceptanceCommand).catch(() => undefined);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  };
+
   return (
     <div className="mt-4 rounded-2xl border border-white/[0.08] bg-[#061016]/65 p-4">
       <div className="flex items-start gap-3">
@@ -46,6 +56,22 @@ export default function RemoteAcceptanceChecklistCard({
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold text-zinc-100">{t("connection.acceptance.title")}</div>
           <p className="mt-1 text-xs leading-relaxed text-zinc-400">{t("connection.acceptance.body")}</p>
+          <div className="mt-3 rounded-xl border border-cyan-300/15 bg-cyan-500/10 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-xs font-bold text-cyan-50">{t("connection.acceptance.commandTitle")}</div>
+                <p className="mt-1 text-[11px] leading-relaxed text-cyan-100/75">{t("connection.acceptance.commandBody")}</p>
+              </div>
+              <button
+                onClick={handleCopyCommand}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-200/20 bg-cyan-200/10 px-2.5 py-1.5 text-[11px] font-bold text-cyan-50"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                {copied ? t("connection.acceptance.commandCopied") : t("connection.acceptance.copyCommand")}
+              </button>
+            </div>
+            <code className="mt-2 block break-all rounded-lg bg-black/30 px-2 py-1.5 text-[10px] leading-relaxed text-cyan-50/90">{acceptanceCommand}</code>
+          </div>
           <div className="mt-3 grid gap-2 lg:grid-cols-2">
             {checklist.map((item) => (
               <div key={item.id} className={`rounded-xl border p-3 ${tone(item.status)}`}>

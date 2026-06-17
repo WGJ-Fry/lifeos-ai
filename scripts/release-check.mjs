@@ -486,10 +486,16 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("RemoteAcceptanceChecklistCard") &&
     remoteStabilitySectionSource.includes("remoteHealthSummary") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.title") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.commandTitle") &&
+    remoteAcceptanceChecklistSource.includes("navigator.clipboard.writeText") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.copyCommand") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.markDone") &&
     remoteAcceptanceChecklistSource.includes("onAccept") &&
     remoteAcceptanceChecklistSource.includes("cellular-mobile-chat") &&
     remoteAcceptanceChecklistSource.includes("ci-remote-mock") &&
+    remoteStabilitySectionSource.includes("LIFEOS_REMOTE_ACCEPTANCE_OUT") &&
+    remoteStabilitySectionSource.includes("LIFEOS_REMOTE_BASE_URL") &&
+    remoteStabilitySectionSource.includes("npm run remote:acceptance") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRecord") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRecords") &&
@@ -532,7 +538,9 @@ function checkAssets() {
     translationsSource.includes("connection.readiness.status.ready") &&
     translationsSource.includes("connection.readiness.item.needsPublicOptIn") &&
     translationsSource.includes("connection.acceptance.title") &&
+    translationsSource.includes("connection.acceptance.commandTitle") &&
     translationsSource.includes("connection.acceptance.markDone") &&
+    translationsSource.includes("Remote Acceptance Command") &&
     translationsSource.includes("Long-Term Remote Acceptance Checklist") &&
     translationsSource.includes("/mobile/install/<token>") &&
     lifeosApiSourceForRouting.includes("getLifeOSBasePath") &&
