@@ -540,7 +540,7 @@ async function probeFetchStep(id: ConnectionProbeStep["id"], url: URL, validate:
   }
 }
 
-async function probeWebSocketStep(url: URL, timeoutMs: number): Promise<ConnectionProbeStep> {
+async function probeWebSocketOnce(url: URL, timeoutMs: number): Promise<ConnectionProbeStep> {
   const startedAt = Date.now();
   return new Promise((resolve) => {
     let settled = false;
@@ -564,6 +564,18 @@ async function probeWebSocketStep(url: URL, timeoutMs: number): Promise<Connecti
       done({ id: "websocket", ok: false, status: 0, url: url.toString(), latencyMs: Date.now() - startedAt, error: error?.message || "WebSocket connection failed" });
     });
   });
+}
+
+async function probeWebSocketStep(url: URL, timeoutMs: number): Promise<ConnectionProbeStep> {
+  const first = await probeWebSocketOnce(url, timeoutMs);
+  if (first.ok) return first;
+  await new Promise((resolve) => setTimeout(resolve, 750));
+  const second = await probeWebSocketOnce(url, timeoutMs);
+  return {
+    ...second,
+    latencyMs: first.latencyMs + 750 + second.latencyMs,
+    error: second.ok ? undefined : second.error || first.error,
+  };
 }
 
 export async function testConnectionUrl(baseUrl: string, options: { includeWebSocket?: boolean } = {}) {

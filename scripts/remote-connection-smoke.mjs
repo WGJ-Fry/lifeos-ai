@@ -97,7 +97,7 @@ async function probeFetchStep(baseUrl, suffix, validate, timeoutMs) {
   }
 }
 
-function probeWebSocketStep(baseUrl, timeoutMs) {
+function probeWebSocketOnce(baseUrl, timeoutMs) {
   const url = websocketUrl(baseUrl, "/api/v1/ws");
   const startedAt = Date.now();
   return new Promise((resolve) => {
@@ -136,6 +136,28 @@ function probeWebSocketStep(baseUrl, timeoutMs) {
       finish({ ok: false, error: error?.message || "WebSocket failed" });
     });
   });
+}
+
+async function probeWebSocketStep(baseUrl, timeoutMs) {
+  const first = await probeWebSocketOnce(baseUrl, timeoutMs);
+  if (first.ok) return first;
+  await new Promise((resolve) => setTimeout(resolve, 750));
+  const second = await probeWebSocketOnce(baseUrl, timeoutMs);
+  if (second.ok) {
+    return {
+      ...second,
+      latencyMs: first.latencyMs + 750 + second.latencyMs,
+      retried: true,
+      firstError: first.error,
+    };
+  }
+  return {
+    ...second,
+    latencyMs: first.latencyMs + 750 + second.latencyMs,
+    retried: true,
+    firstError: first.error,
+    error: second.error || first.error,
+  };
 }
 
 export async function runRemoteConnectionSmoke(inputUrl, options = {}) {
