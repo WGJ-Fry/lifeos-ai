@@ -36,6 +36,7 @@ export default function RemoteAcceptanceChecklistCard({
   acceptingId,
   importingReport,
   reportText,
+  runbooks,
   onAccept,
   onImportReport,
   onReportTextChange,
@@ -45,6 +46,7 @@ export default function RemoteAcceptanceChecklistCard({
   acceptingId?: string | null;
   importingReport?: boolean;
   reportText?: string;
+  runbooks?: NetworkDiagnostics["remoteAcceptanceRunbooks"];
   onAccept?: (id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]) => void;
   onImportReport?: () => void;
   onReportTextChange?: (value: string) => void;
@@ -96,6 +98,27 @@ export default function RemoteAcceptanceChecklistCard({
             >
               {importingReport ? t("connection.acceptance.importing") : t("connection.acceptance.importReport")}
             </button>
+            {runbooks?.latest?.length ? (
+              <div className="mt-3 space-y-2">
+                <div className="text-[11px] font-bold text-zinc-200">{t("connection.acceptance.latestEvidence")}</div>
+                {runbooks.latest.map((record) => (
+                  <div key={record.id} className="rounded-lg border border-white/[0.08] bg-black/20 px-2 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-[11px] font-bold text-zinc-100">{record.entryKind}</div>
+                      <div className={record.longTermReady ? "text-[10px] font-bold text-emerald-200" : "text-[10px] font-bold text-amber-200"}>
+                        {record.longTermReady ? t("connection.acceptance.longTermReady") : t("connection.acceptance.longTermNotReady")}
+                      </div>
+                    </div>
+                    <div className="mt-1 break-all text-[10px] text-zinc-400">{record.baseUrl}</div>
+                    <div className="mt-1 text-[10px] text-zinc-400">
+                      {t("connection.acceptance.automatedPassed", { passed: record.automatedChecks.passed, total: record.automatedChecks.total })}
+                      {" · "}
+                      {new Date(record.importedAt).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="mt-3 grid gap-2 lg:grid-cols-2">
             {checklist.map((item) => (

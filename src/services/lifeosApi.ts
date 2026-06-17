@@ -327,6 +327,20 @@ export type NetworkDiagnostics = {
     command?: string;
     acceptedAt?: number;
   }>;
+  remoteAcceptanceRunbooks: {
+    total: number;
+    latest: Array<{
+      id: string;
+      baseUrl: string;
+      entryKind: "temporary-cloudflare" | "tailscale-https" | "local" | "stable-https" | "insecure-http";
+      longTermReady: boolean;
+      longTermReason: string;
+      generatedAt: string;
+      importedAt: number;
+      automatedChecks: { ok: boolean; passed: number; total: number; latencyMs: number };
+      manualAcceptance: Array<{ id: string; title: string; required: boolean }>;
+    }>;
+  };
   latestBindingSession: {
     id: string;
     expiresAt: number;

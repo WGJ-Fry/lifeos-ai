@@ -11,7 +11,7 @@ import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { runRemoteHealthCheck } from "../remoteHealthMonitor";
-import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookReport } from "../remoteAcceptance";
+import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookReport } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
@@ -65,6 +65,7 @@ function getAdminNetworkDiagnostics() {
     ...diagnostics,
     cloudflareNamedTunnel: getCloudflareNamedTunnelStatus(),
   };
+  const remoteAcceptanceRunbookRecords = getRemoteAcceptanceRunbookRecords();
   return {
     ...enrichedDiagnostics,
     remoteValidationReport,
@@ -83,6 +84,10 @@ function getAdminNetworkDiagnostics() {
       report: remoteValidationReport,
       records: getRemoteAcceptanceRecords(),
     }),
+    remoteAcceptanceRunbooks: {
+      total: remoteAcceptanceRunbookRecords.length,
+      latest: remoteAcceptanceRunbookRecords.slice(-3).reverse(),
+    },
   };
 }
 

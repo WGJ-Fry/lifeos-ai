@@ -671,6 +671,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(remoteAcceptanceImportBody.record.longTermReady, true);
   assert.equal(remoteAcceptanceImportBody.record.longTermReason.includes("hidden"), false);
   assert.equal(remoteAcceptanceImportBody.diagnostics.remoteValidationReport.label, "remote-acceptance:stable-https");
+  assert.equal(remoteAcceptanceImportBody.diagnostics.remoteAcceptanceRunbooks.total, 1);
 
   const diagnosticBundleResponse = await request(port, "/api/v1/admin/diagnostic-bundle", { headers: adminHeaders });
   assert.equal(diagnosticBundleResponse.status, 200);

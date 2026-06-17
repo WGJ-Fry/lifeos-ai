@@ -61,6 +61,7 @@ export default function RemoteStabilitySection({
         checklist={diagnostics.remoteAcceptanceChecklist || []}
         importingReport={importingReport}
         reportText={reportText}
+        runbooks={diagnostics.remoteAcceptanceRunbooks}
         onImportReport={handleImportReport}
         onAccept={handleRecordAcceptance}
         onReportTextChange={setReportText}

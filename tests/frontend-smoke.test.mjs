@@ -574,7 +574,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /navigator\.clipboard\.writeText/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.copyCommand/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.importTitle/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.latestEvidence/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.automatedPassed/);
   assert.match(remoteAcceptanceChecklistSource, /onImportReport/);
+  assert.match(remoteAcceptanceChecklistSource, /runbooks\.latest/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.markDone/);
   assert.match(remoteAcceptanceChecklistSource, /onAccept/);
   assert.match(remoteAcceptanceChecklistSource, /cellular-mobile-chat/);
@@ -588,10 +591,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /长期异地验收清单/);
   assert.match(translationsSource, /远程验收命令/);
   assert.match(translationsSource, /导入真实验收结果/);
+  assert.match(translationsSource, /最近导入的真实验收/);
   assert.match(translationsSource, /remote-acceptance\.json/);
   assert.match(translationsSource, /Long-Term Remote Acceptance Checklist/);
   assert.match(translationsSource, /Remote Acceptance Command/);
   assert.match(translationsSource, /Import Real Acceptance Evidence/);
+  assert.match(translationsSource, /Latest Imported Real Acceptance/);
   assert.match(translationsSource, /我已真实验收/);
   assert.match(translationsSource, /I verified this/);
   const customRemoteEntrySource = await readFile(path.join(rootDir, "src", "pages", "admin", "CustomRemoteEntryCard.tsx"), "utf8");

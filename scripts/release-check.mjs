@@ -490,6 +490,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("navigator.clipboard.writeText") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.copyCommand") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.importTitle") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.latestEvidence") &&
+    remoteAcceptanceChecklistSource.includes("runbooks.latest") &&
     remoteAcceptanceChecklistSource.includes("onImportReport") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.markDone") &&
     remoteAcceptanceChecklistSource.includes("onAccept") &&
@@ -499,6 +501,7 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("LIFEOS_REMOTE_BASE_URL") &&
     remoteStabilitySectionSource.includes("npm run remote:acceptance") &&
     remoteStabilitySectionSource.includes("importRemoteAcceptanceReport") &&
+    remoteStabilitySectionSource.includes("remoteAcceptanceRunbooks") &&
     remoteStabilitySectionSource.includes("JSON.parse") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRecord") &&
@@ -516,6 +519,7 @@ function checkAssets() {
     connectionGuideSource.includes("connection.remoteValidationFail") &&
     adminRoutesSource.includes("summarizeRemoteHealth") &&
     adminRoutesSource.includes("buildRemoteAcceptanceChecklist") &&
+    adminRoutesSource.includes("remoteAcceptanceRunbooks") &&
     adminRoutesSource.includes("/api/v1/admin/network-diagnostics/acceptance-report") &&
     adminRoutesSource.includes("remote_acceptance_report_imported") &&
     adminRoutesSource.includes("latestBindingSession") &&
@@ -550,9 +554,11 @@ function checkAssets() {
     translationsSource.includes("connection.acceptance.title") &&
     translationsSource.includes("connection.acceptance.commandTitle") &&
     translationsSource.includes("connection.acceptance.importTitle") &&
+    translationsSource.includes("connection.acceptance.latestEvidence") &&
     translationsSource.includes("connection.acceptance.markDone") &&
     translationsSource.includes("Remote Acceptance Command") &&
     translationsSource.includes("Import Real Acceptance Evidence") &&
+    translationsSource.includes("Latest Imported Real Acceptance") &&
     translationsSource.includes("Long-Term Remote Acceptance Checklist") &&
     translationsSource.includes("/mobile/install/<token>") &&
     lifeosApiSourceForRouting.includes("getLifeOSBasePath") &&
