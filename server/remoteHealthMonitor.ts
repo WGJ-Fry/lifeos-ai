@@ -21,11 +21,23 @@ export type RemoteRecoveryReport = {
   restored: boolean;
   started: boolean;
   recoveryReason: string;
+  recoveryAction: "none" | "run-remote-health" | "check-tailscale" | "check-cloudflare" | "check-tunnel-target";
   error?: string;
   healthOkBefore: boolean;
   healthOkAfter: boolean;
   createdAt: number;
 };
+
+function recoveryAction(input: {
+  recovery: Awaited<ReturnType<typeof restoreSavedRemoteEntry>>;
+  healthOkAfter: boolean;
+}): RemoteRecoveryReport["recoveryAction"] {
+  if (input.recovery.restored && input.healthOkAfter) return "run-remote-health";
+  if (input.recovery.mode === "tailscale" && (input.recovery.reason === "restore_failed" || !input.recovery.restored)) return "check-tailscale";
+  if (input.recovery.mode === "cloudflare" && (input.recovery.reason === "restore_failed" || !input.recovery.restored)) return "check-cloudflare";
+  if (input.recovery.attempted && !input.healthOkAfter) return "check-tunnel-target";
+  return "none";
+}
 
 function intervalMs() {
   const value = Number.parseInt(String(process.env.LIFEOS_REMOTE_HEALTH_INTERVAL_MS || ""), 10);
@@ -143,6 +155,7 @@ function saveRemoteRecoveryReport(input: {
     restored: input.recovery.restored,
     started: input.recovery.started,
     recoveryReason: input.recovery.reason,
+    recoveryAction: recoveryAction({ recovery: input.recovery, healthOkAfter: input.healthOkAfter }),
     error: input.recovery.error,
     healthOkBefore: input.healthOkBefore,
     healthOkAfter: input.healthOkAfter,

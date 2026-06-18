@@ -620,10 +620,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteHealthSummaryCardSource, /connection\.recovery\.title/);
   assert.match(remoteHealthSummaryCardSource, /connection\.recovery\.summary/);
   assert.match(remoteHealthSummaryCardSource, /connection\.recovery\.health/);
+  assert.match(remoteHealthSummaryCardSource, /recoveryActionKey/);
+  assert.match(remoteHealthSummaryCardSource, /recovery\?\.recoveryAction \?\? "none"/);
   assert.match(remoteHealthSummaryCardSource, /healthOkBefore/);
   assert.match(remoteHealthSummaryCardSource, /healthOkAfter/);
   assert.match(remoteHealthSummaryCardSource, /restoredBaseUrl/);
   assert.match(translationsSource, /connection\.recovery\.restoredBaseUrl/);
+  assert.match(translationsSource, /connection\.recovery\.action\.checkTailscale/);
   assert.match(translationsSource, /恢复前：\{\{before\}\}；恢复后：\{\{after\}\}/);
   assert.match(translationsSource, /长期异地验收未完成/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.title/);

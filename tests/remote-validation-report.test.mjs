@@ -267,10 +267,38 @@ while true; do sleep 1; done
   assert.equal(result.recovery.baseUrl, `https://127.0.0.1:${result.report.baseUrl.split(":").pop()}`);
   assert.equal(result.recovery.restoredBaseUrl, result.report.baseUrl);
   assert.equal(result.recovery.recoveryReason, "cloudflare_named_configured");
+  assert.equal(result.recovery.recoveryAction, "run-remote-health");
   assert.equal(result.recovery.healthOkBefore, false);
   assert.equal(result.recovery.healthOkAfter, true);
   assert.equal(result.report.ok, true, JSON.stringify(result.report, null, 2));
   assert.equal(result.report.passed, 3);
+});
+
+test("remote health monitor recommends Tailscale repair when saved serve restore fails", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-remote-health-tailscale-fail-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    process.env.LIFEOS_TAILSCALE_BIN = "/definitely/missing/tailscale";
+    const { saveDesktopRuntimeConfig } = await import("./server/desktopRuntimeConfig.ts");
+    const { runRemoteHealthCheck } = await import("./server/remoteHealthMonitor.ts");
+    saveDesktopRuntimeConfig({ mode: "tailscale", label: "Broken Tailscale", baseUrl: "https://127.0.0.1:65534/lifeos" });
+    const result = await runRemoteHealthCheck("manual");
+    process.stdout.write(JSON.stringify(result.recovery));
+  `], {
+    cwd: process.cwd(),
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    encoding: "utf8",
+  });
+  const recovery = JSON.parse(output);
+  assert.equal(recovery.mode, "tailscale");
+  assert.equal(recovery.attempted, true);
+  assert.equal(recovery.restored, false);
+  assert.equal(recovery.recoveryReason, "restore_failed");
+  assert.equal(recovery.recoveryAction, "check-tailscale");
+  assert.match(recovery.error, /Tailscale CLI was not detected/);
 });
 
 test("remote health summary classifies long-term entry readiness", async (t) => {

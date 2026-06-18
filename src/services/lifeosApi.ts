@@ -340,6 +340,7 @@ export type NetworkDiagnostics = {
     restored: boolean;
     started: boolean;
     recoveryReason: string;
+    recoveryAction: "none" | "run-remote-health" | "check-tailscale" | "check-cloudflare" | "check-tunnel-target";
     error?: string;
     healthOkBefore: boolean;
     healthOkAfter: boolean;

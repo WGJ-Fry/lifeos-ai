@@ -551,6 +551,8 @@ function checkAssets() {
     remoteHealthSummaryCardSource.includes("connection.recovery.title") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.summary") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.health") &&
+    remoteHealthSummaryCardSource.includes("recoveryActionKey") &&
+    remoteHealthSummaryCardSource.includes('recovery?.recoveryAction ?? "none"') &&
     remoteHealthSummaryCardSource.includes("healthOkBefore") &&
     remoteHealthSummaryCardSource.includes("healthOkAfter") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
@@ -576,6 +578,8 @@ function checkAssets() {
     remoteValidationReportSource.includes("classifyEntryKind") &&
     remoteValidationReportSource.includes("pairingEntryMismatch") &&
     remoteHealthMonitorSource.includes("restoredBaseUrl") &&
+    remoteHealthMonitorSource.includes("recoveryAction") &&
+    remoteHealthMonitorSource.includes("check-tailscale") &&
     remoteHealthMonitorSource.includes("checkBaseUrl = remoteBaseUrl() || baseUrl") &&
     remoteHealthMonitorSource.includes("baseUrl: checkBaseUrl") &&
     remoteHealthMonitorSource.includes("getRemoteHealthMonitorStatus") &&
@@ -640,6 +644,7 @@ function checkAssets() {
     translationsSource.includes("connection.recovery.title") &&
     translationsSource.includes("connection.recovery.restoredBaseUrl") &&
     translationsSource.includes("connection.recovery.health") &&
+    translationsSource.includes("connection.recovery.action.checkTailscale") &&
     translationsSource.includes("connection.monitor.title") &&
     translationsSource.includes("Background Remote Health Monitor") &&
     translationsSource.includes("connection.health.entry.tailscale") &&

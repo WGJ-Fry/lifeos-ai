@@ -42,6 +42,14 @@ const entryKindKey = {
   custom: "connection.health.entry.custom",
 } as const;
 
+const recoveryActionKey = {
+  none: "connection.recovery.action.none",
+  "run-remote-health": "connection.recovery.action.runRemoteHealth",
+  "check-tailscale": "connection.recovery.action.checkTailscale",
+  "check-cloudflare": "connection.recovery.action.checkCloudflare",
+  "check-tunnel-target": "connection.recovery.action.checkTunnelTarget",
+} as const;
+
 function checkTone(status: NetworkDiagnostics["remoteHealthSummary"]["checks"][number]["status"]) {
   if (status === "ok") return "border-emerald-400/20 bg-emerald-500/10 text-emerald-100";
   if (status === "warning") return "border-amber-400/20 bg-amber-500/10 text-amber-100";
@@ -66,6 +74,7 @@ export default function RemoteHealthSummaryCard({
 }) {
   const { t } = useI18n();
   const Icon = summary.severity === "ok" ? CheckCircle2 : summary.severity === "warning" ? Clock3 : AlertTriangle;
+  const recoveryAction = recovery?.recoveryAction ?? "none";
   const tone = summary.severity === "ok"
     ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
     : summary.severity === "warning"
@@ -141,6 +150,7 @@ export default function RemoteHealthSummaryCard({
                   after: recovery.healthOkAfter ? t("connection.recovery.healthOk") : t("connection.recovery.healthFail"),
                 })}
               </div>
+              <div className="mt-1 opacity-90">{t(recoveryActionKey[recoveryAction] as any)}</div>
               <div className="mt-1 opacity-75">{new Date(recovery.createdAt).toLocaleString()}</div>
               {recovery.error ? <div className="mt-1 text-red-100">{recovery.error}</div> : null}
             </div>
