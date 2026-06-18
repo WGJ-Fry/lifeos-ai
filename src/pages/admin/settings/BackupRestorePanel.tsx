@@ -281,6 +281,11 @@ export default function BackupRestorePanel({
               <div className="mt-1 text-amber-100/75">
                 {t("backup.pendingRestoreBody", { source: pendingRestore.restoredFrom, file: pendingRestore.preRestoreBackup.file })}
               </div>
+              <div className="mt-3 grid gap-2 text-xs text-amber-50/80 sm:grid-cols-3">
+                <RestoreDetail label={t("backup.pendingScheduledAt")} value={new Date(pendingRestore.scheduledAt).toLocaleString()} />
+                <RestoreDetail label={t("backup.pendingPreRestore")} value={pendingRestore.preRestoreBackup.file} />
+                <RestoreDetail label={t("backup.pendingRestartRequired")} value={pendingRestore.restartRequired ? t("common.yes") : t("common.no")} />
+              </div>
               <button
                 onClick={handleCancelRestore}
                 disabled={Boolean(busy)}
@@ -537,6 +542,15 @@ function MetricPill({ label, value }: { label: string; value: number }) {
     <div className="rounded-xl border border-cyan-200/10 bg-black/10 px-3 py-2">
       <div className="text-cyan-100/60">{label}</div>
       <div className="mt-1 font-mono text-cyan-50">{value}</div>
+    </div>
+  );
+}
+
+function RestoreDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-amber-200/10 bg-black/10 px-3 py-2">
+      <div className="text-amber-100/55">{label}</div>
+      <div className="mt-1 truncate font-mono text-amber-50" title={value}>{value}</div>
     </div>
   );
 }
