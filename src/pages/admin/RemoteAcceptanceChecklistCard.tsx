@@ -188,6 +188,15 @@ export default function RemoteAcceptanceChecklistCard({
                       {" · "}
                       {new Date(record.importedAt).toLocaleString()}
                     </div>
+                    {record.automatedChecks.httpsStatus ? (
+                      <div className={record.automatedChecks.httpsStatus.ok ? "mt-1 text-[10px] text-emerald-200" : "mt-1 text-[10px] text-amber-200"}>
+                        {t("connection.acceptance.httpsStatus", {
+                          status: record.automatedChecks.httpsStatus.ok ? t("connection.acceptance.httpsPassed") : t("connection.acceptance.httpsNotReady"),
+                          protocol: record.automatedChecks.httpsStatus.protocol.toUpperCase(),
+                        })}
+                        {record.automatedChecks.httpsStatus.error ? ` · ${record.automatedChecks.httpsStatus.error}` : ""}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>

@@ -382,7 +382,19 @@ export type NetworkDiagnostics = {
       completionStatus: "ready" | "automated-ready-manual-required" | "not-ready";
       generatedAt: string;
       importedAt: number;
-      automatedChecks: { ok: boolean; passed: number; total: number; latencyMs: number };
+      automatedChecks: {
+        ok: boolean;
+        passed: number;
+        total: number;
+        latencyMs: number;
+        httpsStatus?: {
+          ok: boolean;
+          protocol: string;
+          requiredForLongTerm: boolean;
+          trustedByRuntime: boolean;
+          error?: string;
+        };
+      };
       manualAcceptance: Array<{ id: string; title: string; required: boolean }>;
     }>;
   };
@@ -747,7 +759,12 @@ export function importRemoteAcceptanceReport(report: unknown) {
       realWorldAcceptanceRequired: boolean;
       completionStatus: "ready" | "automated-ready-manual-required" | "not-ready";
       importedAt: number;
-      automatedChecks: { ok: boolean; passed: number; total: number };
+      automatedChecks: {
+        ok: boolean;
+        passed: number;
+        total: number;
+        httpsStatus?: { ok: boolean; protocol: string; requiredForLongTerm: boolean; trustedByRuntime: boolean; error?: string };
+      };
       manualAcceptance: Array<{ id: string; title: string; required: boolean }>;
     };
     diagnostics: NetworkDiagnostics;
@@ -767,7 +784,12 @@ export function runRemoteAcceptance() {
       realWorldAcceptanceRequired: boolean;
       completionStatus: "ready" | "automated-ready-manual-required" | "not-ready";
       importedAt: number;
-      automatedChecks: { ok: boolean; passed: number; total: number };
+      automatedChecks: {
+        ok: boolean;
+        passed: number;
+        total: number;
+        httpsStatus?: { ok: boolean; protocol: string; requiredForLongTerm: boolean; trustedByRuntime: boolean; error?: string };
+      };
       manualAcceptance: Array<{ id: string; title: string; required: boolean }>;
     };
     result: NonNullable<NetworkDiagnostics["remoteValidationReport"]>;

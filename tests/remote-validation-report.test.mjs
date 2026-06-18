@@ -685,6 +685,12 @@ test("remote acceptance runbook import persists smoke evidence and rejects unsaf
       longTermReason: "Remote entry passed token=secret",
       automatedChecks: {
         ok: true,
+        httpsStatus: {
+          ok: true,
+          protocol: "https",
+          requiredForLongTerm: true,
+          trustedByRuntime: true,
+        },
         passed: 3,
         total: 3,
         latencyMs: 36,
@@ -727,7 +733,27 @@ test("remote acceptance runbook import persists smoke evidence and rejects unsaf
         ],
       },
     }, { type: "admin", id: "owner" });
-    process.stdout.write(JSON.stringify({ record, validation, records: getRemoteAcceptanceRunbookRecords(), attempts, forged }));
+    const tlsBlocked = saveRemoteAcceptanceRunbookReport({
+      ...report,
+      baseUrl: "https://lifeos.example.test",
+      entryKind: "stable-https",
+      automatedChecks: {
+        ...report.automatedChecks,
+        httpsStatus: {
+          ok: false,
+          protocol: "https",
+          requiredForLongTerm: true,
+          trustedByRuntime: false,
+          error: "certificate password=secret failed",
+        },
+        steps: [
+          { id: "health", ok: true, status: 200, url: "https://lifeos.example.test/api/v1/health", latencyMs: 10 },
+          { id: "mobile-shell", ok: true, status: 200, url: "https://lifeos.example.test/mobile/chat", latencyMs: 12 },
+          { id: "websocket", ok: true, status: 101, url: "wss://lifeos.example.test/api/v1/ws", latencyMs: 14 },
+        ],
+      },
+    }, { type: "admin", id: "owner" });
+    process.stdout.write(JSON.stringify({ record, validation, records: getRemoteAcceptanceRunbookRecords(), attempts, forged, tlsBlocked }));
   `], {
     cwd: process.cwd(),
     env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
@@ -738,12 +764,16 @@ test("remote acceptance runbook import persists smoke evidence and rejects unsaf
   assert.equal(result.record.longTermReady, true);
   assert.equal(result.record.realWorldAcceptanceRequired, true);
   assert.equal(result.record.completionStatus, "automated-ready-manual-required");
+  assert.equal(result.record.automatedChecks.httpsStatus.ok, true);
+  assert.equal(result.record.automatedChecks.httpsStatus.protocol, "https");
+  assert.equal(result.record.automatedChecks.httpsStatus.requiredForLongTerm, true);
+  assert.equal(result.record.automatedChecks.httpsStatus.trustedByRuntime, true);
   assert.equal(result.record.longTermReason.includes("secret"), false);
   assert.equal(result.record.longTermReason, "Remote entry is HTTPS, non-temporary, and passed automated smoke checks.");
   assert.equal(result.validation.ok, true);
   assert.equal(result.validation.label, "remote-acceptance:tailscale-https");
   assert.equal(result.validation.passed, 3);
-  assert.equal(result.records.length, 2);
+  assert.equal(result.records.length, 3);
   assert.equal(result.attempts.filter((item) => item === "accepted").length, 0);
   assert.match(result.attempts.join("\\n"), /HTTPS/);
   assert.match(result.attempts.join("\\n"), /username, password, token, query, or fragment/);
@@ -752,6 +782,12 @@ test("remote acceptance runbook import persists smoke evidence and rejects unsaf
   assert.equal(result.forged.longTermReady, false);
   assert.equal(result.forged.completionStatus, "not-ready");
   assert.match(result.forged.longTermReason, /Temporary/);
+  assert.equal(result.tlsBlocked.entryKind, "stable-https");
+  assert.equal(result.tlsBlocked.longTermReady, false);
+  assert.equal(result.tlsBlocked.automatedChecks.httpsStatus.ok, false);
+  assert.equal(result.tlsBlocked.automatedChecks.httpsStatus.trustedByRuntime, false);
+  assert.equal(result.tlsBlocked.automatedChecks.httpsStatus.error.includes("secret"), false);
+  assert.match(result.tlsBlocked.longTermReason, /Remote smoke checks did not all pass/);
 });
 
 test("remote acceptance can be generated from an automated connection test", async (t) => {
@@ -797,8 +833,11 @@ test("remote acceptance can be generated from an automated connection test", asy
   assert.equal(result.tailscale.entryKind, "tailscale-https");
   assert.equal(result.tailscale.longTermReady, true);
   assert.equal(result.tailscale.completionStatus, "automated-ready-manual-required");
+  assert.equal(result.tailscale.automatedChecks.httpsStatus.ok, true);
+  assert.equal(result.tailscale.automatedChecks.httpsStatus.protocol, "https");
   assert.equal(result.temporary.entryKind, "temporary-cloudflare");
   assert.equal(result.temporary.longTermReady, false);
+  assert.equal(result.temporary.automatedChecks.httpsStatus.ok, true);
   assert.equal(result.temporary.completionStatus, "not-ready");
   assert.match(result.temporary.longTermReason, /Temporary/);
   assert.equal(result.validation.label, "remote-acceptance:temporary-cloudflare");

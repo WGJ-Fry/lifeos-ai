@@ -576,10 +576,12 @@ function checkAssets() {
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookFromConnectionTest") &&
     remoteAcceptanceSource.includes("safeRequirements") &&
     remoteAcceptanceSource.includes("derivedEntryKind = entryKind(baseUrl)") &&
-    remoteAcceptanceSource.includes("longTermReason(derivedEntryKind, automatedOk)") &&
+    remoteAcceptanceSource.includes("longTermReason(derivedEntryKind, readinessOk)") &&
     remoteAcceptanceSource.includes("evidence") &&
     remoteAcceptanceSource.includes("realWorldAcceptanceRequired") &&
     remoteAcceptanceSource.includes("automated-ready-manual-required") &&
+    remoteAcceptanceSource.includes("safeHttpsStatus") &&
+    remoteAcceptanceSource.includes("httpsStatus.ok") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRunbookRecords") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRecords") &&
     remoteAcceptanceSource.includes("summarizeRemoteAcceptanceChecklist") &&
@@ -606,6 +608,10 @@ function checkAssets() {
     remoteValidationReportTestSource.includes('result.expiredQr.status, "qr-warning"') &&
     remoteValidationReportTestSource.includes('result.forged.entryKind, "temporary-cloudflare"') &&
     remoteValidationReportTestSource.includes("Forged long-term ready") &&
+    remoteValidationReportTestSource.includes("automatedChecks.httpsStatus") &&
+    remoteValidationReportTestSource.includes("tlsBlocked") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.httpsStatus") &&
+    translationsSource.includes("connection.acceptance.httpsStatus") &&
     remoteValidationReportTestSource.includes("remote acceptance checklist expires stale real-world manual evidence") &&
     remoteValidationReportTestSource.includes("freshItem.expiresAt") &&
     remoteValidationReportTestSource.includes("older than 7 days") &&

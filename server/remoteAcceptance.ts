@@ -79,6 +79,13 @@ export type RemoteAcceptanceRunbookRecord = {
   importedAt: number;
   automatedChecks: {
     ok: boolean;
+    httpsStatus?: {
+      ok: boolean;
+      protocol: string;
+      requiredForLongTerm: boolean;
+      trustedByRuntime: boolean;
+      error?: string;
+    };
     passed: number;
     total: number;
     latencyMs: number;
@@ -183,6 +190,23 @@ function longTermReason(kind: RemoteAcceptanceRunbookRecord["entryKind"], smokeO
   return "Remote entry is HTTPS, non-temporary, and passed automated smoke checks.";
 }
 
+function safeHttpsStatus(value: unknown, baseUrl: string, automatedOk: boolean): NonNullable<RemoteAcceptanceRunbookRecord["automatedChecks"]["httpsStatus"]> {
+  const parsed = new URL(baseUrl);
+  const protocol = parsed.protocol.replace(":", "");
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const reportedOk = typeof raw.ok === "boolean" ? raw.ok : automatedOk;
+  const trustedByRuntime = typeof raw.trustedByRuntime === "boolean" ? raw.trustedByRuntime : reportedOk;
+  const error = raw.error ? safeNote(raw.error) : undefined;
+  const ok = protocol === "https" && reportedOk && trustedByRuntime && !error;
+  return {
+    ok,
+    protocol,
+    requiredForLongTerm: true,
+    trustedByRuntime: protocol === "https" && trustedByRuntime && !error,
+    error,
+  };
+}
+
 function completionStatus(longTermReady: boolean, realWorldAcceptanceRequired: boolean): RemoteAcceptanceRunbookRecord["completionStatus"] {
   if (!longTermReady) return "not-ready";
   return realWorldAcceptanceRequired ? "automated-ready-manual-required" : "ready";
@@ -220,19 +244,22 @@ export function saveRemoteAcceptanceRunbookReport(report: any, actor?: { type: s
     ? Boolean(report.realWorldAcceptanceRequired)
     : manualAcceptance.some((step) => step.required);
   const automatedOk = Boolean(report?.automatedChecks?.ok);
-  const longTermReady = automatedOk && derivedEntryKind !== "temporary-cloudflare" && derivedEntryKind !== "local" && derivedEntryKind !== "insecure-http";
+  const httpsStatus = safeHttpsStatus(report?.automatedChecks?.httpsStatus, baseUrl, automatedOk);
+  const readinessOk = automatedOk && httpsStatus.ok;
+  const longTermReady = readinessOk && derivedEntryKind !== "temporary-cloudflare" && derivedEntryKind !== "local" && derivedEntryKind !== "insecure-http";
   const record: RemoteAcceptanceRunbookRecord = {
     id: `remote-acceptance-runbook-${Date.now()}`,
     baseUrl,
     entryKind: derivedEntryKind,
     longTermReady,
-    longTermReason: longTermReason(derivedEntryKind, automatedOk),
+    longTermReason: longTermReason(derivedEntryKind, readinessOk),
     realWorldAcceptanceRequired,
     completionStatus: completionStatus(longTermReady, realWorldAcceptanceRequired),
     generatedAt: Number.isFinite(Date.parse(report?.generatedAt)) ? new Date(report.generatedAt).toISOString() : new Date().toISOString(),
     importedAt: Date.now(),
     automatedChecks: {
       ok: automatedOk,
+      httpsStatus,
       passed: safeNumber(report?.automatedChecks?.passed),
       total: safeNumber(report?.automatedChecks?.total, steps.length || 1),
       latencyMs: safeNumber(report?.automatedChecks?.latencyMs),
@@ -273,6 +300,7 @@ export function saveRemoteAcceptanceRunbookFromConnectionTest(input: {
     completionStatus: completionStatus(input.result.ok && kind !== "temporary-cloudflare" && kind !== "local" && kind !== "insecure-http", true),
     automatedChecks: {
       ok: input.result.ok,
+      httpsStatus: safeHttpsStatus(undefined, baseUrl, input.result.ok),
       passed: (input.result.steps || []).filter((step) => step.ok).length,
       total: input.result.steps?.length || 1,
       latencyMs: input.result.latencyMs,
