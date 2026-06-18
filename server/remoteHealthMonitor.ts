@@ -108,7 +108,7 @@ async function restoreSavedRemoteEntry() {
       const result = await maybeStartConfiguredCloudflareTunnel(String(config.port || process.env.LIFEOS_PORT || process.env.PORT || "3000"), 5000);
       return {
         attempted: true,
-        restored: Boolean(result.started || result.reason === "cloudflare_named_configured" || result.reason === "cloudflare_configured"),
+        restored: Boolean(result.started || result.reason === "cloudflare_named_configured"),
         started: Boolean(result.started),
         mode: "cloudflare" as const,
         reason: result.reason || "cloudflare_restore_attempted",

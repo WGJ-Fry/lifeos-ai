@@ -376,22 +376,11 @@ export async function maybeStartConfiguredCloudflareTunnel(port: string, timeout
       config,
     };
   }
-
-  const tunnel = await startManagedCloudflareTunnel(port, timeoutMs);
-  if (!tunnel.url) throw new Error("Cloudflare Tunnel did not return a public URL");
-
-  process.env.PUBLIC_BASE_URL = tunnel.url;
-  const updatedConfig = saveDesktopRuntimeConfig({
-    mode: "cloudflare",
-    label: "Cloudflare Tunnel",
-    baseUrl: tunnel.url,
-  });
-
   return {
-    started: true,
-    reason: "cloudflare_configured",
+    started: false,
+    reason: "cloudflare_named_tunnel_not_ready",
     tunnel: getManagedCloudflareTunnelStatus(),
-    config: updatedConfig,
+    config,
   };
 }
 

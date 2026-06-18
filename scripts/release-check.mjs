@@ -731,6 +731,7 @@ function checkAssets() {
     cloudflareTunnelSource.includes("credentialsFileExists") &&
     cloudflareTunnelSource.includes("scheduleNamedTunnelReconnect") &&
     cloudflareTunnelSource.includes("temporary_quick_tunnel_not_restored") &&
+    cloudflareTunnelSource.includes("cloudflare_named_tunnel_not_ready") &&
     cloudflareTunnelSource.includes("reconnectAttempts") &&
     cloudflareTunnelSource.includes("reconnectScheduledAt") &&
     cloudflareTunnelSource.includes("setCloudflareTunnelReconnectHandler") &&
@@ -738,6 +739,8 @@ function checkAssets() {
     cloudflareTunnelTestSource.includes("settingsSaved") &&
     cloudflareTunnelTestSource.includes("credentialsFileExists, false") &&
     cloudflareTunnelTestSource.includes("configured quick Cloudflare Tunnel is not treated as restart-stable") &&
+    cloudflareTunnelTestSource.includes("cloudflare_named_tunnel_not_ready") &&
+    cloudflareTunnelTestSource.includes("https://lifeos.example.com") &&
     cloudflareTunnelTestSource.includes("reconnects automatically after an unexpected disconnect") &&
     cloudflareTunnelTestSource.includes("setCloudflareTunnelReconnectHandler") &&
     packageJson.scripts.test.includes("tests/cloudflare-tunnel.test.mjs") &&

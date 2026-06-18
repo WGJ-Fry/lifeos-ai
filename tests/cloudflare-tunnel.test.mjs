@@ -15,6 +15,9 @@ test("configured quick Cloudflare Tunnel is not treated as restart-stable", asyn
   const oldDisableAutostart = process.env.LIFEOS_DISABLE_CLOUDFLARE_AUTOSTART;
   const oldAutostart = process.env.LIFEOS_CLOUDFLARE_AUTOSTART;
   const oldCloudflaredBin = process.env.LIFEOS_CLOUDFLARED_BIN;
+  const oldName = process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME;
+  const oldHostname = process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME;
+  const oldCredentials = process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS;
 
   t.after(async () => {
     process.env.PATH = oldPath;
@@ -30,6 +33,12 @@ test("configured quick Cloudflare Tunnel is not treated as restart-stable", asyn
     else process.env.LIFEOS_CLOUDFLARE_AUTOSTART = oldAutostart;
     if (oldCloudflaredBin === undefined) delete process.env.LIFEOS_CLOUDFLARED_BIN;
     else process.env.LIFEOS_CLOUDFLARED_BIN = oldCloudflaredBin;
+    if (oldName === undefined) delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME;
+    else process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME = oldName;
+    if (oldHostname === undefined) delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME;
+    else process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME = oldHostname;
+    if (oldCredentials === undefined) delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS;
+    else process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS = oldCredentials;
     await rm(binDir, { recursive: true, force: true });
     await rm(dataDir, { recursive: true, force: true });
   });
@@ -74,6 +83,29 @@ while true; do sleep 1; done
   assert.equal(savedConfig.mode, "cloudflare");
   assert.equal(savedConfig.publicBaseUrl, "https://stale-lifeos.trycloudflare.com");
   assert.equal(savedConfig.baseUrl, "https://stale-lifeos.trycloudflare.com");
+
+  process.env.PUBLIC_BASE_URL = "https://lifeos.example.com";
+  process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME = "lifeos-ai";
+  process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME = "lifeos.example.com";
+  process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS = path.join(dataDir, "missing-credentials.json");
+
+  desktopConfig.saveDesktopRuntimeConfig({
+    mode: "cloudflare",
+    label: "Cloudflare Named Tunnel",
+    baseUrl: "https://lifeos.example.com",
+  });
+
+  const stableResult = await tunnelManager.maybeStartConfiguredCloudflareTunnel("4567", 500);
+  assert.equal(stableResult.started, false);
+  assert.equal(stableResult.reason, "cloudflare_named_tunnel_not_ready");
+  assert.equal(stableResult.tunnel.url, "");
+  assert.equal(process.env.PUBLIC_BASE_URL, "https://lifeos.example.com");
+
+  const stableRawConfig = await readFile(path.join(dataDir, "desktop-runtime-config.json"), "utf8");
+  const stableSavedConfig = JSON.parse(stableRawConfig);
+  assert.equal(stableSavedConfig.mode, "cloudflare");
+  assert.equal(stableSavedConfig.publicBaseUrl, "https://lifeos.example.com");
+  assert.equal(stableSavedConfig.baseUrl, "https://lifeos.example.com");
 
   tunnelManager.stopManagedCloudflareTunnel();
 });
