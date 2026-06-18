@@ -1103,16 +1103,20 @@ function checkAssets() {
     diagnosticBundleSource.includes("remote: {") &&
     diagnosticBundleSource.includes("recoveryReport") &&
     diagnosticBundleSource.includes("acceptanceChecklist") &&
+    diagnosticBundleSource.includes("acceptanceSummary") &&
+    diagnosticBundleSource.includes("summarizeRemoteAcceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceRecords") &&
     diagnosticBundleSource.includes("acceptanceRunbooks") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
+    diagnosticBundleTestSource.includes("bundle.remote.acceptanceSummary.ready") &&
     apiAuthTestSource.includes("diagnosticBundle.remote.recoveryReport") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceRecords.total") &&
     diagnosticBundleTestSource.includes("evidence.requirements") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceRunbooks.total") &&
     apiAuthTestSource.includes("diagnosticBundle.release.artifactCount") &&
-    adminRoutesSource.includes("releaseArtifactCount")
+    adminRoutesSource.includes("releaseArtifactCount") &&
+    adminRoutesSource.includes("remoteAcceptanceReady")
   ) pass("admin diagnostic bundle includes redacted release, remote health, and acceptance evidence");
   else warn("admin diagnostic bundle lacks release/remote acceptance metadata or coverage");
   const configDiagnosticsPanelSource = exists("src/pages/admin/settings/ConfigDiagnosticsPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/ConfigDiagnosticsPanel.tsx"), "utf8") : "";

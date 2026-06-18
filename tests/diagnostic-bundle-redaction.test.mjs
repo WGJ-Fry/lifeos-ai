@@ -150,6 +150,10 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.remote.healthSummary.status, "healthy");
   assert.equal(bundle.remote.validationReport.ok, true);
   assert.equal(bundle.remote.acceptanceChecklist.some((item) => item.id === "cellular-mobile-chat" && item.status === "passed"), true);
+  assert.equal(bundle.remote.acceptanceSummary.ready, false);
+  assert.equal(bundle.remote.acceptanceSummary.hasLongTermEntry, false);
+  assert.equal(bundle.remote.acceptanceSummary.hasRealWorldEvidence, false);
+  assert.equal(typeof bundle.remote.acceptanceSummary.manualRequired, "number");
   assert.equal(bundle.remote.acceptanceRecords.total, 1);
   assert.equal(bundle.remote.acceptanceRecords.latest[0].evidence.entryKind, "stable-https");
   assert.equal(bundle.remote.acceptanceRecords.latest[0].evidence.requirements.some((item) => item.includes("remote-secret")), false);

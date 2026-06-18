@@ -808,6 +808,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof diagnosticExportAudit.metadata.releaseManifestAvailable, "boolean");
   assert.equal(typeof diagnosticExportAudit.metadata.releaseChecksumAvailable, "boolean");
   assert.equal(typeof diagnosticExportAudit.metadata.releaseArtifactCount, "number");
+  assert.equal(typeof diagnosticExportAudit.metadata.remoteAcceptanceReady, "boolean");
+  assert.equal(typeof diagnosticExportAudit.metadata.remoteAcceptanceHasLongTermEntry, "boolean");
+  assert.equal(typeof diagnosticExportAudit.metadata.remoteAcceptanceHasRealWorldEvidence, "boolean");
   assert.equal(diagnosticExportAudit.metadata.securityOverall, "warning");
   assert.equal(diagnosticExportAudit.metadata.publicMode, false);
   const desktopConnectionConfigAudit = auditAfterExports.logs.find((log) => log.action === "desktop_connection_config_saved" && log.targetId === "cloudflare");

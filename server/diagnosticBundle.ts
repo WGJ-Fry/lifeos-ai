@@ -6,7 +6,7 @@ import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices } from "./devices";
 import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
-import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords } from "./remoteAcceptance";
+import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, summarizeRemoteAcceptanceChecklist } from "./remoteAcceptance";
 import { getRemoteValidationReport, summarizeRemoteHealth } from "./remoteValidationReport";
 import { getRemoteRecoveryReport } from "./remoteHealthMonitor";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
@@ -153,6 +153,7 @@ export function createDiagnosticBundle() {
       validationReport: remoteValidationReport,
       recoveryReport: getRemoteRecoveryReport(),
       acceptanceChecklist: remoteAcceptanceChecklist,
+      acceptanceSummary: summarizeRemoteAcceptanceChecklist(remoteAcceptanceChecklist),
       acceptanceRecords: {
         total: remoteAcceptanceRecords.length,
         latest: remoteAcceptanceRecords.slice(-5),
