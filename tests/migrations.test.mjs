@@ -93,6 +93,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const migration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 1").get();
   const connectivityMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 4").get();
   const bindingBaseUrlMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 5").get();
+  const mobileShellMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 6").get();
   const connectivityColumns = db.prepare("PRAGMA table_info(device_connectivity_reports)").all().map((column) => column.name);
   const bindingSessionColumns = db.prepare("PRAGMA table_info(binding_sessions)").all().map((column) => column.name);
   const legacyDevice = db.prepare("SELECT id, access_token_expires_at as accessTokenExpiresAt FROM devices WHERE id = 'legacy-device'").get();
@@ -102,7 +103,9 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(migration.name, "device_token_expiry");
   assert.equal(connectivityMigration.name, "device_connectivity_reports");
   assert.equal(bindingBaseUrlMigration.name, "binding_session_base_url");
+  assert.equal(mobileShellMigration.name, "device_connectivity_mobile_shell");
   assert.ok(connectivityColumns.includes("current_base_url"));
+  assert.ok(connectivityColumns.includes("mobile_shell_ok"));
   assert.ok(connectivityColumns.includes("websocket_ok"));
   assert.ok(bindingSessionColumns.includes("base_url"));
   assert.equal(legacyDevice.accessTokenExpiresAt, null);

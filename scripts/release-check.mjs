@@ -937,6 +937,7 @@ function checkAssets() {
   const pwaCapabilitiesSource = exists("src/services/pwaCapabilities.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaCapabilities.ts"), "utf8") : "";
   const pwaCapabilitiesTestSource = exists("tests/pwa-capabilities.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/pwa-capabilities.test.mjs"), "utf8") : "";
   const mobileConnectivityCardSource = exists("src/pages/mobile/MobileConnectivityCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileConnectivityCard.tsx"), "utf8") : "";
+  const deviceConnectivityStatusSource = exists("src/pages/admin/DeviceConnectivityStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DeviceConnectivityStatus.tsx"), "utf8") : "";
   const frontendSmokeTestSource = exists("tests/frontend-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/frontend-smoke.test.mjs"), "utf8") : "";
   const dbSourceForConnectivity = exists("server/db.ts") ? fs.readFileSync(path.join(rootDir, "server/db.ts"), "utf8") : "";
   if (
@@ -946,6 +947,8 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("getMobileRecoveryHints") &&
     pwaCapabilitiesSource.includes("testMobileRemoteConnectivity") &&
     pwaCapabilitiesSource.includes("/api/v1/health") &&
+    pwaCapabilitiesSource.includes("/mobile/chat") &&
+    pwaCapabilitiesSource.includes("mobile-shell") &&
     pwaCapabilitiesSource.includes("/api/v1/ws") &&
     pwaCapabilitiesSource.includes("temporary-cloudflare") &&
     pwaCapabilitiesSource.includes("configured-mismatch") &&
@@ -974,14 +977,20 @@ function checkAssets() {
     mobileConnectivityCardSource.includes("mobileDevice.retryRealtime") &&
     mobileDeviceSource.includes("pwaCapabilities.recommendations") &&
     adminDashboardSource.includes("connectivityReport") &&
-    adminDashboardSource.includes("dashboard.mobileConnectivityOk") &&
+    adminDashboardSource.includes("DeviceConnectivityStatus") &&
+    deviceConnectivityStatusSource.includes("mobileShellOk") &&
+    deviceConnectivityStatusSource.includes("dashboard.mobileConnectivityChecks") &&
+    deviceConnectivityStatusSource.includes("dashboard.mobileConnectivityOk") &&
     deviceRoutesSource.includes("/api/v1/devices/me/connectivity-report") &&
     deviceRoutesSource.includes("insertDeviceConnectivityReport") &&
+    deviceRoutesSource.includes('step?.id === "mobile-shell"') &&
     deviceRoutesSource.includes("device_connectivity_reported") &&
     exists("server/migrations/004_device_connectivity_reports.sql") &&
+    exists("server/migrations/006_device_connectivity_mobile_shell.sql") &&
     dbSourceForConnectivity.includes("device_connectivity_reports") &&
+    dbSourceForConnectivity.includes("mobile_shell_ok") &&
     pwaCapabilitiesTestSource.includes("remote entry status detects configured public base mismatches") &&
-    pwaCapabilitiesTestSource.includes("mobile remote connectivity probes health and websocket") &&
+    pwaCapabilitiesTestSource.includes("mobile remote connectivity probes health, mobile chat shell, and websocket") &&
     pwaCapabilitiesTestSource.includes("mobile remote connectivity reports websocket failures") &&
     pwaCapabilitiesTestSource.includes("mobile recovery hints combine entry type") &&
     pwaCapabilitiesTestSource.includes("remote entry guidance is visible before manual connectivity tests") &&
@@ -994,6 +1003,7 @@ function checkAssets() {
     translationsSource.includes("connectivityGuidanceTailscaleHttp") &&
     translationsSource.includes("connectivityGuidanceOfflineQueue") &&
     translationsSource.includes("connectivityGuidanceFailedQueue") &&
+    translationsSource.includes("connectivityMobileShell") &&
     translationsSource.includes("mobileDevice.pwaTitle")
   ) pass("mobile device page surfaces PWA install, background sync, and remote recovery guidance");
   else warn("mobile device page lacks PWA install/background sync/remote recovery guidance or coverage");

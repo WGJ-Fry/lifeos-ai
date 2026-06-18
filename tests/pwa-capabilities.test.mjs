@@ -157,13 +157,20 @@ test("remote entry status detects configured public base mismatches with subpath
   assert.equal(mismatch.okForRemote, false);
 });
 
-test("mobile remote connectivity probes health and websocket from the current phone entry", async (t) => {
+test("mobile remote connectivity probes health, mobile chat shell, and websocket from the current phone entry", async (t) => {
   installBrowserGlobals({ href: "https://remote.example.test/lifeos/mobile/device" });
   const originalFetch = globalThis.fetch;
   const originalWebSocket = globalThis.WebSocket;
   const fetchedUrls = [];
   globalThis.fetch = async (url) => {
     fetchedUrls.push(String(url));
+    if (String(url).endsWith("/mobile/chat")) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () => '<!doctype html><title>LifeOS AI</title><div id="root"></div>',
+      };
+    }
     return {
       ok: true,
       status: 200,
@@ -191,9 +198,10 @@ test("mobile remote connectivity probes health and websocket from the current ph
   const result = await testMobileRemoteConnectivity({ timeoutMs: 500 });
 
   assert.equal(result.ok, true);
-  assert.deepEqual(fetchedUrls, ["/lifeos/api/v1/health"]);
-  assert.deepEqual(result.steps.map((step) => step.id), ["health", "websocket"]);
-  assert.equal(result.steps[1].url, "wss://remote.example.test/lifeos/api/v1/ws");
+  assert.deepEqual(fetchedUrls, ["/lifeos/api/v1/health", "/lifeos/mobile/chat"]);
+  assert.deepEqual(result.steps.map((step) => step.id), ["health", "mobile-shell", "websocket"]);
+  assert.equal(result.steps[1].url, "/lifeos/mobile/chat");
+  assert.equal(result.steps[2].url, "wss://remote.example.test/lifeos/api/v1/ws");
 });
 
 test("mobile remote connectivity reports websocket failures", async (t) => {
@@ -204,6 +212,7 @@ test("mobile remote connectivity reports websocket failures", async (t) => {
     ok: true,
     status: 200,
     json: async () => ({ service: "lifeos-local-core" }),
+    text: async () => '<!doctype html><title>LifeOS AI</title><div id="root"></div>',
   });
   globalThis.WebSocket = class MockWebSocket {
     constructor() {
@@ -226,7 +235,8 @@ test("mobile remote connectivity reports websocket failures", async (t) => {
 
   assert.equal(result.ok, false);
   assert.equal(result.steps[0].ok, true);
-  assert.equal(result.steps[1].ok, false);
+  assert.equal(result.steps[1].ok, true);
+  assert.equal(result.steps[2].ok, false);
   assert.equal(result.error, "WebSocket connection failed");
 });
 

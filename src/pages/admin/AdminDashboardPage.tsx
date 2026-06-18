@@ -6,6 +6,7 @@ import type { BackupPreview } from "../../services/lifeosApi";
 import { buildRestoreConfirmMessage } from "../../services/backupRestoreUi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
+import DeviceConnectivityStatus from "./DeviceConnectivityStatus";
 
 type Health = Awaited<ReturnType<typeof getHealth>>;
 type BackupItem = Awaited<ReturnType<typeof listBackups>>["backups"][number];
@@ -358,16 +359,7 @@ export default function AdminDashboardPage() {
                     <div className="text-xs text-zinc-500 mt-1">
                       {device.type} · {t("dashboard.lastSeen", { time: new Date(device.lastSeenAt).toLocaleString() })}
                     </div>
-                    {device.connectivityReport ? (
-                      <div className={`mt-2 text-xs leading-relaxed ${device.connectivityReport.ok ? "text-emerald-300" : "text-amber-300"}`}>
-                        {t(device.connectivityReport.ok ? "dashboard.mobileConnectivityOk" : "dashboard.mobileConnectivityFail", {
-                          time: new Date(device.connectivityReport.createdAt).toLocaleString(),
-                          url: device.connectivityReport.currentBaseUrl,
-                        })}
-                      </div>
-                    ) : (
-                      <div className="mt-2 text-xs text-zinc-600">{t("dashboard.mobileConnectivityMissing")}</div>
-                    )}
+                    <DeviceConnectivityStatus report={device.connectivityReport} />
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`text-xs font-bold rounded-full px-2.5 py-1 border ${device.status === "online" ? "bg-emerald-500/10 border-emerald-400/20 text-emerald-300" : "bg-white/[0.03] border-white/[0.08] text-zinc-400"}`}>

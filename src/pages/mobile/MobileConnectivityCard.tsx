@@ -1,6 +1,12 @@
 import { getMobileRecoveryHints, isHttpRemoteBase, type MobileConnectivityResult, type RemoteEntryKind } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
 
+const stepLabelKey = {
+  health: "mobileDevice.connectivityHealth",
+  "mobile-shell": "mobileDevice.connectivityMobileShell",
+  websocket: "mobileDevice.connectivityRealtime",
+} as const;
+
 export default function MobileConnectivityCard({
   queueSummary,
   result,
@@ -30,7 +36,7 @@ export default function MobileConnectivityCard({
         {result.steps.map((step) => (
           <div key={step.id} className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
             <div className="flex items-center justify-between gap-3">
-              <span className="font-bold">{t(step.id === "health" ? "mobileDevice.connectivityHealth" : "mobileDevice.connectivityRealtime")}</span>
+              <span className="font-bold">{t(stepLabelKey[step.id] as any)}</span>
               <span className={step.ok ? "text-emerald-200" : "text-red-200"}>{step.ok ? t("mobileDevice.pass") : t("mobileDevice.fail")}</span>
             </div>
             <div className="mt-1 break-all font-mono text-[11px] opacity-70">{step.url}</div>

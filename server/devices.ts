@@ -20,6 +20,7 @@ export type DeviceConnectivityReport = {
   ok: boolean;
   currentBaseUrl: string;
   healthOk: boolean;
+  mobileShellOk: boolean;
   websocketOk: boolean;
   latencyMs: number;
   error?: string;
@@ -70,6 +71,7 @@ function mapConnectivityReport(row: any): DeviceConnectivityReport {
     ok: Boolean(row.ok),
     currentBaseUrl: row.current_base_url,
     healthOk: Boolean(row.health_ok),
+    mobileShellOk: Boolean(row.mobile_shell_ok),
     websocketOk: Boolean(row.websocket_ok),
     latencyMs: row.latency_ms,
     error: row.error || undefined,
@@ -98,14 +100,15 @@ export function getLatestDeviceConnectivityReport(deviceId: string) {
 
 export function insertDeviceConnectivityReport(report: DeviceConnectivityReport) {
   db.prepare(`
-    INSERT INTO device_connectivity_reports (id, device_id, ok, current_base_url, health_ok, websocket_ok, latency_ms, error, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO device_connectivity_reports (id, device_id, ok, current_base_url, health_ok, mobile_shell_ok, websocket_ok, latency_ms, error, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     report.id,
     report.deviceId,
     report.ok ? 1 : 0,
     report.currentBaseUrl,
     report.healthOk ? 1 : 0,
+    report.mobileShellOk ? 1 : 0,
     report.websocketOk ? 1 : 0,
     report.latencyMs,
     report.error || null,

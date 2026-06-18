@@ -75,6 +75,7 @@ db.exec(`
     ok INTEGER NOT NULL,
     current_base_url TEXT NOT NULL,
     health_ok INTEGER NOT NULL,
+    mobile_shell_ok INTEGER NOT NULL DEFAULT 0,
     websocket_ok INTEGER NOT NULL,
     latency_ms INTEGER NOT NULL,
     error TEXT,

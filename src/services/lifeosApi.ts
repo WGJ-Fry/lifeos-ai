@@ -22,6 +22,7 @@ export type DeviceConnectivityReport = {
   ok: boolean;
   currentBaseUrl: string;
   healthOk: boolean;
+  mobileShellOk: boolean;
   websocketOk: boolean;
   latencyMs: number;
   error?: string;
@@ -33,7 +34,7 @@ export type MobileConnectivityReportInput = {
   currentBase: string;
   latencyMs: number;
   error?: string;
-  steps: Array<{ id: "health" | "websocket"; ok: boolean; url: string; latencyMs: number; status?: number; error?: string }>;
+  steps: Array<{ id: "health" | "mobile-shell" | "websocket"; ok: boolean; url: string; latencyMs: number; status?: number; error?: string }>;
 };
 
 export type BindingSession = {

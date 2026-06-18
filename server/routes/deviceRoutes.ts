@@ -44,6 +44,7 @@ function sanitizeDeviceWithConnectivity(device: DeviceRecord) {
 function normalizeConnectivityReportPayload(body: any) {
   const steps = Array.isArray(body?.steps) ? body.steps.slice(0, 4) : [];
   const health = steps.find((step) => step?.id === "health");
+  const mobileShell = steps.find((step) => step?.id === "mobile-shell");
   const websocket = steps.find((step) => step?.id === "websocket");
   const currentBaseUrl = String(body?.currentBase || "").trim();
   if (!currentBaseUrl || currentBaseUrl.length > 240) throw new Error("currentBase is required");
@@ -55,6 +56,7 @@ function normalizeConnectivityReportPayload(body: any) {
     ok: Boolean(body?.ok),
     currentBaseUrl,
     healthOk: Boolean(health?.ok),
+    mobileShellOk: Boolean(mobileShell?.ok),
     websocketOk: Boolean(websocket?.ok),
     latencyMs: Math.max(0, Math.min(Number(body?.latencyMs) || 0, 120000)),
     error: body?.error ? String(body.error).slice(0, 300) : undefined,
@@ -246,6 +248,7 @@ export function registerDeviceRoutes(app: express.Express) {
       ok: report?.ok || false,
       currentBaseUrl: report?.currentBaseUrl || normalized.currentBaseUrl,
       healthOk: report?.healthOk || false,
+      mobileShellOk: report?.mobileShellOk || false,
       websocketOk: report?.websocketOk || false,
       latencyMs: report?.latencyMs || normalized.latencyMs,
       error: report?.error || null,

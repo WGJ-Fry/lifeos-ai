@@ -930,6 +930,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
       latencyMs: 42,
       steps: [
         { id: "health", ok: true, latencyMs: 12, status: 200 },
+        { id: "mobile-shell", ok: true, latencyMs: 10, status: 200 },
         { id: "websocket", ok: true, latencyMs: 30, status: 101 },
       ],
     }),
@@ -938,11 +939,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(connectivityReport.body.report.ok, true);
   assert.equal(connectivityReport.body.report.currentBaseUrl, "https://phone.example.test/lifeos");
   assert.equal(connectivityReport.body.report.healthOk, true);
+  assert.equal(connectivityReport.body.report.mobileShellOk, true);
   assert.equal(connectivityReport.body.report.websocketOk, true);
   const devicesAfterConnectivityReport = await request(port, "/api/v1/devices", { headers: adminHeaders }).then((res) => res.json());
   const reportedDevice = devicesAfterConnectivityReport.devices.find((device) => device.id === credential.device.id);
   assert.equal(reportedDevice.connectivityReport.ok, true);
   assert.equal(reportedDevice.connectivityReport.currentBaseUrl, "https://phone.example.test/lifeos");
+  assert.equal(reportedDevice.connectivityReport.mobileShellOk, true);
 
   const selfRevokeBinding = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",

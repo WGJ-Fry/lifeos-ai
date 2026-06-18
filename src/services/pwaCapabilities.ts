@@ -29,7 +29,7 @@ export type RemoteEntryStatus = {
 };
 
 export type MobileConnectivityStep = {
-  id: "health" | "websocket";
+  id: "health" | "mobile-shell" | "websocket";
   ok: boolean;
   url: string;
   latencyMs: number;
@@ -253,6 +253,32 @@ async function probeMobileHealth(basePath: string, signal: AbortSignal): Promise
   }
 }
 
+async function probeMobileShell(basePath: string, signal: AbortSignal): Promise<MobileConnectivityStep> {
+  const startedAt = Date.now();
+  const url = `${basePath}/mobile/chat`;
+  try {
+    const response = await fetch(url, { credentials: "same-origin", signal });
+    const body = await response.text().catch(() => "");
+    const ok = response.ok && /(<div id="root"|<div id=root|LifeOS AI|生命操作系统)/i.test(body);
+    return {
+      id: "mobile-shell",
+      ok,
+      url,
+      status: response.status,
+      latencyMs: Date.now() - startedAt,
+      error: ok ? undefined : `HTTP ${response.status}`,
+    };
+  } catch (error: any) {
+    return {
+      id: "mobile-shell",
+      ok: false,
+      url,
+      latencyMs: Date.now() - startedAt,
+      error: error?.name === "AbortError" ? "Mobile chat test timed out" : error?.message || "Mobile chat shell check failed",
+    };
+  }
+}
+
 function probeMobileWebSocket(basePath: string, timeoutMs: number): Promise<MobileConnectivityStep> {
   const startedAt = Date.now();
   const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
@@ -296,8 +322,9 @@ export async function testMobileRemoteConnectivity(options: { currentHref?: stri
   const startedAt = Date.now();
   try {
     const health = await probeMobileHealth(basePath, controller.signal);
+    const mobileShell = await probeMobileShell(basePath, controller.signal);
     const websocket = await probeMobileWebSocket(basePath, timeoutMs);
-    const steps = [health, websocket];
+    const steps = [health, mobileShell, websocket];
     const ok = steps.every((step) => step.ok);
     return {
       ok,

@@ -396,7 +396,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(pwaCapabilitiesSource, /\/api\/v1\/ws/);
   const dashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
   assert.match(dashboardSource, /connectivityReport/);
-  assert.match(dashboardSource, /dashboard\.mobileConnectivityOk/);
+  const deviceConnectivityStatusSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DeviceConnectivityStatus.tsx"), "utf8");
+  assert.match(deviceConnectivityStatusSource, /mobileShellOk/);
+  assert.match(deviceConnectivityStatusSource, /dashboard\.mobileConnectivityChecks/);
+  assert.match(deviceConnectivityStatusSource, /dashboard\.mobileConnectivityOk/);
   assert.match(translationsSource, /最近手机异地自检通过/);
   assert.match(pwaCapabilitiesSource, /temporary-cloudflare/);
   assert.match(pwaCapabilitiesSource, /configured-mismatch/);
