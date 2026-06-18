@@ -6,7 +6,7 @@ import { clearOfflineMessageQueue, getOfflineMessageQueue, getOfflineMessageQueu
 import type { OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { getNetworkStatus } from "../../services/networkStatus";
 import { extractPairingToken, pairingInstallPath } from "../../services/mobilePairingIntent";
-import { getPwaCapabilityStatus, getRemoteEntryStatus, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
+import { getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import { QueueItem, QueueStorageCard } from "./MobileOfflineQueueCards";
 import MobileConnectivityCard from "./MobileConnectivityCard";
@@ -29,6 +29,7 @@ export default function MobileDevicePage() {
   const [connectivityBusy, setConnectivityBusy] = useState(false);
   const expiresAt = useMemo(() => credential?.accessTokenExpiresAt ? new Date(credential.accessTokenExpiresAt).toLocaleString() : t("mobileDevice.longLivedSignature"), [credential, t]);
   const currentEntry = useMemo(() => getRemoteEntryStatus({ configuredBaseUrl: health?.publicBaseUrl }), [health]);
+  const currentEntryGuidance = useMemo(() => getRemoteEntryGuidance(currentEntry, queueSummary), [currentEntry, queueSummary]);
 
   const refreshCredentialStorage = async () => {
     const storage = await getStoredDeviceCredentialStorageStatus().catch(() => null);
@@ -308,6 +309,12 @@ export default function MobileDevicePage() {
           <div className={`mt-4 rounded-2xl border p-3 text-sm leading-relaxed ${currentEntry.okForRemote ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-amber-400/20 bg-amber-500/10 text-amber-100"}`}>
             <div className="font-bold">{t(currentEntry.titleKey as any)}</div>
             <div className={`mt-1 ${currentEntry.okForRemote ? "text-emerald-100/75" : "text-amber-100/75"}`}>{t(currentEntry.bodyKey as any)}</div>
+            <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2 text-xs">
+              <div className="font-bold">{t("mobileDevice.entryGuidanceTitle")}</div>
+              <div className="mt-1 space-y-1 opacity-85">
+                {currentEntryGuidance.map((hint) => <div key={hint}>{t(hint as any)}</div>)}
+              </div>
+            </div>
           </div>
           <button
             onClick={handleConnectivityTest}

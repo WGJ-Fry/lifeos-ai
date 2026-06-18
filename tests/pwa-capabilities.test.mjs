@@ -271,3 +271,33 @@ test("mobile recovery hints combine entry type, failed probes, and offline queue
     "mobileDevice.connectivityGuidanceWebSocket",
   ]);
 });
+
+test("remote entry guidance is visible before manual connectivity tests", async () => {
+  const { getRemoteEntryGuidance } = await import(`../src/services/pwaCapabilities.ts?case=remote-entry-guidance-${Date.now()}`);
+
+  assert.deepEqual(getRemoteEntryGuidance({
+    kind: "temporary-cloudflare",
+    currentBase: "https://abc.trycloudflare.com",
+    okForRemote: true,
+  }, { pending: 1, failed: 1 }), [
+    "mobileDevice.connectivityGuidanceTemporary",
+    "mobileDevice.connectivityGuidanceOfflineQueue",
+    "mobileDevice.connectivityGuidanceFailedQueue",
+  ]);
+
+  assert.deepEqual(getRemoteEntryGuidance({
+    kind: "tailscale",
+    currentBase: "http://100.64.0.10:3000",
+    okForRemote: false,
+  }), [
+    "mobileDevice.connectivityGuidanceTailscaleHttp",
+  ]);
+
+  assert.deepEqual(getRemoteEntryGuidance({
+    kind: "configured-mismatch",
+    currentBase: "https://old.trycloudflare.com",
+    okForRemote: false,
+  }), [
+    "mobileDevice.connectivityGuidanceDefault",
+  ]);
+});

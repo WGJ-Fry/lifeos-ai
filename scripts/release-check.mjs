@@ -928,6 +928,7 @@ function checkAssets() {
   if (
     pwaCapabilitiesSource.includes("getPwaCapabilityStatus") &&
     pwaCapabilitiesSource.includes("getRemoteEntryStatus") &&
+    pwaCapabilitiesSource.includes("getRemoteEntryGuidance") &&
     pwaCapabilitiesSource.includes("getMobileRecoveryHints") &&
     pwaCapabilitiesSource.includes("testMobileRemoteConnectivity") &&
     pwaCapabilitiesSource.includes("/api/v1/health") &&
@@ -943,6 +944,8 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("indexedDbSupported") &&
     mobileDeviceSource.includes("mobileDevice.pwaTitle") &&
     mobileDeviceSource.includes("mobileDevice.remoteVerdict") &&
+    mobileDeviceSource.includes("currentEntryGuidance") &&
+    mobileDeviceSource.includes("mobileDevice.entryGuidanceTitle") &&
     mobileDeviceSource.includes("mobileDevice.connectivityTest") &&
     mobileDeviceSource.includes("testMobileRemoteConnectivity") &&
     mobileDeviceSource.includes("reportMobileConnectivity") &&
@@ -967,8 +970,10 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("mobile remote connectivity probes health and websocket") &&
     pwaCapabilitiesTestSource.includes("mobile remote connectivity reports websocket failures") &&
     pwaCapabilitiesTestSource.includes("mobile recovery hints combine entry type") &&
+    pwaCapabilitiesTestSource.includes("remote entry guidance is visible before manual connectivity tests") &&
     pwaCapabilitiesTestSource.includes("degraded offline sync support") &&
     frontendSmokeTestSource.includes("mobileDevice\\.pwaTitle") &&
+    frontendSmokeTestSource.includes("getRemoteEntryGuidance") &&
     frontendSmokeTestSource.includes("queueSummary=\\{queueSummary\\}") &&
     frontendSmokeTestSource.includes("getMobileRecoveryHints") &&
     translationsSource.includes("connectivityGuidanceHealth") &&

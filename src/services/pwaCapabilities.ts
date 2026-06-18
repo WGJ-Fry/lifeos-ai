@@ -334,6 +334,24 @@ export function getMobileRecoveryHints(
   return Array.from(hints);
 }
 
+export function getRemoteEntryGuidance(
+  entry: Pick<RemoteEntryStatus, "kind" | "currentBase" | "okForRemote">,
+  queue?: { pending?: number; failed?: number; syncing?: number },
+): MobileRecoveryHintKey[] {
+  const hints = new Set<MobileRecoveryHintKey>();
+  if (entry.kind === "temporary-cloudflare") hints.add("mobileDevice.connectivityGuidanceTemporary");
+  else if (entry.kind === "tailscale") {
+    hints.add(isHttpRemoteBase(entry.currentBase) ? "mobileDevice.connectivityGuidanceTailscaleHttp" : "mobileDevice.connectivityGuidanceTailscale");
+  }
+  else if (entry.kind === "same-lan") hints.add("mobileDevice.connectivityGuidanceLan");
+  else if (entry.kind === "localhost") hints.add("mobileDevice.connectivityGuidanceLocalhost");
+  else if (entry.kind === "stable-https" || entry.kind === "configured-match") hints.add("mobileDevice.connectivityGuidanceHttps");
+  else hints.add(entry.okForRemote ? "mobileDevice.connectivityGuidanceHttps" : "mobileDevice.connectivityGuidanceDefault");
+  if ((queue?.pending || 0) + (queue?.syncing || 0) > 0) hints.add("mobileDevice.connectivityGuidanceOfflineQueue");
+  if ((queue?.failed || 0) > 0) hints.add("mobileDevice.connectivityGuidanceFailedQueue");
+  return Array.from(hints);
+}
+
 function standaloneDisplayMode() {
   if (typeof window === "undefined") return false;
   return window.matchMedia?.("(display-mode: standalone)")?.matches || Boolean((navigator as any).standalone);

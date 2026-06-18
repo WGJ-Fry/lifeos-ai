@@ -343,6 +343,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const mobileDeviceSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileDevicePage.tsx"), "utf8");
   assert.match(mobileDeviceSource, /getPwaCapabilityStatus/);
   assert.match(mobileDeviceSource, /getRemoteEntryStatus/);
+  assert.match(mobileDeviceSource, /getRemoteEntryGuidance/);
+  assert.match(mobileDeviceSource, /currentEntryGuidance/);
   assert.match(mobileDeviceSource, /mobileDevice\.pwaTitle/);
   assert.match(translationsSource, /PWA 安装与后台同步/);
   assert.match(mobileDeviceSource, /Service Worker/);
@@ -368,6 +370,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileConnectivityCardSource, /mobileDevice\.rebindRemoteEntry/);
   assert.match(mobileConnectivityCardSource, /mobileDevice\.retryRealtime/);
   assert.match(translationsSource, /远程入口自检/);
+  assert.match(translationsSource, /当前入口建议/);
   assert.match(translationsSource, /测试当前手机连通性/);
   assert.match(translationsSource, /打开 Tailscale/);
   assert.match(translationsSource, /重新绑定远程入口/);
@@ -384,6 +387,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(pwaCapabilitiesSource, /backgroundSyncSupported/);
   assert.match(pwaCapabilitiesSource, /indexedDbSupported/);
   assert.match(pwaCapabilitiesSource, /getRemoteEntryStatus/);
+  assert.match(pwaCapabilitiesSource, /getRemoteEntryGuidance/);
   assert.match(pwaCapabilitiesSource, /getMobileRecoveryHints/);
   assert.match(pwaCapabilitiesSource, /connectivityGuidanceTailscaleHttp/);
   assert.match(pwaCapabilitiesSource, /connectivityGuidanceFailedQueue/);
