@@ -64,6 +64,7 @@ export type MobileConnectivityIssueKey =
   | "mobileDevice.connectivityIssueOk"
   | "mobileDevice.connectivityIssueTemporaryExpired"
   | "mobileDevice.connectivityIssueTailscaleOffline"
+  | "mobileDevice.connectivityIssueCloudflareNamedOffline"
   | "mobileDevice.connectivityIssueTailscaleHttp"
   | "mobileDevice.connectivityIssueLanOnly"
   | "mobileDevice.connectivityIssueLocalhost"
@@ -393,6 +394,7 @@ export function getMobileConnectivityIssue(
   if (entryKind === "temporary-cloudflare" && (healthFailed || mobileShellFailed)) return "mobileDevice.connectivityIssueTemporaryExpired";
   if (entryKind === "tailscale" && isHttpRemoteBase(result.currentBase)) return "mobileDevice.connectivityIssueTailscaleHttp";
   if (entryKind === "tailscale" && (healthFailed || mobileShellFailed)) return "mobileDevice.connectivityIssueTailscaleOffline";
+  if (entryKind === "cloudflare-named" && (healthFailed || mobileShellFailed)) return "mobileDevice.connectivityIssueCloudflareNamedOffline";
   if (entryKind === "same-lan" && (healthFailed || mobileShellFailed)) return "mobileDevice.connectivityIssueLanOnly";
   if (entryKind === "localhost") return "mobileDevice.connectivityIssueLocalhost";
   if (entryKind === "configured-mismatch") return "mobileDevice.connectivityIssueConfiguredMismatch";

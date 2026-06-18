@@ -1041,6 +1041,7 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("connectivityGuidanceFailedQueue") &&
     pwaCapabilitiesSource.includes("connectivityIssueTemporaryExpired") &&
     pwaCapabilitiesSource.includes("connectivityIssueTailscaleOffline") &&
+    pwaCapabilitiesSource.includes("connectivityIssueCloudflareNamedOffline") &&
     pwaCapabilitiesSource.includes("connectivityIssueWebSocket") &&
     pwaCapabilitiesSource.includes("serviceWorkerControlled") &&
     pwaCapabilitiesSource.includes("backgroundSyncSupported") &&
@@ -1091,6 +1092,7 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("mobile recovery hints combine entry type") &&
     pwaCapabilitiesTestSource.includes("connectivityIssueTemporaryExpired") &&
     pwaCapabilitiesTestSource.includes("connectivityIssueTailscaleOffline") &&
+    pwaCapabilitiesTestSource.includes("connectivityIssueCloudflareNamedOffline") &&
     pwaCapabilitiesTestSource.includes("connectivityIssueWebSocket") &&
     pwaCapabilitiesTestSource.includes("connectivityIssueQueueBlocked") &&
     pwaCapabilitiesTestSource.includes("connectedButQueueFailed") &&
@@ -1108,6 +1110,7 @@ function checkAssets() {
     translationsSource.includes("connectivityGuidanceFailedQueue") &&
     translationsSource.includes("connectivityIssueTemporaryExpired") &&
     translationsSource.includes("connectivityIssueTailscaleOffline") &&
+    translationsSource.includes("connectivityIssueCloudflareNamedOffline") &&
     translationsSource.includes("connectivityIssueWebSocket") &&
     translationsSource.includes("connectivityMobileShell") &&
     translationsSource.includes("mobileDevice.pwaTitle")

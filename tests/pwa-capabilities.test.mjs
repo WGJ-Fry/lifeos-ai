@@ -330,6 +330,15 @@ test("mobile recovery hints combine entry type, failed probes, and offline queue
     "mobileDevice.connectivityGuidanceWebSocket",
   ]);
   assert.equal(getMobileConnectivityIssue({
+    ...result,
+    currentBase: "https://lifeos.example.com",
+    steps: [
+      { id: "health", ok: false, url: "/api/v1/health", latencyMs: 10, error: "fetch failed" },
+      { id: "mobile-shell", ok: false, url: "/mobile/chat", latencyMs: 10, error: "HTTP 502" },
+      result.steps[1],
+    ],
+  }, "cloudflare-named"), "mobileDevice.connectivityIssueCloudflareNamedOffline");
+  assert.equal(getMobileConnectivityIssue({
     ok: true,
     currentBase: "https://remote.example.test",
     latencyMs: 20,
