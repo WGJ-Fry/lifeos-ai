@@ -484,6 +484,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.persistentStorage/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.failureReason/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.retryOne/);
+  assert.match(mobileDeviceSource, /offlineQueue\.remoteEntryTitle/);
+  assert.match(mobileDeviceSource, /currentEntryGuidance\.map/);
+  assert.match(translationsSource, /offlineQueue\.remoteEntryTitle/);
   assert.match(translationsSource, /离线队列存储/);
   assert.match(translationsSource, /localStorage 兼容镜像/);
   assert.match(translationsSource, /持久化存储/);

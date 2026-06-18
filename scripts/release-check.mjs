@@ -1048,6 +1048,8 @@ function checkAssets() {
     offlineQueueBannerSource.includes("getOfflineMessageRetryLabel") &&
     mobileDeviceSource.includes("getOfflineMessageQueueStorageStatus") &&
     mobileDeviceSource.includes("MobileOfflineQueueCards") &&
+    mobileDeviceSource.includes("offlineQueue.remoteEntryTitle") &&
+    mobileDeviceSource.includes("currentEntryGuidance.map") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageStatusLabel") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageRetryLabel") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueStorageLabel") &&
@@ -1060,6 +1062,7 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.legacyMirror") &&
     translationsSource.includes("offlineQueue.persistentStorage") &&
     translationsSource.includes("offlineQueue.failureReason") &&
+    translationsSource.includes("offlineQueue.remoteEntryTitle") &&
     offlineQueueTestSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageRetryLabel") &&
     offlineQueueTestSource.includes("formatOfflineMessageQueueBytes") &&
