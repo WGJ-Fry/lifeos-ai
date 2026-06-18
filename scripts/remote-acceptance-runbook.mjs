@@ -67,12 +67,16 @@ export async function runRemoteAcceptanceRunbook(inputUrl, options = {}) {
   const smoke = await runRemoteConnectionSmoke(inputUrl, options);
   const kind = entryKind(smoke.baseUrl);
   const status = longTermStatus(kind, smoke.baseUrl, smoke.ok);
+  const manualAcceptance = manualSteps(kind);
+  const realWorldAcceptanceRequired = manualAcceptance.some((step) => step.required);
   return {
     generatedAt: new Date().toISOString(),
     baseUrl: smoke.baseUrl,
     entryKind: kind,
     longTermReady: status.ok,
     longTermReason: status.reason,
+    realWorldAcceptanceRequired,
+    completionStatus: status.ok && realWorldAcceptanceRequired ? "automated-ready-manual-required" : status.ok ? "ready" : "not-ready",
     automatedChecks: {
       ok: smoke.ok,
       passed: smoke.passed,
@@ -80,12 +84,13 @@ export async function runRemoteAcceptanceRunbook(inputUrl, options = {}) {
       latencyMs: smoke.latencyMs,
       steps: smoke.steps,
     },
-    manualAcceptance: manualSteps(kind),
+    manualAcceptance,
   };
 }
 
 function printHuman(report) {
-  console.log(`[${report.longTermReady ? "READY" : "NOT READY"}] Remote acceptance runbook`);
+  const label = report.completionStatus === "automated-ready-manual-required" ? "AUTOMATED READY, MANUAL CHECKS REQUIRED" : report.longTermReady ? "READY" : "NOT READY";
+  console.log(`[${label}] Remote acceptance runbook`);
   console.log(`Base URL: ${report.baseUrl}`);
   console.log(`Entry kind: ${report.entryKind}`);
   console.log(`Reason: ${report.longTermReason}`);

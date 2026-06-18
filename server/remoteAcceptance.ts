@@ -60,6 +60,8 @@ export type RemoteAcceptanceRunbookRecord = {
   entryKind: "temporary-cloudflare" | "tailscale-https" | "local" | "stable-https" | "insecure-http";
   longTermReady: boolean;
   longTermReason: string;
+  realWorldAcceptanceRequired: boolean;
+  completionStatus: "ready" | "automated-ready-manual-required" | "not-ready";
   generatedAt: string;
   importedAt: number;
   automatedChecks: {
@@ -168,6 +170,11 @@ function longTermReason(kind: RemoteAcceptanceRunbookRecord["entryKind"], smokeO
   return "Remote entry is HTTPS, non-temporary, and passed automated smoke checks.";
 }
 
+function completionStatus(longTermReady: boolean, realWorldAcceptanceRequired: boolean): RemoteAcceptanceRunbookRecord["completionStatus"] {
+  if (!longTermReady) return "not-ready";
+  return realWorldAcceptanceRequired ? "automated-ready-manual-required" : "ready";
+}
+
 export function getRemoteAcceptanceRecords(): RemoteAcceptanceRecord[] {
   const value = getClientState(REMOTE_ACCEPTANCE_STATE_KEY)?.value;
   return Array.isArray(value) ? value as RemoteAcceptanceRecord[] : [];
@@ -190,12 +197,23 @@ export function saveRemoteAcceptanceRunbookReport(report: any, actor?: { type: s
     latencyMs: safeNumber(step?.latencyMs),
     error: step?.error ? safeNote(step.error) : undefined,
   })) : [];
+  const manualAcceptance = Array.isArray(report?.manualAcceptance) ? report.manualAcceptance.slice(0, 8).map((step: any) => ({
+    id: String(step?.id || "unknown").slice(0, 48),
+    title: String(step?.title || "Manual acceptance").slice(0, 80),
+    required: Boolean(step?.required),
+  })) : [];
+  const longTermReady = Boolean(report?.longTermReady);
+  const realWorldAcceptanceRequired = typeof report?.realWorldAcceptanceRequired === "boolean"
+    ? Boolean(report.realWorldAcceptanceRequired)
+    : manualAcceptance.some((step) => step.required);
   const record: RemoteAcceptanceRunbookRecord = {
     id: `remote-acceptance-runbook-${Date.now()}`,
     baseUrl,
     entryKind: entryKind as RemoteAcceptanceRunbookRecord["entryKind"],
-    longTermReady: Boolean(report?.longTermReady),
+    longTermReady,
     longTermReason: safeNote(report?.longTermReason),
+    realWorldAcceptanceRequired,
+    completionStatus: completionStatus(longTermReady, realWorldAcceptanceRequired),
     generatedAt: Number.isFinite(Date.parse(report?.generatedAt)) ? new Date(report.generatedAt).toISOString() : new Date().toISOString(),
     importedAt: Date.now(),
     automatedChecks: {
@@ -205,11 +223,7 @@ export function saveRemoteAcceptanceRunbookReport(report: any, actor?: { type: s
       latencyMs: safeNumber(report?.automatedChecks?.latencyMs),
       steps,
     },
-    manualAcceptance: Array.isArray(report?.manualAcceptance) ? report.manualAcceptance.slice(0, 8).map((step: any) => ({
-      id: String(step?.id || "unknown").slice(0, 48),
-      title: String(step?.title || "Manual acceptance").slice(0, 80),
-      required: Boolean(step?.required),
-    })) : [],
+    manualAcceptance,
   };
   saveRemoteValidationReport({
     label: `remote-acceptance:${record.entryKind}`,
@@ -240,6 +254,8 @@ export function saveRemoteAcceptanceRunbookFromConnectionTest(input: {
     entryKind: kind,
     longTermReady: input.result.ok && kind !== "temporary-cloudflare" && kind !== "local" && kind !== "insecure-http",
     longTermReason: longTermReason(kind, input.result.ok),
+    realWorldAcceptanceRequired: runbookManualSteps.some((step) => step.required),
+    completionStatus: completionStatus(input.result.ok && kind !== "temporary-cloudflare" && kind !== "local" && kind !== "insecure-http", true),
     automatedChecks: {
       ok: input.result.ok,
       passed: (input.result.steps || []).filter((step) => step.ok).length,

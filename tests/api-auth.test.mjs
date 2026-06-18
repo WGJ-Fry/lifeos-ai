@@ -687,6 +687,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(remoteAcceptanceImport.status, 200);
   const remoteAcceptanceImportBody = await remoteAcceptanceImport.json();
   assert.equal(remoteAcceptanceImportBody.record.longTermReady, true);
+  assert.equal(remoteAcceptanceImportBody.record.realWorldAcceptanceRequired, true);
+  assert.equal(remoteAcceptanceImportBody.record.completionStatus, "automated-ready-manual-required");
   assert.equal(remoteAcceptanceImportBody.record.longTermReason.includes("hidden"), false);
   assert.equal(remoteAcceptanceImportBody.diagnostics.remoteValidationReport.label, "remote-acceptance:stable-https");
   assert.equal(remoteAcceptanceImportBody.diagnostics.remoteAcceptanceRunbooks.total, 1);

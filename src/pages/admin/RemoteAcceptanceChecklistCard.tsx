@@ -140,6 +140,9 @@ export default function RemoteAcceptanceChecklistCard({
                         {record.longTermReady ? t("connection.acceptance.longTermReady") : t("connection.acceptance.longTermNotReady")}
                       </div>
                     </div>
+                    {record.completionStatus === "automated-ready-manual-required" ? (
+                      <div className="mt-1 text-[10px] font-bold text-sky-200">{t("connection.acceptance.manualStillRequired")}</div>
+                    ) : null}
                     <div className="mt-1 break-all text-[10px] text-zinc-400">{record.baseUrl}</div>
                     <div className="mt-1 text-[10px] text-zinc-400">
                       {t("connection.acceptance.automatedPassed", { passed: record.automatedChecks.passed, total: record.automatedChecks.total })}

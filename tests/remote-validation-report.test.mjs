@@ -503,6 +503,8 @@ test("remote acceptance runbook import persists smoke evidence and rejects unsaf
   const result = JSON.parse(output);
   assert.equal(result.record.entryKind, "tailscale-https");
   assert.equal(result.record.longTermReady, true);
+  assert.equal(result.record.realWorldAcceptanceRequired, true);
+  assert.equal(result.record.completionStatus, "automated-ready-manual-required");
   assert.equal(result.record.longTermReason.includes("secret"), false);
   assert.equal(result.validation.ok, true);
   assert.equal(result.validation.label, "remote-acceptance:tailscale-https");
@@ -556,8 +558,10 @@ test("remote acceptance can be generated from an automated connection test", asy
   const result = JSON.parse(output);
   assert.equal(result.tailscale.entryKind, "tailscale-https");
   assert.equal(result.tailscale.longTermReady, true);
+  assert.equal(result.tailscale.completionStatus, "automated-ready-manual-required");
   assert.equal(result.temporary.entryKind, "temporary-cloudflare");
   assert.equal(result.temporary.longTermReady, false);
+  assert.equal(result.temporary.completionStatus, "not-ready");
   assert.match(result.temporary.longTermReason, /Temporary/);
   assert.equal(result.validation.label, "remote-acceptance:temporary-cloudflare");
   assert.equal(result.records.length, 2);

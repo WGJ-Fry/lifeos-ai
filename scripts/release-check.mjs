@@ -514,6 +514,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("connection.acceptance.importTitle") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.latestEvidence") &&
     remoteAcceptanceChecklistSource.includes("runbooks.latest") &&
+    remoteAcceptanceChecklistSource.includes("completionStatus") &&
+    remoteAcceptanceChecklistSource.includes("connection.acceptance.manualStillRequired") &&
     remoteAcceptanceChecklistSource.includes("onImportReport") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.markDone") &&
     remoteAcceptanceChecklistSource.includes("onAccept") &&
@@ -548,6 +550,8 @@ function checkAssets() {
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookFromConnectionTest") &&
     remoteAcceptanceSource.includes("safeRequirements") &&
     remoteAcceptanceSource.includes("evidence") &&
+    remoteAcceptanceSource.includes("realWorldAcceptanceRequired") &&
+    remoteAcceptanceSource.includes("automated-ready-manual-required") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRunbookRecords") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRecords") &&
     remoteAcceptanceSource.includes("Remote acceptance URL must not contain username, password, token, query, or fragment") &&
@@ -578,6 +582,8 @@ function checkAssets() {
     adminRoutesSource.includes("/api/v1/admin/network-diagnostics/acceptance-report") &&
     adminRoutesSource.includes("/api/v1/admin/network-diagnostics/acceptance-run") &&
     adminRoutesSource.includes("remote_acceptance_report_imported") &&
+    adminRoutesSource.includes("completionStatus") &&
+    adminRoutesSource.includes("realWorldAcceptanceRequired") &&
     devicesSource.includes("base_url") &&
     exists("server/migrations/005_binding_session_base_url.sql") &&
     adminRoutesSource.includes("remote_acceptance_run_completed") &&

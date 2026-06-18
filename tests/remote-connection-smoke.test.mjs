@@ -164,6 +164,8 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
   assert.equal(report.automatedChecks.ok, true);
   assert.equal(report.entryKind, "local");
   assert.equal(report.longTermReady, false);
+  assert.equal(report.realWorldAcceptanceRequired, true);
+  assert.equal(report.completionStatus, "not-ready");
   assert.match(report.longTermReason, /not HTTPS/);
   assert.equal(report.manualAcceptance.some((step) => step.id === "cellular-mobile-chat"), true);
   assert.equal(JSON.stringify(report).includes("secret"), false);
@@ -178,4 +180,5 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
   const written = await readFile(outPath, "utf8");
   assert.equal(written.includes("secret"), false);
   assert.match(written, /network-interruption/);
+  assert.match(written, /realWorldAcceptanceRequired/);
 });

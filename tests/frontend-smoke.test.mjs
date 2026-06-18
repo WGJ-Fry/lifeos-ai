@@ -623,6 +623,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.importTitle/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.latestEvidence/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.automatedPassed/);
+  assert.match(remoteAcceptanceChecklistSource, /completionStatus/);
+  assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.manualStillRequired/);
   assert.match(remoteAcceptanceChecklistSource, /onImportReport/);
   assert.match(remoteAcceptanceChecklistSource, /runbooks\.latest/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.markDone/);
@@ -672,6 +674,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /项通过/);
   assert.match(translationsSource, /checks passed/);
   assert.match(translationsSource, /Cloudflare Named Tunnel/);
+  assert.match(translationsSource, /自动检查已通过，仍需完成真实手机\/重启\/断网验收/);
   assert.match(translationsSource, /credentials JSON 已找到/);
   assert.match(translationsSource, /credentials JSON is missing/);
 

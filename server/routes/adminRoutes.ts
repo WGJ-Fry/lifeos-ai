@@ -243,6 +243,8 @@ export function registerAdminRoutes(app: express.Express) {
         baseUrl: record.baseUrl,
         entryKind: record.entryKind,
         longTermReady: record.longTermReady,
+        completionStatus: record.completionStatus,
+        realWorldAcceptanceRequired: record.realWorldAcceptanceRequired,
         automatedPassed: record.automatedChecks.passed,
         automatedTotal: record.automatedChecks.total,
         manualSteps: record.manualAcceptance.length,
@@ -267,6 +269,8 @@ export function registerAdminRoutes(app: express.Express) {
         baseUrl: record.baseUrl,
         entryKind: record.entryKind,
         longTermReady: record.longTermReady,
+        completionStatus: record.completionStatus,
+        realWorldAcceptanceRequired: record.realWorldAcceptanceRequired,
         automatedPassed: record.automatedChecks.passed,
         automatedTotal: record.automatedChecks.total,
       }, (_req as any).actor?.type, (_req as any).actor?.id);

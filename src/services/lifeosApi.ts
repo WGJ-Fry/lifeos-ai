@@ -351,6 +351,8 @@ export type NetworkDiagnostics = {
       entryKind: "temporary-cloudflare" | "tailscale-https" | "local" | "stable-https" | "insecure-http";
       longTermReady: boolean;
       longTermReason: string;
+      realWorldAcceptanceRequired: boolean;
+      completionStatus: "ready" | "automated-ready-manual-required" | "not-ready";
       generatedAt: string;
       importedAt: number;
       automatedChecks: { ok: boolean; passed: number; total: number; latencyMs: number };
@@ -714,6 +716,8 @@ export function importRemoteAcceptanceReport(report: unknown) {
       baseUrl: string;
       entryKind: string;
       longTermReady: boolean;
+      realWorldAcceptanceRequired: boolean;
+      completionStatus: "ready" | "automated-ready-manual-required" | "not-ready";
       importedAt: number;
       automatedChecks: { ok: boolean; passed: number; total: number };
       manualAcceptance: Array<{ id: string; title: string; required: boolean }>;
@@ -732,6 +736,8 @@ export function runRemoteAcceptance() {
       baseUrl: string;
       entryKind: string;
       longTermReady: boolean;
+      realWorldAcceptanceRequired: boolean;
+      completionStatus: "ready" | "automated-ready-manual-required" | "not-ready";
       importedAt: number;
       automatedChecks: { ok: boolean; passed: number; total: number };
       manualAcceptance: Array<{ id: string; title: string; required: boolean }>;
