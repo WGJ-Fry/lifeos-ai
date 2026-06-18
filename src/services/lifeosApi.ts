@@ -287,6 +287,13 @@ export type NetworkDiagnostics = {
     total: number;
     createdAt: number;
     error?: string;
+    httpsStatus?: {
+      ok: boolean;
+      protocol: string;
+      requiredForLongTerm: boolean;
+      trustedByRuntime: boolean;
+      error?: string;
+    };
     steps: Array<{
       id: string;
       ok: boolean;
@@ -475,6 +482,13 @@ export type NetworkDiagnostics = {
 
 export type ConnectionTestResult = {
   ok: boolean;
+  httpsStatus?: {
+    ok: boolean;
+    protocol: string;
+    requiredForLongTerm: boolean;
+    trustedByRuntime: boolean;
+    error?: string;
+  };
   status: number;
   url: string;
   latencyMs: number;

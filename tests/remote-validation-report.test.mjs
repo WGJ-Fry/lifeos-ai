@@ -369,6 +369,12 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
         status: 200,
         url: "https://lifeos.tailnet.example.ts.net/api/v1/health",
         latencyMs: 42,
+        httpsStatus: {
+          ok: true,
+          protocol: "https",
+          requiredForLongTerm: true,
+          trustedByRuntime: true,
+        },
         steps: [
           { id: "health", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/api/v1/health", latencyMs: 10 },
           { id: "mobile-shell", ok: true, status: 200, url: "https://lifeos.tailnet.example.ts.net/mobile/chat", latencyMs: 12 },
@@ -383,8 +389,29 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
     const stale = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report: { ...report, createdAt: now - 11 * 60 * 1000 }, now });
     const expiredQr = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report, pairingSession: { expiresAt: now - 1 }, now });
     const mismatchedQr = summarizeRemoteHealth({ baseUrl: "https://lifeos.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://lifeos.tailnet.example.ts.net" }, report, pairingSession: { baseUrl: "https://old.trycloudflare.com", expiresAt: now + 60_000 }, now });
+    const tlsBlockedReport = saveRemoteValidationReport({
+      label: "Tailscale TLS failure",
+      baseUrl: "https://broken.tailnet.example.ts.net",
+      result: {
+        ok: false,
+        status: 0,
+        url: "https://broken.tailnet.example.ts.net/api/v1/health",
+        latencyMs: 19,
+        error: "certificate password=secret failed",
+        httpsStatus: {
+          ok: false,
+          protocol: "https",
+          requiredForLongTerm: true,
+          trustedByRuntime: false,
+          error: "certificate password=secret failed",
+        },
+        steps: [],
+      },
+    });
+    tlsBlockedReport.createdAt = now - 1000;
+    const tlsBlocked = summarizeRemoteHealth({ baseUrl: "https://broken.tailnet.example.ts.net", readiness: { status: "ready", baseUrl: "https://broken.tailnet.example.ts.net" }, report: tlsBlockedReport, now });
     const custom = summarizeRemoteHealth({ baseUrl: "https://remote.example.com", readiness: { status: "blocked", baseUrl: "https://remote.example.com" }, report: null, now });
-    process.stdout.write(JSON.stringify({ healthy, temporary, insecure, stale, expiredQr, mismatchedQr, custom }));
+    process.stdout.write(JSON.stringify({ report, healthy, temporary, insecure, stale, expiredQr, mismatchedQr, tlsBlocked, custom }));
   `], {
     cwd: process.cwd(),
     env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
@@ -395,6 +422,8 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
   assert.equal(result.healthy.severity, "ok");
   assert.equal(result.healthy.entryKind, "tailscale");
   assert.equal(result.healthy.checks.every((check) => check.status === "ok"), true);
+  assert.equal(result.report.httpsStatus.ok, true);
+  assert.equal(result.report.httpsStatus.trustedByRuntime, true);
   assert.equal(result.temporary.status, "temporary");
   assert.equal(result.temporary.entryKind, "temporary-cloudflare");
   assert.equal(result.temporary.checks.find((check) => check.id === "qr-entry").status, "warning");
@@ -414,6 +443,11 @@ test("remote health summary classifies long-term entry readiness", async (t) => 
   assert.equal(result.mismatchedQr.checks.find((check) => check.id === "qr-entry").status, "warning");
   assert.equal(result.mismatchedQr.checks.find((check) => check.id === "qr-entry").detail, "https://old.trycloudflare.com");
   assert.equal(result.mismatchedQr.recommendations.includes("refresh-pairing-qr"), true);
+  assert.equal(result.tlsBlocked.status, "failing");
+  assert.equal(result.tlsBlocked.severity, "danger");
+  assert.equal(result.tlsBlocked.checks.find((check) => check.id === "https").status, "fail");
+  assert.equal(result.tlsBlocked.checks.find((check) => check.id === "https").detail.includes("secret"), false);
+  assert.equal(result.tlsBlocked.recommendations.includes("use-https"), true);
 });
 
 test("remote acceptance checklist separates automated and real-world verification", async (t) => {

@@ -603,9 +603,14 @@ function checkAssets() {
     remoteAcceptanceSource.includes("LIFEOS_REMOTE_BASE_URL=https://your-stable-entry npm run remote:smoke") &&
     remoteValidationReportSource.includes("entryKind") &&
     remoteValidationReportSource.includes("classifyEntryKind") &&
+    networkDiagnosticsSource.includes("httpsStatus") &&
+    remoteValidationReportSource.includes("safeHttpsStatus") &&
+    remoteValidationReportSource.includes("httpsStatus?.error") &&
     remoteValidationReportSource.includes("pairingEntryMismatch") &&
     remoteValidationReportSource.includes("qr-warning") &&
     remoteValidationReportTestSource.includes('result.expiredQr.status, "qr-warning"') &&
+    remoteValidationReportTestSource.includes("tlsBlocked.status") &&
+    remoteValidationReportTestSource.includes('check.id === "https"') &&
     remoteValidationReportTestSource.includes('result.forged.entryKind, "temporary-cloudflare"') &&
     remoteValidationReportTestSource.includes("Forged long-term ready") &&
     remoteValidationReportTestSource.includes("automatedChecks.httpsStatus") &&

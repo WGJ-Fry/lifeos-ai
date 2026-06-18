@@ -617,6 +617,7 @@ export async function testConnectionUrl(baseUrl: string, options: { includeWebSo
   const mobileShellUrl = new URL(`${basePath}/mobile/chat`, parsed.origin);
   const wsUrl = new URL(`${basePath}/api/v1/ws`, parsed.origin);
   wsUrl.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+  const httpsProtocol = parsed.protocol.replace(":", "");
   const startedAt = Date.now();
   try {
     let publicAccessWarning = false;
@@ -637,6 +638,13 @@ export async function testConnectionUrl(baseUrl: string, options: { includeWebSo
     const ok = steps.every((step) => step.ok);
     return {
       ok,
+      httpsStatus: {
+        ok: parsed.protocol === "https:" && health.ok,
+        protocol: httpsProtocol,
+        requiredForLongTerm: true,
+        trustedByRuntime: parsed.protocol === "https:" && health.ok,
+        error: parsed.protocol === "https:" ? undefined : "Remote entry is not using HTTPS.",
+      },
       status: health.status,
       url: healthUrl.toString(),
       latencyMs: Date.now() - startedAt,
@@ -648,6 +656,13 @@ export async function testConnectionUrl(baseUrl: string, options: { includeWebSo
   } catch (error: any) {
     return {
       ok: false,
+      httpsStatus: {
+        ok: false,
+        protocol: httpsProtocol,
+        requiredForLongTerm: true,
+        trustedByRuntime: false,
+        error: error?.name === "AbortError" ? "Connection test timed out" : error?.message || "Connection test failed",
+      },
       status: 0,
       url: healthUrl.toString(),
       latencyMs: Date.now() - startedAt,

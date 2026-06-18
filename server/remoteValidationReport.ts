@@ -11,6 +11,14 @@ type ProbeStep = {
   error?: string;
 };
 
+type HttpsStatus = {
+  ok: boolean;
+  protocol: string;
+  requiredForLongTerm: boolean;
+  trustedByRuntime: boolean;
+  error?: string;
+};
+
 export type RemoteValidationReport = {
   id: string;
   label: string;
@@ -23,6 +31,7 @@ export type RemoteValidationReport = {
   total: number;
   createdAt: number;
   error?: string;
+  httpsStatus?: HttpsStatus;
   steps: ProbeStep[];
 };
 
@@ -62,7 +71,7 @@ function sanitizeUrl(value: string) {
 }
 
 function safeString(value: unknown, fallback: string, maxLength = 120) {
-  const text = String(value || "").trim();
+  const text = String(value || "").replace(/\b(token|key|secret|password)=\S+/gi, "$1=[redacted]").trim();
   return (text || fallback).slice(0, maxLength);
 }
 
@@ -75,6 +84,7 @@ export function saveRemoteValidationReport(input: {
     url: string;
     latencyMs: number;
     error?: string;
+    httpsStatus?: HttpsStatus;
     steps?: ProbeStep[];
   };
 }, actor?: { type: string; id: string }) {
@@ -98,10 +108,27 @@ export function saveRemoteValidationReport(input: {
     total: steps.length || 1,
     createdAt: Date.now(),
     error: input.result.error ? safeString(input.result.error, "Remote entry check failed", 240) : undefined,
+    httpsStatus: safeHttpsStatus(input.result.httpsStatus, input.baseUrl, Boolean(input.result.ok), input.result.error),
     steps,
   };
   setClientState(REMOTE_VALIDATION_STATE_KEY, report, actor);
   return report;
+}
+
+function safeHttpsStatus(value: unknown, baseUrl: string, resultOk: boolean, fallbackError?: unknown): HttpsStatus {
+  const parsed = new URL(baseUrl);
+  const protocol = parsed.protocol.replace(":", "");
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const error = raw.error ? safeString(raw.error, "HTTPS check failed", 240) : fallbackError ? safeString(fallbackError, "HTTPS check failed", 240) : undefined;
+  const trustedByRuntime = typeof raw.trustedByRuntime === "boolean" ? raw.trustedByRuntime : protocol === "https" && resultOk && !error;
+  const reportedOk = typeof raw.ok === "boolean" ? raw.ok : protocol === "https" && resultOk && trustedByRuntime && !error;
+  return {
+    ok: protocol === "https" && reportedOk && trustedByRuntime && !error,
+    protocol,
+    requiredForLongTerm: true,
+    trustedByRuntime: protocol === "https" && trustedByRuntime && !error,
+    error,
+  };
 }
 
 export function getRemoteValidationReport(): RemoteValidationReport | null {
@@ -156,6 +183,9 @@ export function summarizeRemoteHealth(input: {
   const ageMs = report ? Math.max(0, now - report.createdAt) : null;
   const reportIsCurrent = Boolean(report && baseUrl && sameBaseUrl(baseUrl, report.baseUrl));
   const isHttps = baseUrl.startsWith("https://");
+  const httpsStatus = reportIsCurrent ? report?.httpsStatus : undefined;
+  const httpsCheckOk = Boolean(isHttps && (!httpsStatus || httpsStatus.ok));
+  const httpsCheckStatus = !baseUrl ? "unknown" : httpsCheckOk ? "ok" : "fail";
   const isTemporary = baseUrl.includes(".trycloudflare.com") || input.readiness?.status === "temporary";
   const entryKind = classifyEntryKind(baseUrl, input.readiness?.status);
   const pairingExpired = Boolean(input.pairingSession?.expiresAt && input.pairingSession.expiresAt <= now && !input.pairingSession.confirmedAt);
@@ -178,8 +208,8 @@ export function summarizeRemoteHealth(input: {
   const checks: RemoteHealthSummary["checks"] = [
     {
       id: "https",
-      status: !baseUrl ? "unknown" : isHttps ? "ok" : "fail",
-      detail: baseUrl || undefined,
+      status: httpsCheckStatus,
+      detail: httpsStatus?.error || httpsStatus?.protocol?.toUpperCase() || baseUrl || undefined,
     },
     stepStatus(reportIsCurrent ? report : null, "health"),
     stepStatus(reportIsCurrent ? report : null, "mobile-shell"),
@@ -201,6 +231,10 @@ export function summarizeRemoteHealth(input: {
     recommendations.add("save-long-term-entry");
   } else if (!isHttps) {
     status = "insecure";
+    severity = "danger";
+    recommendations.add("use-https");
+  } else if (reportIsCurrent && httpsStatus && !httpsStatus.ok) {
+    status = "failing";
     severity = "danger";
     recommendations.add("use-https");
   } else if (isTemporary) {
