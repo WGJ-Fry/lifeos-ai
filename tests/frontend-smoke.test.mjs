@@ -606,8 +606,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteValidationReportSource, /pairingSession\?: \{ baseUrl\?: string \| null/);
   assert.match(remoteHealthSummaryCardSource, /connection\.recovery\.title/);
   assert.match(remoteHealthSummaryCardSource, /connection\.recovery\.summary/);
+  assert.match(remoteHealthSummaryCardSource, /connection\.recovery\.health/);
+  assert.match(remoteHealthSummaryCardSource, /healthOkBefore/);
+  assert.match(remoteHealthSummaryCardSource, /healthOkAfter/);
   assert.match(remoteHealthSummaryCardSource, /restoredBaseUrl/);
   assert.match(translationsSource, /connection\.recovery\.restoredBaseUrl/);
+  assert.match(translationsSource, /恢复前：\{\{before\}\}；恢复后：\{\{after\}\}/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.title/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.smokeTitle/);
   assert.match(remoteAcceptanceChecklistSource, /connection\.acceptance\.copySmokeCommand/);

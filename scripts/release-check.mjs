@@ -539,6 +539,9 @@ function checkAssets() {
     remoteHealthSummaryCardSource.includes("restoredBaseUrl") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.title") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.summary") &&
+    remoteHealthSummaryCardSource.includes("connection.recovery.health") &&
+    remoteHealthSummaryCardSource.includes("healthOkBefore") &&
+    remoteHealthSummaryCardSource.includes("healthOkAfter") &&
     remoteAcceptanceSource.includes("buildRemoteAcceptanceChecklist") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRecord") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookReport") &&
@@ -611,6 +614,7 @@ function checkAssets() {
     translationsSource.includes("connection.acceptance.commandTitle") &&
     translationsSource.includes("connection.recovery.title") &&
     translationsSource.includes("connection.recovery.restoredBaseUrl") &&
+    translationsSource.includes("connection.recovery.health") &&
     translationsSource.includes("connection.health.entry.tailscale") &&
     translationsSource.includes("connection.health.entry.temporaryCloudflare") &&
     translationsSource.includes("connection.acceptance.runNow") &&

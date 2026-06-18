@@ -110,6 +110,12 @@ export default function RemoteHealthSummaryCard({
                   status: recovery.restored ? t("connection.recovery.restored") : recovery.attempted ? t("connection.recovery.notRestored") : t("connection.recovery.notNeeded"),
                 })}
               </div>
+              <div className="mt-1 opacity-90">
+                {t("connection.recovery.health", {
+                  before: recovery.healthOkBefore ? t("connection.recovery.healthOk") : t("connection.recovery.healthFail"),
+                  after: recovery.healthOkAfter ? t("connection.recovery.healthOk") : t("connection.recovery.healthFail"),
+                })}
+              </div>
               <div className="mt-1 opacity-75">{new Date(recovery.createdAt).toLocaleString()}</div>
               {recovery.error ? <div className="mt-1 text-red-100">{recovery.error}</div> : null}
             </div>
