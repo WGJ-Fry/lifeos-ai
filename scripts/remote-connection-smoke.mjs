@@ -85,6 +85,19 @@ export function classifyRemoteEntry(baseUrl) {
   return { entryKind: "stable-https", longTermCandidate: true, longTermReason: "This is an HTTPS non-temporary remote entry; confirm the domain is controlled and restart recovery works." };
 }
 
+function evaluateHttpsStatus(baseUrl, steps = []) {
+  const parsed = new URL(baseUrl);
+  const https = parsed.protocol === "https:";
+  const tlsError = steps.find((step) => step.url?.startsWith("https://") && !step.ok && /certificate|cert|tls|ssl|self-signed/i.test(step.error || ""));
+  return {
+    ok: https && !tlsError,
+    protocol: parsed.protocol.replace(":", ""),
+    requiredForLongTerm: true,
+    trustedByRuntime: https && !tlsError,
+    error: !https ? "Remote smoke is not using HTTPS." : tlsError?.error,
+  };
+}
+
 async function probeFetchStep(baseUrl, suffix, validate, timeoutMs) {
   const url = joinUrl(baseUrl, suffix);
   const startedAt = Date.now();
@@ -218,10 +231,12 @@ export async function runRemoteConnectionSmoke(inputUrl, options = {}) {
   const ok = steps.every((step) => step.ok);
   const passed = steps.filter((step) => step.ok).length;
   const classification = classifyRemoteEntry(baseUrl);
+  const httpsStatus = evaluateHttpsStatus(baseUrl, steps);
   return {
     ok,
     baseUrl,
     ...classification,
+    httpsStatus,
     passed,
     total: steps.length,
     latencyMs: Date.now() - startedAt,
@@ -235,6 +250,7 @@ function printHuman(result) {
   console.log(`Base URL: ${result.baseUrl}`);
   console.log(`Entry kind: ${result.entryKind}`);
   console.log(`Long-term candidate: ${result.longTermCandidate ? "yes" : "no"} - ${result.longTermReason}`);
+  console.log(`HTTPS status: ${result.httpsStatus.ok ? "ok" : "not ready"} (${result.httpsStatus.protocol}${result.httpsStatus.error ? `, ${result.httpsStatus.error}` : ""})`);
   for (const step of result.steps) {
     console.log(`- ${step.ok ? "PASS" : "FAIL"} ${step.url} (${step.latencyMs}ms${step.error ? `, ${step.error}` : ""})`);
   }

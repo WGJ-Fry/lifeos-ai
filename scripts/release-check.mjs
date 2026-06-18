@@ -162,11 +162,15 @@ function checkScripts() {
       remoteSmoke.includes("desktop-runtime-config.json") &&
       remoteSmoke.includes("resolveRemoteBaseUrl") &&
       remoteSmoke.includes("classifyRemoteEntry") &&
+      remoteSmoke.includes("evaluateHttpsStatus") &&
+      remoteSmoke.includes("httpsStatus") &&
       remoteSmoke.includes("longTermCandidate") &&
       remoteSmoke.includes("temporary-cloudflare") &&
       remoteSmoke.includes("tailscale-https") &&
       remoteSmoke.includes("query parameters or fragments") &&
       remoteSmokeTest.includes("remote connection smoke classifies long-term and temporary entries") &&
+      remoteSmokeTest.includes("result.httpsStatus.ok") &&
+      remoteSmokeTest.includes("automatedChecks.httpsStatus") &&
       remoteSmokeTest.includes("query parameters or fragments") &&
       testScript.includes("tests/remote-connection-smoke.test.mjs")
     ) pass("remote connection smoke verifies health, mobile shell, websocket, saved desktop config, and long-term entry classification");

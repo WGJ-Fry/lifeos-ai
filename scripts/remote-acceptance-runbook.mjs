@@ -68,6 +68,7 @@ export async function runRemoteAcceptanceRunbook(inputUrl, options = {}) {
     completionStatus: status.ok && realWorldAcceptanceRequired ? "automated-ready-manual-required" : status.ok ? "ready" : "not-ready",
     automatedChecks: {
       ok: smoke.ok,
+      httpsStatus: smoke.httpsStatus,
       passed: smoke.passed,
       total: smoke.total,
       latencyMs: smoke.latencyMs,

@@ -62,6 +62,9 @@ test("remote connection smoke verifies health, mobile shell, and websocket", asy
   assert.equal(result.entryKind, "local");
   assert.equal(result.longTermCandidate, false);
   assert.match(result.longTermReason, /desktop/);
+  assert.equal(result.httpsStatus.ok, false);
+  assert.equal(result.httpsStatus.protocol, "http");
+  assert.match(result.httpsStatus.error, /not using HTTPS/);
   assert.deepEqual(result.steps.map((step) => step.ok), [true, true, true]);
   assert.equal(JSON.stringify(result).includes("secret"), false);
 });
@@ -186,6 +189,8 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
   assert.equal(report.longTermReady, false);
   assert.equal(report.realWorldAcceptanceRequired, true);
   assert.equal(report.completionStatus, "not-ready");
+  assert.equal(report.automatedChecks.httpsStatus.ok, false);
+  assert.equal(report.automatedChecks.httpsStatus.requiredForLongTerm, true);
   assert.match(report.longTermReason, /desktop/);
   assert.equal(report.manualAcceptance.some((step) => step.id === "cellular-mobile-chat"), true);
   assert.equal(JSON.stringify(report).includes("secret"), false);
@@ -201,4 +206,5 @@ test("remote acceptance runbook writes long-term evidence and manual steps", asy
   assert.equal(written.includes("secret"), false);
   assert.match(written, /network-interruption/);
   assert.match(written, /realWorldAcceptanceRequired/);
+  assert.match(written, /httpsStatus/);
 });
