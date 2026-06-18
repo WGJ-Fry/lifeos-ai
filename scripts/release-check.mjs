@@ -534,6 +534,8 @@ function checkAssets() {
     remoteStabilitySectionSource.includes("JSON.parse") &&
     remoteHealthSummaryCardSource.includes("entryKindKey") &&
     remoteHealthSummaryCardSource.includes("summary.entryKind") &&
+    remoteHealthSummaryCardSource.includes("checkDetailText") &&
+    remoteHealthSummaryCardSource.includes("connection.health.qrExpired") &&
     remoteHealthSummaryCardSource.includes("restoredBaseUrl") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.title") &&
     remoteHealthSummaryCardSource.includes("connection.recovery.summary") &&

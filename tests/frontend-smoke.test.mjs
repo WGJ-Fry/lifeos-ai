@@ -596,8 +596,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /connection\.health\.entry\.tailscale/);
   assert.match(translationsSource, /connection\.health\.entry\.temporaryCloudflare/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.check\.websocket/);
+  assert.match(remoteHealthSummaryCardSource, /checkDetailText/);
+  assert.match(remoteHealthSummaryCardSource, /connection\.health\.qrExpired/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.replaceTemporaryTunnel/);
   assert.match(remoteHealthSummaryCardSource, /connection\.health\.recommendation\.refreshPairingQr/);
+  assert.match(translationsSource, /最近生成的绑定二维码已过期/);
   const remoteValidationReportSource = await readFile(path.join(rootDir, "server", "remoteValidationReport.ts"), "utf8");
   assert.match(remoteValidationReportSource, /pairingEntryMismatch/);
   assert.match(remoteValidationReportSource, /pairingSession\?: \{ baseUrl\?: string \| null/);

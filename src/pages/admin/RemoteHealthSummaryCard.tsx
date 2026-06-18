@@ -49,6 +49,12 @@ function checkTone(status: NetworkDiagnostics["remoteHealthSummary"]["checks"][n
   return "border-white/[0.08] bg-white/[0.04] text-zinc-300";
 }
 
+function checkDetailText(check: NetworkDiagnostics["remoteHealthSummary"]["checks"][number], t: ReturnType<typeof useI18n>["t"]) {
+  if (!check.detail) return "";
+  if (check.id === "qr-entry" && check.detail === "expired") return t("connection.health.qrExpired");
+  return check.detail;
+}
+
 export default function RemoteHealthSummaryCard({
   recovery,
   summary,
@@ -81,6 +87,7 @@ export default function RemoteHealthSummaryCard({
               <div key={check.id} className={`rounded-xl border p-2 ${checkTone(check.status)}`}>
                 <div className="text-[11px] font-bold">{t(checkKey[check.id] as any)}</div>
                 <div className="mt-1 text-[10px] uppercase tracking-wider opacity-75">{t(`connection.health.checkStatus.${check.status}` as any)}</div>
+                {checkDetailText(check, t) ? <div className="mt-1 break-all text-[10px] leading-relaxed opacity-80">{checkDetailText(check, t)}</div> : null}
               </div>
             ))}
           </div>
