@@ -702,7 +702,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(customRemoteEntrySource, /result\.steps/);
   assert.match(customRemoteEntrySource, /saveDesktopConnectionConfig/);
   assert.match(customRemoteEntrySource, /mode: "configured"/);
-  assert.match(customRemoteEntrySource, /normalizedUrl\.startsWith\("https:\/\/"\)/);
+  assert.match(customRemoteEntrySource, /customRemoteEntryError/);
+  assert.match(customRemoteEntrySource, /parsed\.username \|\| parsed\.password \|\| parsed\.search \|\| parsed\.hash/);
+  assert.match(customRemoteEntrySource, /connection\.customUnsafeUrl/);
+  assert.match(customRemoteEntrySource, /disabled=\{!canUseEntry \|\| busy !== null\}/);
+  assert.match(translationsSource, /connection\.customUnsafeUrl/);
   assert.match(translationsSource, /稳定异地入口/);
   assert.match(translationsSource, /已可长期异地使用/);
   assert.match(translationsSource, /LIFEOS_ALLOW_PUBLIC=1/);

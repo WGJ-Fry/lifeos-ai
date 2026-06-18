@@ -641,7 +641,10 @@ function checkAssets() {
     customRemoteEntrySource.includes("testConnectionUrl") &&
     customRemoteEntrySource.includes("saveDesktopConnectionConfig") &&
     customRemoteEntrySource.includes('mode: "configured"') &&
-    customRemoteEntrySource.includes('normalizedUrl.startsWith("https://")') &&
+    customRemoteEntrySource.includes("customRemoteEntryError") &&
+    customRemoteEntrySource.includes("parsed.username || parsed.password || parsed.search || parsed.hash") &&
+    customRemoteEntrySource.includes("connection.customUnsafeUrl") &&
+    customRemoteEntrySource.includes("disabled={!canUseEntry || busy !== null}") &&
     desktopRuntimeConfigSource.includes('mode === "configured" || mode === "cloudflare"') &&
     desktopRuntimeConfigSource.includes("Public remote connection modes require an HTTPS baseUrl") &&
     translationsSource.includes("connection.recommendedAddress") &&
@@ -649,6 +652,7 @@ function checkAssets() {
     translationsSource.includes("connection.copyRecommendedEnv") &&
     translationsSource.includes("connection.saveDesktopConfig") &&
     translationsSource.includes("connection.customTitle") &&
+    translationsSource.includes("connection.customUnsafeUrl") &&
     translationsSource.includes("connection.readiness.status.ready") &&
     translationsSource.includes("connection.readiness.item.needsPublicOptIn") &&
     translationsSource.includes("connection.acceptance.title") &&
