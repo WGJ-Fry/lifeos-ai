@@ -753,6 +753,7 @@ function checkAssets() {
     cloudflareTunnelSource.includes("credentialsFileExists") &&
     cloudflareTunnelSource.includes("refreshCloudflareNamedTunnelConfigForPort") &&
     cloudflareTunnelSource.includes("startConfiguredCloudflareNamedTunnel(timeoutMs = 15000, port =") &&
+    cloudflareTunnelSource.includes("startConfiguredCloudflareNamedTunnel(15000, currentRuntimePort())") &&
     cloudflareTunnelSource.includes("cloudflare_named_config_refreshed") &&
     cloudflareTunnelSource.includes("scheduleNamedTunnelReconnect") &&
     cloudflareTunnelSource.includes("temporary_quick_tunnel_not_restored") &&
@@ -772,6 +773,7 @@ function checkAssets() {
     cloudflareTunnelTestSource.includes("6789") &&
     cloudflareTunnelTestSource.includes("https://lifeos.example.com") &&
     cloudflareTunnelTestSource.includes("reconnects automatically after an unexpected disconnect") &&
+    cloudflareTunnelTestSource.includes("7890") &&
     cloudflareTunnelTestSource.includes("setCloudflareTunnelReconnectHandler") &&
     packageJson.scripts.test.includes("tests/cloudflare-tunnel.test.mjs") &&
     cloudflareTunnelTestSource.includes("delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME") &&

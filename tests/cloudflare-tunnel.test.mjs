@@ -319,6 +319,12 @@ while true; do sleep 1; done
 
   const cacheKey = Date.now();
   const tunnelManager = await import(`../server/cloudflareTunnel.ts?cloudflare-named-reconnect=${cacheKey}`);
+  const { dataDir: activeDataDir } = await import("../server/db.ts");
+  t.after(() => {
+    try {
+      tunnelManager.stopManagedCloudflareTunnel();
+    } catch {}
+  });
   tunnelManager.generateCloudflareNamedTunnelConfig({
     name: "lifeos-ai",
     hostname: "lifeos.example.com",
@@ -332,6 +338,7 @@ while true; do sleep 1; done
   const started = await tunnelManager.startConfiguredCloudflareNamedTunnel(1000);
   assert.equal(started.running, true);
   assert.equal(started.kind, "named");
+  process.env.LIFEOS_PORT = "7890";
 
   const deadline = Date.now() + 2500;
   let status = tunnelManager.getManagedCloudflareTunnelStatus();
@@ -349,6 +356,8 @@ while true; do sleep 1; done
   assert.equal(reconnectNotification?.url, "https://lifeos.example.com");
   assert.equal(reconnectNotification?.kind, "named");
   assert.equal(await readFile(countFile, "utf8"), "2\n");
+  const refreshedConfig = await readFile(path.join(activeDataDir, "cloudflared-named-tunnel.yml"), "utf8");
+  assert.match(refreshedConfig, /service: http:\/\/127\.0\.0\.1:7890/);
 
   tunnelManager.stopManagedCloudflareTunnel();
   const stopped = tunnelManager.getManagedCloudflareTunnelStatus();

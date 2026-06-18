@@ -72,6 +72,10 @@ function reconnectDelayMs() {
   return 5000;
 }
 
+function currentRuntimePort() {
+  return String(process.env.LIFEOS_PORT || process.env.PORT || "3000");
+}
+
 function scheduleNamedTunnelReconnect(reason: string) {
   if (isAutostartDisabled() || managedTunnel.stopping || managedTunnel.kind !== "named" || managedTunnel.reconnectTimer) return;
   const status = getCloudflareNamedTunnelStatus();
@@ -85,7 +89,7 @@ function scheduleNamedTunnelReconnect(reason: string) {
     if (managedTunnel.stopping || isAutostartDisabled()) return;
     managedTunnel.reconnectAttempts += 1;
     managedTunnel.lastReconnectAt = Date.now();
-    startConfiguredCloudflareNamedTunnel(15000)
+    startConfiguredCloudflareNamedTunnel(15000, currentRuntimePort())
       .then((status) => notifyReconnect(status))
       .catch((error: any) => {
         managedTunnel.lastError = String(error?.message || error || "Cloudflare Named Tunnel reconnect failed").slice(0, 500);
