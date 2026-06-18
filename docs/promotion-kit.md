@@ -53,13 +53,13 @@ generated-apps
 ## Release 标题
 
 ```text
-LifeOS AI 0.0.0 - Desktop core + mobile personal AI assistant
+LifeOS AI 0.1.0 - Desktop core + mobile personal AI assistant
 ```
 
 ## Release 描述
 
 ```markdown
-LifeOS AI 0.0.0 is the first public desktop release.
+LifeOS AI 0.1.0 is the first public desktop release.
 
 LifeOS AI turns your desktop into a private AI core and your phone into an always-available personal AI assistant. The desktop app manages AI providers, local SQLite data, device pairing, VPN/tunnel access, generated solution apps, backups, diagnostics, and safer local actions. The phone connects as a paired PWA for chat, offline queue, device status, and action permissions.
 
@@ -271,5 +271,5 @@ LifeOS AI turns your desktop into a private AI core for providers, local SQLite 
 ## Links
 
 - Repository: `https://github.com/WGJ-Fry/lifeos-ai`
-- Release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.0.0`
+- Release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0`
 - Install guide: `docs/user-install-guide.md`

@@ -31,14 +31,14 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   process.env.LIFEOS_RELEASE_DIR = releaseDir;
   const releaseSha256 = "b".repeat(64);
   await mkdir(path.join(releaseDir, "update-feed"), { recursive: true });
-  await writeFile(path.join(releaseDir, "SHA256SUMS"), `${releaseSha256}  LifeOS AI-0.0.0-arm64-unsigned.zip\n`);
+  await writeFile(path.join(releaseDir, "SHA256SUMS"), `${releaseSha256}  LifeOS AI-0.1.0-arm64-unsigned.zip\n`);
   await writeFile(path.join(releaseDir, "update-feed", "release-manifest.json"), `${JSON.stringify({
-    version: "0.0.0",
+    version: "0.1.0",
     generatedAt: new Date(0).toISOString(),
     artifacts: [{
       platform: "mac",
       feedFile: "latest-mac.yml",
-      fileName: path.join(releaseDir, "LifeOS AI-0.0.0-arm64-unsigned.zip"),
+      fileName: path.join(releaseDir, "LifeOS AI-0.1.0-arm64-unsigned.zip"),
       size: 1234,
       sha512: "fake-sha512",
       sha256: releaseSha256,
@@ -162,7 +162,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.release.artifactCount, 1);
   assert.deepEqual(bundle.release.artifacts[0], {
     platform: "mac",
-    fileName: "LifeOS AI-0.0.0-arm64-unsigned.zip",
+    fileName: "LifeOS AI-0.1.0-arm64-unsigned.zip",
     feedFile: "latest-mac.yml",
     size: 1234,
     sha512Present: true,

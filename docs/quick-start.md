@@ -16,13 +16,13 @@ flowchart LR
 
 ## 第 1 步：下载电脑端
 
-打开 [GitHub Releases](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.0.0)，按系统下载：
+打开 [GitHub Releases](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0)，按系统下载：
 
 | 系统 | 下载 |
 | --- | --- |
-| macOS Apple Silicon | `LifeOS.AI-0.0.0-arm64.dmg` |
-| Windows x64 | `LifeOS.AI.Setup.0.0.0.exe` |
-| Linux x64 | `LifeOS.AI-0.0.0.AppImage` |
+| macOS Apple Silicon | `LifeOS.AI-0.1.0-arm64.dmg` |
+| Windows x64 | `LifeOS.AI.Setup.0.1.0.exe` |
+| Linux x64 | `LifeOS.AI-0.1.0.AppImage` |
 
 Windows 当前未配置 Authenticode 正式签名，可能出现 SmartScreen 提示。请只从 GitHub Release 下载，并对照 `SHA256SUMS` 校验。
 
@@ -128,13 +128,13 @@ flowchart LR
 
 ## Step 1: Download The Desktop App
 
-Open [GitHub Releases](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.0.0) and download the file for your system:
+Open [GitHub Releases](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0) and download the file for your system:
 
 | System | Download |
 | --- | --- |
-| macOS Apple Silicon | `LifeOS.AI-0.0.0-arm64.dmg` |
-| Windows x64 | `LifeOS.AI.Setup.0.0.0.exe` |
-| Linux x64 | `LifeOS.AI-0.0.0.AppImage` |
+| macOS Apple Silicon | `LifeOS.AI-0.1.0-arm64.dmg` |
+| Windows x64 | `LifeOS.AI.Setup.0.1.0.exe` |
+| Linux x64 | `LifeOS.AI-0.1.0.AppImage` |
 
 The Windows build is not Authenticode signed yet, so SmartScreen may warn. Download only from GitHub Releases and verify `SHA256SUMS`.
 

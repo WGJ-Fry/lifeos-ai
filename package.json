@@ -1,7 +1,7 @@
 {
   "name": "lifeos-ai",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Personal AI local core with desktop admin and mobile PWA client.",
   "author": "LifeOS",
   "license": "UNLICENSED",

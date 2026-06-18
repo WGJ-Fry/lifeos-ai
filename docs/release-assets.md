@@ -4,12 +4,12 @@
 
 ## 当前版本
 
-版本：`0.0.0`
+版本：`0.1.0`
 
 推荐 GitHub Release tag：
 
 ```text
-v0.0.0
+v0.1.0
 ```
 
 ## 必传文件
@@ -17,9 +17,9 @@ v0.0.0
 从 `release/` 上传：
 
 ```text
-LifeOS AI-0.0.0-arm64.dmg
-LifeOS AI Setup 0.0.0.exe
-LifeOS AI-0.0.0.AppImage
+LifeOS AI-0.1.0-arm64.dmg
+LifeOS AI Setup 0.1.0.exe
+LifeOS AI-0.1.0.AppImage
 SHA256SUMS
 ```
 
@@ -39,9 +39,9 @@ release-manifest.json
 ## 当前 SHA256
 
 ```text
-a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.0.0-arm64.dmg
-ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.0.0.exe
-12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.0.0.AppImage
+a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.1.0-arm64.dmg
+ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.1.0.exe
+12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.1.0.AppImage
 ```
 
 ## 平台说明
@@ -79,12 +79,12 @@ release/*-unpacked/
 
 ## Current Version
 
-Version: `0.0.0`
+Version: `0.1.0`
 
 Recommended GitHub Release tag:
 
 ```text
-v0.0.0
+v0.1.0
 ```
 
 ## Required Assets
@@ -92,9 +92,9 @@ v0.0.0
 Upload from `release/`:
 
 ```text
-LifeOS AI-0.0.0-arm64.dmg
-LifeOS AI Setup 0.0.0.exe
-LifeOS AI-0.0.0.AppImage
+LifeOS AI-0.1.0-arm64.dmg
+LifeOS AI Setup 0.1.0.exe
+LifeOS AI-0.1.0.AppImage
 SHA256SUMS
 ```
 
@@ -114,9 +114,9 @@ These files are required for future auto-update support and are useful for suppo
 ## Current SHA256
 
 ```text
-a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.0.0-arm64.dmg
-ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.0.0.exe
-12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.0.0.AppImage
+a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.1.0-arm64.dmg
+ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.1.0.exe
+12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.1.0.AppImage
 ```
 
 ## Platform Notes

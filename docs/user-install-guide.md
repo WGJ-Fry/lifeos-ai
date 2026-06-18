@@ -11,7 +11,7 @@ LifeOS AI 是电脑端应用 + 手机端 PWA。电脑端负责运行本地核心
 文件：
 
 ```text
-LifeOS AI-0.0.0-arm64.dmg
+LifeOS AI-0.1.0-arm64.dmg
 ```
 
 安装：
@@ -36,7 +36,7 @@ ditto "/Volumes/LifeOS AI/LifeOS AI.app" "/Applications/LifeOS AI.app"
 文件：
 
 ```text
-LifeOS AI Setup 0.0.0.exe
+LifeOS AI Setup 0.1.0.exe
 ```
 
 安装：
@@ -55,14 +55,14 @@ LifeOS AI Setup 0.0.0.exe
 文件：
 
 ```text
-LifeOS AI-0.0.0.AppImage
+LifeOS AI-0.1.0.AppImage
 ```
 
 运行：
 
 ```bash
-chmod +x "LifeOS AI-0.0.0.AppImage"
-./"LifeOS AI-0.0.0.AppImage"
+chmod +x "LifeOS AI-0.1.0.AppImage"
+./"LifeOS AI-0.1.0.AppImage"
 ```
 
 如果 AppImage 无法启动，请确认系统有 FUSE/AppImage 支持，或从终端启动查看缺失依赖。
@@ -189,7 +189,7 @@ shasum -a 256 -c SHA256SUMS
 Windows PowerShell：
 
 ```powershell
-Get-FileHash ".\LifeOS AI Setup 0.0.0.exe" -Algorithm SHA256
+Get-FileHash ".\LifeOS AI Setup 0.1.0.exe" -Algorithm SHA256
 ```
 
 当前 SHA256 见 [release-assets.md](release-assets.md)。
@@ -227,7 +227,7 @@ LifeOS AI is a desktop app plus a mobile PWA. The desktop app runs the local cor
 File:
 
 ```text
-LifeOS AI-0.0.0-arm64.dmg
+LifeOS AI-0.1.0-arm64.dmg
 ```
 
 Install:
@@ -252,7 +252,7 @@ Compatibility note: the earlier `macOS Unsigned Zip` path is still useful for pr
 File:
 
 ```text
-LifeOS AI Setup 0.0.0.exe
+LifeOS AI Setup 0.1.0.exe
 ```
 
 Install:
@@ -271,14 +271,14 @@ This is the `Windows NSIS Installer` path.
 File:
 
 ```text
-LifeOS AI-0.0.0.AppImage
+LifeOS AI-0.1.0.AppImage
 ```
 
 Run:
 
 ```bash
-chmod +x "LifeOS AI-0.0.0.AppImage"
-./"LifeOS AI-0.0.0.AppImage"
+chmod +x "LifeOS AI-0.1.0.AppImage"
+./"LifeOS AI-0.1.0.AppImage"
 ```
 
 If it does not start, make sure your distribution has FUSE/AppImage support, or run it from a terminal to see missing dependency messages.
@@ -404,7 +404,7 @@ shasum -a 256 -c SHA256SUMS
 Windows PowerShell:
 
 ```powershell
-Get-FileHash ".\LifeOS AI Setup 0.0.0.exe" -Algorithm SHA256
+Get-FileHash ".\LifeOS AI Setup 0.1.0.exe" -Algorithm SHA256
 ```
 
 Current SHA256 values are listed in [release-assets.md](release-assets.md).

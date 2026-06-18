@@ -309,14 +309,14 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   const releaseDir = path.join(dataDir, "release");
   const artifactSha256 = "a".repeat(64);
   await mkdir(path.join(releaseDir, "update-feed"), { recursive: true });
-  await writeFile(path.join(releaseDir, "SHA256SUMS"), `${artifactSha256}  LifeOS AI-0.0.0-arm64-unsigned.zip\n`);
+  await writeFile(path.join(releaseDir, "SHA256SUMS"), `${artifactSha256}  LifeOS AI-0.1.0-arm64-unsigned.zip\n`);
   await writeFile(path.join(releaseDir, "update-feed", "release-manifest.json"), `${JSON.stringify({
-    version: "0.0.0",
+    version: "0.1.0",
     generatedAt: new Date(0).toISOString(),
     artifacts: [{
       platform: "mac",
       feedFile: "latest-mac.yml",
-      fileName: "LifeOS AI-0.0.0-arm64-unsigned.zip",
+      fileName: "LifeOS AI-0.1.0-arm64-unsigned.zip",
       size: 123456,
       sha512: "fake-sha512",
       sha256: artifactSha256,
@@ -391,11 +391,11 @@ test("Electron desktop exports a redacted desktop diagnostic bundle", async (t) 
   assert.equal(diagnostics.updates.updateUrlHost, "updates.example.com");
   assert.equal(diagnostics.release.manifestAvailable, true);
   assert.equal(diagnostics.release.checksumAvailable, true);
-  assert.equal(diagnostics.release.version, "0.0.0");
+  assert.equal(diagnostics.release.version, "0.1.0");
   assert.equal(diagnostics.release.artifactCount, 1);
   assert.deepEqual(diagnostics.release.artifacts[0], {
     platform: "mac",
-    fileName: "LifeOS AI-0.0.0-arm64-unsigned.zip",
+    fileName: "LifeOS AI-0.1.0-arm64-unsigned.zip",
     feedFile: "latest-mac.yml",
     size: 123456,
     sha512Present: true,

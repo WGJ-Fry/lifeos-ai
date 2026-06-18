@@ -28,13 +28,13 @@ npm run release:check:signed:file
 5. Tag 填：
 
    ```text
-   v0.0.0
+   v0.1.0
    ```
 
 6. Title 填：
 
    ```text
-   LifeOS AI 0.0.0
+   LifeOS AI 0.1.0
    ```
 
 7. 上传 [release-assets.md](release-assets.md) 里列出的文件。
@@ -43,15 +43,15 @@ npm run release:check:signed:file
 ## Release 正文模板
 
 ```markdown
-## LifeOS AI 0.0.0
+## LifeOS AI 0.1.0
 
 LifeOS AI is a desktop local core plus mobile PWA personal AI system.
 
 ### Downloads
 
-- macOS Apple Silicon: `LifeOS AI-0.0.0-arm64.dmg`
-- Windows x64: `LifeOS AI Setup 0.0.0.exe`
-- Linux x64: `LifeOS AI-0.0.0.AppImage`
+- macOS Apple Silicon: `LifeOS AI-0.1.0-arm64.dmg`
+- Windows x64: `LifeOS AI Setup 0.1.0.exe`
+- Linux x64: `LifeOS AI-0.1.0.AppImage`
 
 ### Install
 
@@ -62,8 +62,8 @@ Windows: run the installer. This build is not Windows Authenticode signed yet, s
 Linux:
 
 ```bash
-chmod +x "LifeOS AI-0.0.0.AppImage"
-./"LifeOS AI-0.0.0.AppImage"
+chmod +x "LifeOS AI-0.1.0.AppImage"
+./"LifeOS AI-0.1.0.AppImage"
 ```
 
 ### Verification
@@ -71,9 +71,9 @@ chmod +x "LifeOS AI-0.0.0.AppImage"
 SHA256:
 
 ```text
-a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.0.0-arm64.dmg
-ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.0.0.exe
-12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.0.0.AppImage
+a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.1.0-arm64.dmg
+ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.1.0.exe
+12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.1.0.AppImage
 ```
 
 ### Notes
@@ -121,7 +121,7 @@ node_modules/
 3. 构建桌面包时设置：
 
    ```bash
-   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.0.0"
+   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.0"
    ```
 
 4. 重新打包并发布。
@@ -131,7 +131,7 @@ node_modules/
 ## 我还没有考虑到但发布前很重要的事
 
 - Windows 未签名会影响普通用户信任度，正式对外建议购买 Authenticode 证书。
-- 版本号现在是 `0.0.0`，正式公开前最好改成 `0.1.0` 或 `1.0.0-beta.1`。
+- 版本号已升级为 `0.1.0`；后续更稳定后可再考虑 `1.0.0-beta.1` 或 `1.0.0`。
 - GitHub Release 的资产名包含空格，用户可正常下载，但命令行说明要加引号。
 - macOS 当前包是 Apple Silicon arm64；Intel Mac 需要额外构建 x64 或 universal。
 - 不要公开你的 AI Key、Apple App 专用密码、证书密码、`.p12` 文件。
@@ -167,13 +167,13 @@ The only warning is that `LIFEOS_UPDATE_URL` is not set. Manual download/install
 5. Tag:
 
    ```text
-   v0.0.0
+   v0.1.0
    ```
 
 6. Title:
 
    ```text
-   LifeOS AI 0.0.0
+   LifeOS AI 0.1.0
    ```
 
 7. Upload the files listed in [release-assets.md](release-assets.md).
@@ -212,7 +212,7 @@ node_modules/
 3. Build with:
 
    ```bash
-   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.0.0"
+   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.0"
    ```
 
 4. Repackage and publish.
@@ -222,7 +222,7 @@ node_modules/
 ## Important Gaps Before Wider Public Distribution
 
 - Windows is not Authenticode signed yet, so SmartScreen may warn users.
-- Version is currently `0.0.0`; consider `0.1.0` or `1.0.0-beta.1` before public launch.
+- Version is now `0.1.0`; consider `1.0.0-beta.1` or `1.0.0` once the project is ready for a broader stable launch.
 - Asset names contain spaces; command-line examples must quote file names.
 - macOS artifact is Apple Silicon arm64 only; Intel Macs need x64 or universal builds.
 - Never publish AI keys, Apple app-specific passwords, certificate passwords, or `.p12` files.
