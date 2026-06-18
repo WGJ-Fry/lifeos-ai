@@ -164,9 +164,19 @@ test("remote entry status detects configured public base mismatches with subpath
   assert.equal(temporaryMatch.kind, "temporary-cloudflare");
   assert.equal(temporaryMatch.okForRemote, true);
 
+  const cloudflareNamed = getRemoteEntryStatus({
+    currentHref: "https://lifeos.example.com/mobile/chat",
+    configuredBaseUrl: "https://lifeos.example.com",
+    configuredMode: "cloudflare",
+  });
+  assert.equal(cloudflareNamed.kind, "cloudflare-named");
+  assert.equal(cloudflareNamed.okForRemote, true);
+  assert.equal(cloudflareNamed.titleKey, "mobileDevice.cloudflareNamedEntryTitle");
+
   const mismatch = getRemoteEntryStatus({
     currentHref: "https://wrong.example.com/mobile/device",
     configuredBaseUrl: "https://lifeos.example.com/lifeos",
+    configuredMode: "cloudflare",
   });
   assert.equal(mismatch.kind, "configured-mismatch");
   assert.equal(mismatch.okForRemote, false);
@@ -311,6 +321,14 @@ test("mobile recovery hints combine entry type, failed probes, and offline queue
     currentBase: "https://remote.example.test",
     steps: [{ id: "health", ok: true, url: "/api/v1/health", latencyMs: 10 }, result.steps[1]],
   }, "stable-https"), "mobileDevice.connectivityIssueWebSocket");
+  assert.deepEqual(getMobileRecoveryHints({
+    ...result,
+    currentBase: "https://lifeos.example.com",
+    steps: [{ id: "health", ok: true, url: "/api/v1/health", latencyMs: 10 }, result.steps[1]],
+  }, "cloudflare-named"), [
+    "mobileDevice.connectivityGuidanceCloudflareNamed",
+    "mobileDevice.connectivityGuidanceWebSocket",
+  ]);
   assert.equal(getMobileConnectivityIssue({
     ok: true,
     currentBase: "https://remote.example.test",
@@ -342,6 +360,14 @@ test("remote entry guidance is visible before manual connectivity tests", async 
     okForRemote: false,
   }), [
     "mobileDevice.connectivityGuidanceTailscaleHttp",
+  ]);
+
+  assert.deepEqual(getRemoteEntryGuidance({
+    kind: "cloudflare-named",
+    currentBase: "https://lifeos.example.com",
+    okForRemote: true,
+  }), [
+    "mobileDevice.connectivityGuidanceCloudflareNamed",
   ]);
 
   assert.deepEqual(getRemoteEntryGuidance({

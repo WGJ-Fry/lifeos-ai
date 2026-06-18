@@ -28,7 +28,7 @@ export default function MobileDevicePage() {
   const [connectivityTest, setConnectivityTest] = useState<MobileConnectivityResult | null>(null);
   const [connectivityBusy, setConnectivityBusy] = useState(false);
   const expiresAt = useMemo(() => credential?.accessTokenExpiresAt ? new Date(credential.accessTokenExpiresAt).toLocaleString() : t("mobileDevice.longLivedSignature"), [credential, t]);
-  const currentEntry = useMemo(() => getRemoteEntryStatus({ configuredBaseUrl: health?.publicBaseUrl }), [health]);
+  const currentEntry = useMemo(() => getRemoteEntryStatus({ configuredBaseUrl: health?.publicBaseUrl, configuredMode: health?.remoteEntryMode }), [health]);
   const currentEntryGuidance = useMemo(() => getRemoteEntryGuidance(currentEntry, queueSummary), [currentEntry, queueSummary]);
 
   const refreshCredentialStorage = async () => {

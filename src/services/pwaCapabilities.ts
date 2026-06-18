@@ -15,6 +15,7 @@ export type RemoteEntryKind =
   | "same-lan"
   | "tailscale"
   | "temporary-cloudflare"
+  | "cloudflare-named"
   | "stable-https"
   | "insecure-remote"
   | "unknown";
@@ -47,6 +48,7 @@ export type MobileConnectivityResult = {
 
 export type MobileRecoveryHintKey =
   | "mobileDevice.connectivityGuidanceTemporary"
+  | "mobileDevice.connectivityGuidanceCloudflareNamed"
   | "mobileDevice.connectivityGuidanceTailscale"
   | "mobileDevice.connectivityGuidanceTailscaleHttp"
   | "mobileDevice.connectivityGuidanceLan"
@@ -127,7 +129,7 @@ function isTailscaleIpv4(hostname: string) {
   return parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127;
 }
 
-export function getRemoteEntryStatus(options: { currentHref?: string; configuredBaseUrl?: string | null } = {}): RemoteEntryStatus {
+export function getRemoteEntryStatus(options: { currentHref?: string; configuredBaseUrl?: string | null; configuredMode?: string | null } = {}): RemoteEntryStatus {
   const currentBase = currentBaseFromHref(options.currentHref);
   const configuredBase = normalizeBaseUrl(options.configuredBaseUrl);
   const fallback: RemoteEntryStatus = {
@@ -160,6 +162,7 @@ export function getRemoteEntryStatus(options: { currentHref?: string; configured
 
   const hostname = url.hostname.toLowerCase();
   const https = url.protocol === "https:";
+  const configuredMode = String(options.configuredMode || "").toLowerCase();
   const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1" || hostname === "[::1]";
   const isLan = isPrivateIpv4(hostname) || hostname.endsWith(".local");
   const isTailscale = hostname.endsWith(".ts.net") || isTailscaleIpv4(hostname);
@@ -195,6 +198,17 @@ export function getRemoteEntryStatus(options: { currentHref?: string; configured
       configuredBase,
       titleKey: "mobileDevice.temporaryEntryTitle",
       bodyKey: "mobileDevice.temporaryEntryBody",
+    };
+  }
+
+  if (configuredBase && configuredMode === "cloudflare" && https) {
+    return {
+      kind: "cloudflare-named",
+      okForRemote: true,
+      currentBase,
+      configuredBase,
+      titleKey: "mobileDevice.cloudflareNamedEntryTitle",
+      bodyKey: "mobileDevice.cloudflareNamedEntryBody",
     };
   }
 
@@ -350,6 +364,7 @@ export function getMobileRecoveryHints(
   const healthFailed = result.steps.some((step) => step.id === "health" && !step.ok);
   const websocketFailed = result.steps.some((step) => step.id === "websocket" && !step.ok);
   if (entryKind === "temporary-cloudflare") hints.add("mobileDevice.connectivityGuidanceTemporary");
+  else if (entryKind === "cloudflare-named") hints.add("mobileDevice.connectivityGuidanceCloudflareNamed");
   else if (entryKind === "tailscale") {
     hints.add(isHttpRemoteBase(result.currentBase) ? "mobileDevice.connectivityGuidanceTailscaleHttp" : "mobileDevice.connectivityGuidanceTailscale");
   }
@@ -394,6 +409,7 @@ export function getRemoteEntryGuidance(
 ): MobileRecoveryHintKey[] {
   const hints = new Set<MobileRecoveryHintKey>();
   if (entry.kind === "temporary-cloudflare") hints.add("mobileDevice.connectivityGuidanceTemporary");
+  else if (entry.kind === "cloudflare-named") hints.add("mobileDevice.connectivityGuidanceCloudflareNamed");
   else if (entry.kind === "tailscale") {
     hints.add(isHttpRemoteBase(entry.currentBase) ? "mobileDevice.connectivityGuidanceTailscaleHttp" : "mobileDevice.connectivityGuidanceTailscale");
   }

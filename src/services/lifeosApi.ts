@@ -1012,6 +1012,7 @@ export function getHealth() {
     host: string;
     networkMode: "local" | "lan";
     publicBaseUrl: string;
+    remoteEntryMode: "configured" | "cloudflare" | "tailscale" | "lan" | "local" | null;
     publicAccessWarning: boolean;
     publicAccessAllowed: boolean;
     publicSetupRisk: boolean;

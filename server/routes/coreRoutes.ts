@@ -5,6 +5,7 @@ import { getDevices } from "../devices";
 import { getCookie } from "../httpSecurity";
 import { INSTALL_PAIRING_COOKIE, mobileManifest, normalizeInstallPairingToken } from "../mobileInstall";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
+import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getOnlineDeviceCount } from "../realtime";
 import { getSecurityDiagnostics } from "../securityDiagnostics";
 
@@ -32,7 +33,9 @@ export function registerCoreRoutes(app: express.Express, host: string) {
 
   app.get("/api/v1/health", (_req, res) => {
     trace("start");
-    const publicBaseUrl = getConfiguredPublicBaseUrl();
+    const desktopRuntimeConfig = getDesktopRuntimeConfig();
+    trace("desktopRuntimeConfig");
+    const publicBaseUrl = getConfiguredPublicBaseUrl() || desktopRuntimeConfig?.publicBaseUrl || "";
     trace("publicBaseUrl");
     const aiConfigured = listAiProviderStatuses().some((provider) => provider.configured);
     trace("aiConfigured");
@@ -62,6 +65,7 @@ export function registerCoreRoutes(app: express.Express, host: string) {
       host,
       networkMode: host === "0.0.0.0" ? "lan" : "local",
       publicBaseUrl,
+      remoteEntryMode: desktopRuntimeConfig?.publicBaseUrl && desktopRuntimeConfig.publicBaseUrl === publicBaseUrl ? desktopRuntimeConfig.mode : null,
       publicAccessWarning,
       publicAccessAllowed: process.env.LIFEOS_ALLOW_PUBLIC === "1",
       publicSetupRisk: publicAccessWarning && securityDiagnostics.overall !== "ok",

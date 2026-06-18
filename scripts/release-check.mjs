@@ -822,6 +822,8 @@ function checkAssets() {
     coreRoutesSource.includes("publicRiskItems") &&
     coreRoutesSource.includes("publicRisk") &&
     coreRoutesSource.includes("securityDiagnostics.overall !== \"ok\"") &&
+    coreRoutesSource.includes("desktopRuntimeConfig?.publicBaseUrl") &&
+    coreRoutesSource.includes("remoteEntryMode") &&
     securityDiagnosticsSource.includes('id: "backupSchedule"') &&
     securityDiagnosticsSource.includes("getBackupSchedule") &&
     adminDashboardSource.includes("dashboard.publicRiskTitle") &&
@@ -831,6 +833,8 @@ function checkAssets() {
     adminDashboardSource.includes("/admin/settings#backup-schedule") &&
     translationsSource.includes("dashboard.publicRiskTitle") &&
     publicModeTestSource.includes("backupSchedule") &&
+    publicModeTestSource.includes("health exposes saved desktop remote entry mode for mobile recovery") &&
+    publicModeTestSource.includes('health.remoteEntryMode, "cloudflare"') &&
     publicModeTestSource.includes("configuredHealth.publicSetupRisk, true") &&
     publicModeTestSource.includes("improvedHealth.publicRisk.items")
   ) pass("public mode health and dashboard expose actionable security risk items");
@@ -1008,8 +1012,11 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("mobile-shell") &&
     pwaCapabilitiesSource.includes("/api/v1/ws") &&
     pwaCapabilitiesSource.includes("temporary-cloudflare") &&
+    pwaCapabilitiesSource.includes("cloudflare-named") &&
+    pwaCapabilitiesSource.includes("configuredMode") &&
     pwaCapabilitiesSource.includes("configured-mismatch") &&
     pwaCapabilitiesSource.includes("connectivityGuidanceHealth") &&
+    pwaCapabilitiesSource.includes("connectivityGuidanceCloudflareNamed") &&
     pwaCapabilitiesSource.includes("connectivityGuidanceTailscaleHttp") &&
     pwaCapabilitiesSource.includes("connectivityGuidanceOfflineQueue") &&
     pwaCapabilitiesSource.includes("connectivityGuidanceFailedQueue") &&
@@ -1021,6 +1028,8 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("indexedDbSupported") &&
     mobileDeviceSource.includes("mobileDevice.pwaTitle") &&
     mobileDeviceSource.includes("mobileDevice.remoteVerdict") &&
+    mobileDeviceSource.includes("health?.remoteEntryMode") &&
+    lifeosApiSourceForRouting.includes("remoteEntryMode") &&
     mobileDeviceSource.includes("currentEntryGuidance") &&
     mobileDeviceSource.includes("mobileDevice.entryGuidanceTitle") &&
     mobileDeviceSource.includes("mobileDevice.connectivityTest") &&
@@ -1054,6 +1063,8 @@ function checkAssets() {
     pwaCapabilitiesTestSource.includes("remote entry status detects configured public base mismatches") &&
     pwaCapabilitiesTestSource.includes("tailscaleMatch.kind, \"tailscale\"") &&
     pwaCapabilitiesTestSource.includes("temporaryMatch.kind, \"temporary-cloudflare\"") &&
+    pwaCapabilitiesTestSource.includes("cloudflareNamed.kind, \"cloudflare-named\"") &&
+    pwaCapabilitiesTestSource.includes("connectivityGuidanceCloudflareNamed") &&
     pwaCapabilitiesTestSource.includes("mobile remote connectivity probes health, mobile chat shell, and websocket") &&
     pwaCapabilitiesTestSource.includes("mobile remote connectivity reports websocket failures") &&
     pwaCapabilitiesTestSource.includes("mobile recovery hints combine entry type") &&
@@ -1068,6 +1079,7 @@ function checkAssets() {
     frontendSmokeTestSource.includes("getMobileRecoveryHints") &&
     frontendSmokeTestSource.includes("getMobileConnectivityIssue") &&
     translationsSource.includes("connectivityGuidanceHealth") &&
+    translationsSource.includes("connectivityGuidanceCloudflareNamed") &&
     translationsSource.includes("connectivityGuidanceTailscaleHttp") &&
     translationsSource.includes("connectivityGuidanceOfflineQueue") &&
     translationsSource.includes("connectivityGuidanceFailedQueue") &&

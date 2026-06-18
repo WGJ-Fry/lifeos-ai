@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -235,4 +235,34 @@ test("explicit public access opt-in exposes health warning metadata", async (t) 
   assert.equal(health.publicSetupRisk, true);
   assert.equal(health.publicRisk.overall, "critical");
   assert.equal(health.publicRisk.items.some((item) => item.id === "admin"), true);
+});
+
+test("health exposes saved desktop remote entry mode for mobile recovery", async (t) => {
+  const port = 9510 + Math.floor(Math.random() * 1000);
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-health-desktop-mode-"));
+  await writeFile(path.join(dataDir, "desktop-runtime-config.json"), `${JSON.stringify({
+    mode: "cloudflare",
+    label: "Cloudflare Named Tunnel",
+    host: "0.0.0.0",
+    port,
+    publicBaseUrl: "https://lifeos.example.com",
+    allowPublic: true,
+    baseUrl: "https://lifeos.example.com",
+    updatedAt: Date.now(),
+  }, null, 2)}\n`);
+  const { child, output } = startServer({
+    LIFEOS_PORT: String(port),
+    LIFEOS_DATA_DIR: dataDir,
+    LIFEOS_HOST: "127.0.0.1",
+    LIFEOS_ALLOW_PUBLIC: "1",
+  });
+
+  t.after(async () => {
+    await stopServer(child);
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const health = await waitForHealth(port, child, output);
+  assert.equal(health.publicBaseUrl, "https://lifeos.example.com");
+  assert.equal(health.remoteEntryMode, "cloudflare");
 });
