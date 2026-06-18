@@ -737,6 +737,8 @@ function checkAssets() {
     cloudflareTunnelSource.includes("saveNamedTunnelSettings") &&
     cloudflareTunnelSource.includes("settingsSaved") &&
     cloudflareTunnelSource.includes("credentialsFileExists") &&
+    cloudflareTunnelSource.includes("refreshCloudflareNamedTunnelConfigForPort") &&
+    cloudflareTunnelSource.includes("cloudflare_named_config_refreshed") &&
     cloudflareTunnelSource.includes("scheduleNamedTunnelReconnect") &&
     cloudflareTunnelSource.includes("temporary_quick_tunnel_not_restored") &&
     cloudflareTunnelSource.includes("cloudflare_named_tunnel_not_ready") &&
@@ -748,6 +750,10 @@ function checkAssets() {
     cloudflareTunnelTestSource.includes("credentialsFileExists, false") &&
     cloudflareTunnelTestSource.includes("configured quick Cloudflare Tunnel is not treated as restart-stable") &&
     cloudflareTunnelTestSource.includes("cloudflare_named_tunnel_not_ready") &&
+    cloudflareTunnelTestSource.includes("cloudflare_named_config_refreshed") &&
+    cloudflareTunnelTestSource.includes("Cloudflare Named Tunnel config refreshes when desktop restart chooses a new local port") &&
+    cloudflareTunnelTestSource.includes("5678") &&
+    cloudflareTunnelTestSource.includes("6789") &&
     cloudflareTunnelTestSource.includes("https://lifeos.example.com") &&
     cloudflareTunnelTestSource.includes("reconnects automatically after an unexpected disconnect") &&
     cloudflareTunnelTestSource.includes("setCloudflareTunnelReconnectHandler") &&

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -197,6 +198,69 @@ while true; do sleep 1; done
   assert.equal(missingCredentialsStatus.credentialsFileExists, false);
   assert.equal(missingCredentialsStatus.ready, false);
   assert.match(missingCredentialsStatus.notes.join("\n"), /credentials JSON file is missing/);
+});
+
+test("Cloudflare Named Tunnel config refreshes when desktop restart chooses a new local port", async (t) => {
+  const binDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-port-refresh-bin-"));
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-cloudflared-port-refresh-data-"));
+  const credentialsFile = path.join(dataDir, "named-tunnel.json");
+  const cloudflaredPath = path.join(binDir, "cloudflared");
+  await writeFile(cloudflaredPath, `#!/bin/sh
+if [ "$1" = "--version" ]; then
+  echo "cloudflared version 2026.6.0"
+  exit 0
+fi
+echo "INF Registered tunnel connection" >&2
+while true; do sleep 1; done
+`);
+  await chmod(cloudflaredPath, 0o755);
+  await writeFile(credentialsFile, "{}");
+  t.after(async () => {
+    await rm(binDir, { recursive: true, force: true });
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
+    const { readFileSync } = await import("node:fs");
+    const { generateCloudflareNamedTunnelConfig, maybeStartConfiguredCloudflareTunnel, refreshCloudflareNamedTunnelConfigForPort, stopManagedCloudflareTunnel } = await import("./server/cloudflareTunnel.ts");
+    const { saveDesktopRuntimeConfig } = await import("./server/desktopRuntimeConfig.ts");
+    generateCloudflareNamedTunnelConfig({
+      name: "lifeos-ai",
+      hostname: "lifeos.example.com",
+      credentialsFile: ${JSON.stringify(credentialsFile)},
+      port: "4567",
+    });
+    delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_NAME;
+    delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME;
+    delete process.env.LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS;
+    const refreshed = refreshCloudflareNamedTunnelConfigForPort("5678");
+    const refreshedConfig = readFileSync(${JSON.stringify(path.join(dataDir, "cloudflared-named-tunnel.yml"))}, "utf8");
+    saveDesktopRuntimeConfig({ mode: "cloudflare", label: "Cloudflare Named Tunnel", baseUrl: "https://lifeos.example.com" });
+    const started = await maybeStartConfiguredCloudflareTunnel("6789", 1000);
+    const restoredConfig = readFileSync(${JSON.stringify(path.join(dataDir, "cloudflared-named-tunnel.yml"))}, "utf8");
+    stopManagedCloudflareTunnel();
+    process.stdout.write(JSON.stringify({ refreshed, refreshedConfig, startedReason: started.reason, startedRefresh: started.refresh, restoredConfig }));
+  `], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_DATA_DIR: dataDir,
+      LIFEOS_PORT: "4567",
+      LIFEOS_CLOUDFLARED_BIN: cloudflaredPath,
+      LIFEOS_CLOUDFLARE_TUNNEL_NAME: "lifeos-ai",
+      LIFEOS_CLOUDFLARE_TUNNEL_HOSTNAME: "lifeos.example.com",
+      LIFEOS_CLOUDFLARE_TUNNEL_CREDENTIALS: credentialsFile,
+      PUBLIC_BASE_URL: "",
+    },
+    encoding: "utf8",
+  });
+  const result = JSON.parse(output);
+  assert.equal(result.refreshed.refreshed, true);
+  assert.equal(result.refreshed.reason, "cloudflare_named_config_refreshed");
+  assert.match(result.refreshedConfig, /service: http:\/\/127\.0\.0\.1:5678/);
+  assert.equal(result.startedReason, "cloudflare_named_configured");
+  assert.equal(result.startedRefresh.refreshed, true);
+  assert.match(result.restoredConfig, /service: http:\/\/127\.0\.0\.1:6789/);
 });
 
 test("Cloudflare Named Tunnel reconnects automatically after an unexpected disconnect", async (t) => {

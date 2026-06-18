@@ -240,6 +240,48 @@ export function generateCloudflareNamedTunnelConfig(input: { name?: unknown; hos
   return { ...getCloudflareNamedTunnelStatus(), config, desktopConfig };
 }
 
+export function refreshCloudflareNamedTunnelConfigForPort(port: string) {
+  let parsed: ReturnType<typeof namedTunnelInput>;
+  try {
+    parsed = namedTunnelInput({ port });
+  } catch (error: any) {
+    return {
+      refreshed: false,
+      ready: false,
+      reason: "cloudflare_named_tunnel_not_configured",
+      error: String(error?.message || error || "Named Tunnel is not configured").slice(0, 240),
+      status: getCloudflareNamedTunnelStatus(),
+    };
+  }
+  if (!credentialsFileExists(parsed.credentialsFile)) {
+    return {
+      refreshed: false,
+      ready: false,
+      reason: "cloudflare_named_credentials_missing",
+      status: getCloudflareNamedTunnelStatus(),
+    };
+  }
+  const config = buildNamedTunnelConfig(parsed);
+  const current = fs.existsSync(namedTunnelConfigPath) ? fs.readFileSync(namedTunnelConfigPath, "utf8") : "";
+  const refreshed = current !== config;
+  if (refreshed) {
+    fs.mkdirSync(path.dirname(namedTunnelConfigPath), { recursive: true });
+    fs.writeFileSync(namedTunnelConfigPath, config, { mode: 0o600 });
+    saveNamedTunnelSettings({
+      name: parsed.name,
+      hostname: parsed.hostname,
+      credentialsFile: parsed.credentialsFile,
+      port: parsed.port,
+    });
+  }
+  return {
+    refreshed,
+    ready: true,
+    reason: refreshed ? "cloudflare_named_config_refreshed" : "cloudflare_named_config_current",
+    status: getCloudflareNamedTunnelStatus(),
+  };
+}
+
 export function startConfiguredCloudflareNamedTunnel(timeoutMs = 15000) {
   const status = getCloudflareNamedTunnelStatus();
   if (!status.ready || !status.name) throw new Error("Cloudflare Named Tunnel is not ready. Generate the config first.");
@@ -354,7 +396,12 @@ function isTemporaryCloudflareUrl(value = "") {
 
 export async function maybeStartConfiguredCloudflareTunnel(port: string, timeoutMs = 15000) {
   const config = getDesktopRuntimeConfig();
-  const namedStatus = getCloudflareNamedTunnelStatus();
+  let namedStatus = getCloudflareNamedTunnelStatus();
+  let refreshResult: ReturnType<typeof refreshCloudflareNamedTunnelConfigForPort> | null = null;
+  if (config?.mode === "cloudflare" && !isAutostartDisabled() && !isTemporaryCloudflareUrl(config.publicBaseUrl)) {
+    refreshResult = refreshCloudflareNamedTunnelConfigForPort(port);
+    namedStatus = refreshResult.status;
+  }
   if (config?.mode === "cloudflare" && namedStatus.ready && config.publicBaseUrl === namedStatus.baseUrl && !isAutostartDisabled()) {
     const tunnel = await startConfiguredCloudflareNamedTunnel(timeoutMs);
     process.env.PUBLIC_BASE_URL = namedStatus.baseUrl;
@@ -363,6 +410,7 @@ export async function maybeStartConfiguredCloudflareTunnel(port: string, timeout
       reason: "cloudflare_named_configured",
       tunnel,
       config,
+      refresh: refreshResult,
     };
   }
   if (!config || config.mode !== "cloudflare" || isAutostartDisabled()) {
