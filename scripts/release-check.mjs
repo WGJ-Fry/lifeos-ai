@@ -854,6 +854,8 @@ function checkAssets() {
     coreRoutesSource.includes("remoteEntryMode") &&
     securityDiagnosticsSource.includes('id: "backupSchedule"') &&
     securityDiagnosticsSource.includes("getBackupSchedule") &&
+    securityDiagnosticsSource.includes("inspectConfiguredPublicBaseUrlInput") &&
+    securityDiagnosticsSource.includes('id: "publicBaseUrlInput"') &&
     adminDashboardSource.includes("dashboard.publicRiskTitle") &&
     adminDashboardSource.includes("health.publicRisk.items.map") &&
     adminDashboardSource.includes("dashboard.createBackupNow") &&
@@ -862,6 +864,8 @@ function checkAssets() {
     translationsSource.includes("dashboard.publicRiskTitle") &&
     publicModeTestSource.includes("backupSchedule") &&
     publicModeTestSource.includes("health exposes saved desktop remote entry mode for mobile recovery") &&
+    publicModeTestSource.includes("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input") &&
+    publicModeTestSource.includes("public-secret") &&
     publicModeTestSource.includes('health.remoteEntryMode, "cloudflare"') &&
     publicModeTestSource.includes("configuredHealth.publicSetupRisk, true") &&
     publicModeTestSource.includes("improvedHealth.publicRisk.items")

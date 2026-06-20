@@ -209,6 +209,42 @@ test("PUBLIC_BASE_URL requires explicit public access opt-in", async (t) => {
   assert.match(result.output, /requires LIFEOS_ALLOW_PUBLIC=1/);
 });
 
+test("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input", async (t) => {
+  const port = 12410 + Math.floor(Math.random() * 1000);
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-public-url-input-test-"));
+  const { child, output } = startServer({
+    LIFEOS_PORT: String(port),
+    LIFEOS_DATA_DIR: dataDir,
+    LIFEOS_HOST: "127.0.0.1",
+    LIFEOS_ALLOW_PUBLIC: "1",
+    PUBLIC_BASE_URL: "https://user:password@lifeos.example.test/mobile?token=public-secret#debug",
+  });
+
+  t.after(async () => {
+    await stopServer(child);
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const health = await waitForHealth(port, child, output);
+  assert.equal(health.publicBaseUrl, "https://lifeos.example.test/mobile");
+  assert.equal(JSON.stringify(health).includes("public-secret"), false);
+  assert.equal(JSON.stringify(health).includes("user:password"), false);
+  assert.equal(health.publicRisk.items.some((item) => item.id === "publicBaseUrlInput" && item.status === "critical"), true);
+
+  const setupResponse = await request(port, "/api/v1/admin/setup", {
+    method: "POST",
+    body: JSON.stringify({ password: "correct horse battery staple" }),
+  });
+  assert.equal(setupResponse.status, 200);
+  const adminHeaders = cookieHeader(setupResponse);
+  const diagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: adminHeaders }).then((res) => res.json());
+  const unsafeInput = diagnostics.securityCheck.items.find((item) => item.id === "publicBaseUrlInput");
+  assert.equal(unsafeInput.status, "critical");
+  assert.match(unsafeInput.action, /PUBLIC_BASE_URL/);
+  assert.equal(JSON.stringify(diagnostics).includes("public-secret"), false);
+  assert.equal(JSON.stringify(diagnostics).includes("user:password"), false);
+});
+
 test("explicit public access opt-in exposes health warning metadata", async (t) => {
   const port = 9410 + Math.floor(Math.random() * 1000);
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-public-allowed-test-"));

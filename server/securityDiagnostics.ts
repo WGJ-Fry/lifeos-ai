@@ -2,7 +2,7 @@ import { getClientState } from "./clientState";
 import { isAdminConfigured } from "./auth";
 import { listAiProviderStatuses } from "./appSecrets";
 import { listBackups } from "./db";
-import { getConfiguredPublicBaseUrl } from "./publicBaseUrl";
+import { getConfiguredPublicBaseUrl, inspectConfiguredPublicBaseUrlInput } from "./publicBaseUrl";
 import { getBackupSchedule } from "./backupSchedule";
 
 export type SecurityCheckItem = {
@@ -31,6 +31,7 @@ export function evaluatePasswordPolicy(password: string) {
 
 export function getSecurityDiagnostics() {
   const publicBaseUrl = getConfiguredPublicBaseUrl();
+  const publicBaseUrlInput = inspectConfiguredPublicBaseUrlInput();
   const host = process.env.LIFEOS_HOST || "127.0.0.1";
   const publicMode = Boolean(publicBaseUrl) || host === "0.0.0.0";
   const passwordPolicy = getClientState("lifeos_admin_password_policy")?.value as ReturnType<typeof evaluatePasswordPolicy> | undefined;
@@ -69,6 +70,17 @@ export function getSecurityDiagnostics() {
           ? "Public address uses HTTPS."
           : "Public/remote access has no trusted HTTPS address.",
       action: "Use Cloudflare Tunnel, Tailscale, or a trusted HTTPS reverse proxy.",
+    },
+    {
+      id: "publicBaseUrlInput",
+      label: "Public URL Input",
+      status: !publicBaseUrlInput.configured || !publicBaseUrlInput.unsafe ? "ok" : "critical",
+      message: !publicBaseUrlInput.configured
+        ? "No public URL environment value is configured."
+        : publicBaseUrlInput.unsafe
+          ? "The original public URL setting contains credentials, tokens, query parameters, fragments, or an invalid URL."
+          : "The original public URL setting does not contain embedded credentials or query tokens.",
+      action: publicBaseUrlInput.unsafe ? "Set PUBLIC_BASE_URL to a clean HTTPS origin/path only, then restart LifeOS AI." : "No action needed.",
     },
     {
       id: "publicOptIn",
