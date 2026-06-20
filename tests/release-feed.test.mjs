@@ -196,6 +196,31 @@ test("release feed generator accepts unsigned mac zip artifacts", async (t) => {
   assert.equal(manifest.artifacts[0].sha256, crypto.createHash("sha256").update("fake zip bytes for feed smoke").digest("hex"));
 });
 
+test("release feed generator rejects stale versioned artifacts", async (t) => {
+  const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-feed-stale-version-"));
+  t.after(async () => {
+    await rm(releaseDir, { recursive: true, force: true });
+  });
+
+  await writeFile(path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg"), "old dmg bytes");
+  await writeFile(path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe"), "current nsis bytes");
+  const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_DIR: releaseDir,
+    },
+    encoding: "utf8",
+  });
+
+  assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /Release artifacts do not match package version 0\.1\.0/);
+  assert.match(result.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg contains 0\.0\.0/);
+  assert.match(result.stderr, /Rebuild the desktop packages or remove stale release artifacts/);
+  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "release-manifest.json")), false);
+  assert.equal(await fileExists(path.join(releaseDir, "SHA256SUMS")), false);
+});
+
 test("release feed generator writes Windows and Linux updater metadata", async (t) => {
   const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-feed-cross-platform-"));
   t.after(async () => {

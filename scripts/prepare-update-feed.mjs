@@ -28,6 +28,12 @@ function yamlString(value) {
   return JSON.stringify(value);
 }
 
+function artifactVersionMismatches(file) {
+  const name = path.basename(file);
+  const versionMatches = [...name.matchAll(/\b(\d+\.\d+\.\d+)\b/g)].map((match) => match[1]);
+  return versionMatches.filter((version) => version !== packageJson.version);
+}
+
 function writeFeed(fileName, artifact, platform) {
   const stat = fs.statSync(artifact);
   const outputName = path.basename(artifact);
@@ -60,6 +66,18 @@ function writeFeed(fileName, artifact, platform) {
 const artifacts = walk(releaseDir).filter((file) => /\.(dmg|zip|exe|AppImage)$/i.test(file));
 if (artifacts.length === 0) {
   console.error("No release artifacts found. Run npm run desktop:dist before npm run release:feed.");
+  process.exit(1);
+}
+
+const staleArtifacts = artifacts
+  .map((file) => ({ file, mismatches: artifactVersionMismatches(file) }))
+  .filter((item) => item.mismatches.length > 0);
+if (staleArtifacts.length > 0) {
+  console.error(`Release artifacts do not match package version ${packageJson.version}:`);
+  for (const item of staleArtifacts) {
+    console.error(`- ${path.basename(item.file)} contains ${item.mismatches.join(", ")}`);
+  }
+  console.error("Rebuild the desktop packages or remove stale release artifacts before running npm run release:feed.");
   process.exit(1);
 }
 
