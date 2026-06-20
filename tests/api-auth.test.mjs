@@ -951,6 +951,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
       ok: true,
       currentBase: "https://phone.example.test/lifeos",
       latencyMs: 42,
+      error: "Recovered after https://user:password@phone.example.test/lifeos?token=connectivity-secret#debug",
       steps: [
         { id: "health", ok: true, latencyMs: 12, status: 200 },
         { id: "mobile-shell", ok: true, latencyMs: 10, status: 200 },
@@ -964,11 +965,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(connectivityReport.body.report.healthOk, true);
   assert.equal(connectivityReport.body.report.mobileShellOk, true);
   assert.equal(connectivityReport.body.report.websocketOk, true);
+  assert.equal(connectivityReport.body.report.error.includes("connectivity-secret"), false);
+  assert.equal(connectivityReport.body.report.error.includes("user:password"), false);
   const devicesAfterConnectivityReport = await request(port, "/api/v1/devices", { headers: adminHeaders }).then((res) => res.json());
   const reportedDevice = devicesAfterConnectivityReport.devices.find((device) => device.id === credential.device.id);
   assert.equal(reportedDevice.connectivityReport.ok, true);
   assert.equal(reportedDevice.connectivityReport.currentBaseUrl, "https://phone.example.test/lifeos");
   assert.equal(reportedDevice.connectivityReport.mobileShellOk, true);
+  assert.equal(reportedDevice.connectivityReport.error.includes("connectivity-secret"), false);
 
   const selfRevokeBinding = await request(port, "/api/v1/devices/bind/start", {
     method: "POST",
@@ -1516,6 +1520,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, encryptedPassphrase);
   assertSecretNotLeaked(publicResponses, dataDir);
   assertSecretNotLeaked(publicResponses, "connection-secret");
+  assertSecretNotLeaked(publicResponses, "connectivity-secret");
   assertSecretNotLeaked(publicResponses, "state-secret-token");
   assertSecretNotLeaked(publicResponses, "sk-state-secret-value-should-not-leak");
   assertSecretNotLeaked(publicResponses, "AIzaSy-state-secret-value-should-not-leak");

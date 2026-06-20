@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import type express from "express";
-import { insertAuditLog } from "../audit";
+import { insertAuditLog, redactAuditString } from "../audit";
 import { requireAdmin } from "../auth";
 import { getRequestActor } from "../auth";
 import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
@@ -62,7 +62,7 @@ function normalizeConnectivityReportPayload(body: any) {
     mobileShellOk: Boolean(mobileShell?.ok),
     websocketOk: Boolean(websocket?.ok),
     latencyMs: Math.max(0, Math.min(Number(body?.latencyMs) || 0, 120000)),
-    error: body?.error ? String(body.error).slice(0, 300) : undefined,
+    error: body?.error ? redactAuditString(String(body.error)).slice(0, 300) : undefined,
   };
 }
 
