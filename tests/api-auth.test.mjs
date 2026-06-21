@@ -493,6 +493,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(testedMissingLocalProvider.ok, false);
+  assert.equal(testedMissingLocalProvider.mode, "configuration");
+  assert.equal(testedMissingLocalProvider.liveSupported, true);
+  assert.equal(testedMissingLocalProvider.result, "not_configured");
   assert.match(testedMissingLocalProvider.message, /endpoint configured/);
   assert.doesNotMatch(testedMissingLocalProvider.message, /key configured/);
   const openAiKey = "sk-test-openai-value-should-not-leak";
@@ -512,7 +515,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(testedOpenAi.ok, true);
-  assert.match(testedOpenAi.message, /is configured/);
+  assert.equal(testedOpenAi.mode, "configuration");
+  assert.equal(testedOpenAi.liveSupported, false);
+  assert.equal(testedOpenAi.selectedModel, "gpt-4o");
+  assert.equal(testedOpenAi.result, "ready");
+  assert.equal(typeof testedOpenAi.checkedAt, "number");
+  assert.match(testedOpenAi.message, /configuration is ready/);
+  assert.match(testedOpenAi.message, /Live API call was not run/);
   assert.equal(JSON.stringify(testedOpenAi).includes(openAiKey), false);
   const activeOpenAi = await request(port, "/api/v1/admin/ai-providers/openai/active", {
     method: "PUT",
@@ -902,6 +911,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(openAiTestAudit.metadata.provider, "OpenAI");
   assert.equal(openAiTestAudit.metadata.configured, true);
   assert.equal(openAiTestAudit.metadata.result, "ready");
+  assert.equal(openAiTestAudit.metadata.mode, "configuration");
+  assert.equal(openAiTestAudit.metadata.liveSupported, false);
+  assert.equal(openAiTestAudit.metadata.selectedModel, "gpt-4o");
+  assert.equal(typeof openAiTestAudit.metadata.checkedAt, "number");
   const openAiDefaultAudit = findConfigAudit("ai_provider_default_updated", "openai");
   assert.equal(openAiDefaultAudit.metadata.provider, "OpenAI");
   assert.equal(openAiDefaultAudit.metadata.active, true);

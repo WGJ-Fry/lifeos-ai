@@ -881,8 +881,22 @@ export function updateActiveAiProvider(providerId: AiProviderId) {
   return requestJson<{ provider: AiProviderStatus; providers: AiProviderStatus[] }>(`/api/v1/admin/ai-providers/${providerId}/active`, { method: "PUT" });
 }
 
-export function testAiProvider(providerId: AiProviderId) {
-  return requestJson<{ ok: boolean; provider: AiProviderStatus; message: string }>(`/api/v1/admin/ai-providers/${providerId}/test`, { method: "POST" });
+export type AiProviderTestResult = {
+  ok: boolean;
+  provider: AiProviderStatus;
+  message: string;
+  mode: "configuration" | "live";
+  liveSupported: boolean;
+  selectedModel?: string;
+  checkedAt: number;
+  result: "ready" | "not_configured";
+};
+
+export function testAiProvider(providerId: AiProviderId, mode: "configuration" | "live" = "configuration") {
+  return requestJson<AiProviderTestResult>(`/api/v1/admin/ai-providers/${providerId}/test`, {
+    method: "POST",
+    body: JSON.stringify({ mode }),
+  });
 }
 
 export async function setupAdmin(password: string) {

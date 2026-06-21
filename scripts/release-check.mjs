@@ -1355,14 +1355,19 @@ function checkAssets() {
     aiKeyPanelSource.includes("updateActiveAiProvider") &&
     aiKeyPanelSource.includes("updateAiProviderModel") &&
     aiKeyPanelSource.includes("testAiProvider") &&
+    aiKeyPanelSource.includes("aiKey.testConfigOk") &&
+    aiKeyPanelSource.includes("aiKey.testConfigOnly") &&
     aiKeyPanelSource.includes("aiKey.defaultProviderTitle") &&
     aiKeyPanelSource.includes("aiKey.setDefault") &&
     translationsSource.includes("aiKey.defaultProviderTitle") &&
     translationsSource.includes("aiKey.setDefault") &&
     adminRoutesSource.includes("ai_provider_default_updated") &&
+    adminRoutesSource.includes("Live API call was not run") &&
+    adminRoutesSource.includes("liveSupported") &&
     apiAuthTestSource.includes("file:///tmp/ollama.sock") &&
     apiAuthTestSource.includes("endpoint-secret") &&
     apiAuthTestSource.includes("ai_provider_default_updated") &&
+    apiAuthTestSource.includes("testedOpenAi.mode") &&
     packageJson.scripts.test.includes("tests/chat-runtime-settings.test.mjs")
   ) pass("AI multi-provider UI and local endpoint validation are covered");
   else warn("AI multi-provider UI or local endpoint validation lacks release coverage");

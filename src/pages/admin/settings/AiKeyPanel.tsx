@@ -105,7 +105,9 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
     setStatus(null);
     try {
       const result = await testAiProvider(selectedProvider);
-      setStatus(result.message);
+      setStatus(result.ok
+        ? `${t("aiKey.testConfigOk", { provider: result.provider.provider, model: result.selectedModel || result.provider.selectedModel || result.provider.defaultModel || "-" })} ${t("aiKey.testConfigOnly")}`
+        : result.message);
       await refreshProviders();
     } catch (error: any) {
       setStatus(error.message || t("aiKey.testFailed"));

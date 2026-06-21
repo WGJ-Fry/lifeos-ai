@@ -451,16 +451,30 @@ export function registerAdminRoutes(app: express.Express) {
     const providerId = getProviderId(req.params.providerId);
     if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
     const status = getAiProviderStatus(providerId);
+    const checkedAt = Date.now();
+    const ok = Boolean(status.enabled && status.configured);
+    const mode = req.body?.mode === "live" ? "live" : "configuration";
+    const liveSupported = status.id === "local";
+    const result = ok ? "ready" : "not_configured";
     insertAuditLog("ai_provider_tested", "config", providerId, {
       ...aiStatusAuditMetadata(status),
-      result: status.enabled && status.configured ? "ready" : "not_configured",
+      result,
+      mode,
+      liveSupported,
+      selectedModel: status.selectedModel,
+      checkedAt,
     });
     res.json({
-      ok: status.enabled && status.configured,
+      ok,
       provider: status,
+      mode,
+      liveSupported,
+      selectedModel: status.selectedModel,
+      checkedAt,
+      result,
       message: status.enabled
         ? status.configured
-          ? `${status.provider} is configured.`
+          ? `${status.provider} configuration is ready for ${status.selectedModel}. Live API call was not run.`
           : status.id === "local"
             ? `${status.provider} has no endpoint configured.`
             : `${status.provider} has no key configured.`

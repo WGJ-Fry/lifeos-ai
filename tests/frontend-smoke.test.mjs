@@ -824,6 +824,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(aiKeyPanelSource, /updateActiveAiProvider/);
   assert.match(aiKeyPanelSource, /updateAiProviderModel/);
   assert.match(aiKeyPanelSource, /testAiProvider/);
+  assert.match(aiKeyPanelSource, /aiKey\.testConfigOk/);
+  assert.match(aiKeyPanelSource, /aiKey\.testConfigOnly/);
   assert.match(aiKeyPanelSource, /Google Gemini API Key/);
   assert.match(aiKeyPanelSource, /Responses \/ Chat Completions/);
   assert.match(aiKeyPanelSource, /aiKey\.details\.openrouter/);
