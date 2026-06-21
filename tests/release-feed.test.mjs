@@ -446,7 +446,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /client state stores normalized URL scheme allowlists in SQLite/);
   assert.match(result.stdout, /AI multi-provider UI and local endpoint validation are covered/);
   assert.match(result.stdout, /AI key storage reports system secure store, fallback, and migration state/);
-  assert.match(result.stdout, /high-risk AI key, device, and backup actions include detailed redacted audit metadata/);
+  assert.match(result.stdout, /high-risk AI key, device, backup, and diagnostic exports include detailed redacted audit metadata/);
   assert.match(result.stdout, /pending restore cancellation is implemented across DB, API, UI, audit, and tests/);
   assert.match(result.stdout, /backup restore API exposes only whitelisted restore metadata/);
   assert.match(result.stdout, /backup restore previews are shown before restore in settings and dashboard/);

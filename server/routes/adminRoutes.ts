@@ -505,6 +505,8 @@ export function registerAdminRoutes(app: express.Express) {
   app.get("/api/v1/admin/diagnostic-bundle", requireAdmin, (req, res) => {
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
     const bundle = createDiagnosticBundle() as any;
+    const databaseTables = bundle.database?.tables && typeof bundle.database.tables === "object" ? Object.values(bundle.database.tables) : [];
+    const securityItems = Array.isArray(bundle.security?.items) ? bundle.security.items : [];
     insertAuditLog("diagnostic_bundle_exported", "diagnostics", "lifeos-diagnostics", {
       stamp,
       aiConfigured: Boolean(bundle.ai?.configured),
@@ -514,10 +516,15 @@ export function registerAdminRoutes(app: express.Express) {
       deviceActive: bundle.devices?.active || 0,
       deviceOnline: bundle.devices?.online || 0,
       backupCount: bundle.database?.backups?.length || 0,
+      databaseTableCount: databaseTables.length,
+      databaseRowTotal: databaseTables.reduce((total: number, value: any) => total + (Number.isFinite(Number(value)) ? Number(value) : 0), 0),
       pendingRestore: Boolean(bundle.database?.pendingRestore),
+      recentAuditCount: Array.isArray(bundle.recentAudit) ? bundle.recentAudit.length : 0,
       releaseManifestAvailable: Boolean(bundle.release?.manifestAvailable),
       releaseChecksumAvailable: Boolean(bundle.release?.checksumAvailable),
       releaseArtifactCount: bundle.release?.artifactCount || 0,
+      publicBaseUrlConfigured: Boolean(bundle.network?.publicBaseUrl),
+      remoteEntryMode: bundle.network?.desktopRuntimeConfig?.mode || "none",
       remoteStatus: bundle.remote?.healthSummary?.status || "unknown",
       remoteAcceptanceReady: Boolean(bundle.remote?.acceptanceSummary?.ready),
       remoteAcceptanceHasLongTermEntry: Boolean(bundle.remote?.acceptanceSummary?.hasLongTermEntry),
@@ -525,6 +532,8 @@ export function registerAdminRoutes(app: express.Express) {
       remoteAcceptancePassed: Array.isArray(bundle.remote?.acceptanceChecklist) ? bundle.remote.acceptanceChecklist.filter((item: any) => item.status === "passed").length : 0,
       remoteAcceptanceManualRequired: Array.isArray(bundle.remote?.acceptanceChecklist) ? bundle.remote.acceptanceChecklist.filter((item: any) => item.status === "manual-required").length : 0,
       securityOverall: bundle.security?.overall || "unknown",
+      securityCriticalCount: securityItems.filter((item: any) => item.status === "critical").length,
+      securityWarningCount: securityItems.filter((item: any) => item.status === "warning").length,
       publicMode: Boolean(bundle.security?.publicMode),
     }, (req as any).actor?.type, (req as any).actor?.id);
     res.setHeader("Content-Type", "application/json; charset=utf-8");

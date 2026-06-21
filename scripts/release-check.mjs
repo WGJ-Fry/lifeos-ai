@@ -1366,11 +1366,17 @@ function checkAssets() {
     backupRoutesSourceForAudit.includes("tableCount") &&
     backupRoutesSourceForAudit.includes("rowTotal") &&
     backupRoutesSourceForAudit.includes("encryption") &&
+    adminRoutesSource.includes("diagnostic_bundle_exported") &&
+    adminRoutesSource.includes("databaseRowTotal") &&
+    adminRoutesSource.includes("securityCriticalCount") &&
+    adminRoutesSource.includes("remoteAcceptanceManualRequired") &&
     apiAuthTestSource.includes("previousCredentialExpiresAt") &&
     apiAuthTestSource.includes("secureStorage.label") &&
-    apiAuthTestSource.includes("encryptedExportAudit.metadata.encryption")
-  ) pass("high-risk AI key, device, and backup actions include detailed redacted audit metadata");
-  else warn("high-risk AI key, device, or backup audit metadata is too shallow or lacks tests");
+    apiAuthTestSource.includes("encryptedExportAudit.metadata.encryption") &&
+    apiAuthTestSource.includes("diagnosticExportAudit.metadata.databaseRowTotal") &&
+    apiAuthTestSource.includes("diagnosticExportAudit.metadata.securityCriticalCount")
+  ) pass("high-risk AI key, device, backup, and diagnostic exports include detailed redacted audit metadata");
+  else warn("high-risk AI key, device, backup, or diagnostic export audit metadata is too shallow or lacks tests");
 
   if (exists("dist/server.cjs") && exists("dist/index.html")) pass("build output exists in dist/");
   else warn("dist/ is missing or stale; run npm run build before packaging");
