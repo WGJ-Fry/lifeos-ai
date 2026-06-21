@@ -777,6 +777,11 @@ function checkAssets() {
     devicePairConnectionTestSource.includes("devicePair.testStep.mobileShell") &&
     devicePairConnectionTestSource.includes("devicePair.testStep.websocket") &&
     devicePairConnectionTestSource.includes("devicePair.testHttpsWarning") &&
+    devicePairConnectionTestSource.includes("devicePair.testFix.health") &&
+    devicePairConnectionTestSource.includes("devicePair.testFix.mobileShell") &&
+    devicePairConnectionTestSource.includes("devicePair.testFix.websocket") &&
+    devicePairConnectionTestSource.includes("devicePair.testFix.https") &&
+    devicePairConnectionTestSource.includes("devicePair.testFix.generic") &&
     translationsSource.includes("devicePair.testCurrent") &&
     translationsSource.includes("connection.secureRecommended") &&
     translationsSource.includes("connection.trustedNetworkOnly") &&

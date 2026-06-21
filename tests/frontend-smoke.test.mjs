@@ -762,6 +762,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(devicePairConnectionTestSource, /devicePair\.testStep\.mobileShell/);
   assert.match(devicePairConnectionTestSource, /devicePair\.testStep\.websocket/);
   assert.match(devicePairConnectionTestSource, /devicePair\.testHttpsWarning/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.health/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.mobileShell/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.websocket/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.https/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.generic/);
   assert.match(translationsSource, /测试当前绑定地址/);
   assert.match(translationsSource, /推荐安全/);
   assert.match(translationsSource, /仅可信网络/);
@@ -770,6 +775,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /这是临时地址/);
   assert.match(translationsSource, /手机聊天页面/);
   assert.match(translationsSource, /实时通道/);
+  assert.match(translationsSource, /下一步：当前入口没有稳定转发 WebSocket/);
+  assert.match(translationsSource, /Next step: this entry is not forwarding WebSocket reliably/);
 
   const adminDashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
   assert.match(adminDashboardSource, /dashboard\.publicRiskTitle/);
