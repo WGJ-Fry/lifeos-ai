@@ -7,17 +7,12 @@
 运行：
 
 ```bash
+npm run release:artifacts:check
 npm run release:feed
 npm run release:check:signed:file
 ```
 
-当前已通过：
-
-```text
-172 passed, 0 warnings, 0 failures
-```
-
-当前仓库已经通过严格 unsigned 发布检查。做 signed macOS 公开发布时，使用 `.env.signing.local` 或当前 shell 注入签名/公证环境后，再运行 `npm run release:check:signed:file`。
+`release:artifacts:check` 会阻止误上传旧版本安装包。当前仓库已经通过严格 unsigned 发布检查。做 signed macOS 公开发布时，使用 `.env.signing.local` 或当前 shell 注入签名/公证环境后，再运行 `npm run release:check:signed:file`。
 
 ## 创建 Release
 
@@ -146,17 +141,12 @@ node_modules/
 Run:
 
 ```bash
+npm run release:artifacts:check
 npm run release:feed
 LIFEOS_DISTRIBUTION=signed npm run release:check
 ```
 
-Current result:
-
-```text
-165 passed, 1 warning, 0 failures
-```
-
-The only warning is that `LIFEOS_UPDATE_URL` is not set. Manual download/install is ready; auto-update can be wired later.
+`release:artifacts:check` blocks accidental uploads of stale installers from an older package version. If `LIFEOS_UPDATE_URL` is not set, manual download/install can still be ready while auto-update remains disabled.
 
 ## Create a Release
 

@@ -221,6 +221,39 @@ test("release feed generator rejects stale versioned artifacts", async (t) => {
   assert.equal(await fileExists(path.join(releaseDir, "SHA256SUMS")), false);
 });
 
+test("release artifact version checker blocks and explicitly cleans stale installers", async (t) => {
+  const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-artifact-version-"));
+  t.after(async () => {
+    await rm(releaseDir, { recursive: true, force: true });
+  });
+
+  const staleDmg = path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg");
+  const currentExe = path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe");
+  await writeFile(staleDmg, "old dmg bytes");
+  await writeFile(currentExe, "current nsis bytes");
+
+  const check = spawnSync(process.execPath, ["scripts/check-release-artifact-versions.mjs"], {
+    cwd: rootDir,
+    env: { ...process.env, LIFEOS_RELEASE_DIR: releaseDir },
+    encoding: "utf8",
+  });
+  assert.notEqual(check.status, 0, `${check.stdout}\n${check.stderr}`);
+  assert.match(check.stderr, /Release artifacts do not match package version 0\.1\.0/);
+  assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg contains 0\.0\.0/);
+  assert.equal(await fileExists(staleDmg), true);
+  assert.equal(await fileExists(currentExe), true);
+
+  const fixed = spawnSync(process.execPath, ["scripts/check-release-artifact-versions.mjs", "--fix"], {
+    cwd: rootDir,
+    env: { ...process.env, LIFEOS_RELEASE_DIR: releaseDir },
+    encoding: "utf8",
+  });
+  assert.equal(fixed.status, 0, `${fixed.stdout}\n${fixed.stderr}`);
+  assert.match(fixed.stdout, /Deleted/);
+  assert.equal(await fileExists(staleDmg), false);
+  assert.equal(await fileExists(currentExe), true);
+});
+
 test("release feed generator writes Windows and Linux updater metadata", async (t) => {
   const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-feed-cross-platform-"));
   t.after(async () => {
@@ -377,6 +410,8 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /package script exists: desktop:artifact:smoke/);
   assert.match(result.stdout, /package script exists: desktop:artifact:smoke:launch/);
   assert.match(result.stdout, /package script exists: quality:gate/);
+  assert.match(result.stdout, /package script exists: release:artifacts:check/);
+  assert.match(result.stdout, /release artifact version checker can block and explicitly clean stale installers/);
   assert.match(result.stdout, /quality gate script runs lint, tests, e2e, desktop, and release checks/);
   assert.match(result.stdout, /desktop release smoke builds unsigned macOS zip/);
   assert.match(result.stdout, /desktop release smoke builds unsigned Windows NSIS artifact/);

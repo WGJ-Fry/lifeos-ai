@@ -128,8 +128,11 @@ Use this path when you do not want app-store style signing:
 
 ```bash
 npm run desktop:zip:unsigned
+npm run release:artifacts:check
 npm run release:check:unsigned
 ```
+
+If `release:artifacts:check` reports stale installers from an older package version, rebuild packages for the current version. For local cleanup only, run `npm run release:artifacts:fix`; it deletes only version-mismatched package files and leaves current-version artifacts in place.
 
 Upload these files to a GitHub Release or private HTTPS download page:
 

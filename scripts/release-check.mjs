@@ -135,9 +135,21 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:feed"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
+  }
+
+  if (exists("scripts/check-release-artifact-versions.mjs")) {
+    const artifactVersionCheck = fs.readFileSync(path.join(rootDir, "scripts/check-release-artifact-versions.mjs"), "utf8");
+    if (
+      artifactVersionCheck.includes("Release artifacts do not match package version") &&
+      artifactVersionCheck.includes("process.argv.includes(\"--fix\")") &&
+      artifactVersionCheck.includes("fs.rmSync")
+    ) pass("release artifact version checker can block and explicitly clean stale installers");
+    else fail("release artifact version checker is missing stale-version detection or explicit cleanup mode");
+  } else {
+    fail("missing stale release artifact version checker: scripts/check-release-artifact-versions.mjs");
   }
 
   const qualityGate = packageJson.scripts?.["quality:gate"] || "";
@@ -1758,6 +1770,7 @@ function checkReleaseDocs() {
       "unsigned",
       "signed",
       "npm run desktop:release:smoke",
+      "npm run release:artifacts:check",
       "LIFEOS_UPDATE_URL",
       "release/update-feed/",
       "latest*.yml",
