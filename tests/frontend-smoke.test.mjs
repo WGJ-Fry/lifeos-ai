@@ -505,12 +505,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.persistentStorage/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.failureReason/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.retryOne/);
+  assert.match(mobileOfflineQueueCardsSource, /recommendationKey/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.browserStorage/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.persistentStorage/);
   assert.match(mobileDeviceSource, /offlineQueue\.remoteEntryTitle/);
   assert.match(mobileDeviceSource, /currentEntryGuidance\.map/);
   assert.match(translationsSource, /offlineQueue\.remoteEntryTitle/);
   assert.match(translationsSource, /离线队列存储/);
   assert.match(translationsSource, /待同步/);
   assert.match(translationsSource, /可以重试/);
+  assert.match(translationsSource, /浏览器存储空间接近上限/);
+  assert.match(translationsSource, /离线队列为空/);
   assert.match(translationsSource, /localStorage 兼容镜像/);
   assert.match(translationsSource, /持久化存储/);
   assert.match(translationsSource, /失败原因/);

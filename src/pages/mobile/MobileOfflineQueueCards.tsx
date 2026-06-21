@@ -8,6 +8,17 @@ import {
 } from "../../services/offlineMessageQueue";
 import { useI18n } from "../../i18n/I18nProvider";
 
+function recommendationKey(recommendation: string) {
+  if (recommendation.includes("cannot write to the local queue")) return "offlineQueue.recommendation.unavailable";
+  if (recommendation.includes("IndexedDB is unavailable")) return "offlineQueue.recommendation.indexedDb";
+  if (recommendation.includes("near its limit")) return "offlineQueue.recommendation.itemLimit";
+  if (recommendation.includes("near its storage budget")) return "offlineQueue.recommendation.byteLimit";
+  if (recommendation.includes("Browser storage is near its limit")) return "offlineQueue.recommendation.browserStorage";
+  if (recommendation.includes("Persistent storage has not been granted")) return "offlineQueue.recommendation.persistentStorage";
+  if (recommendation.includes("offline queue is empty")) return "offlineQueue.recommendation.empty";
+  return "";
+}
+
 export function QueueStorageCard({ storage }: { storage: OfflineMessageQueueStorageStatus }) {
   const { t } = useI18n();
   const tone = storage.available && !storage.nearItemLimit && !storage.nearByteLimit && (storage.usageRatio === undefined || storage.usageRatio <= 0.8)
@@ -27,9 +38,10 @@ export function QueueStorageCard({ storage }: { storage: OfflineMessageQueueStor
       </div>
       {storage.recommendations.length ? (
         <div className="mt-3 space-y-1 border-t border-current/15 pt-3 leading-relaxed opacity-90">
-          {storage.recommendations.map((recommendation) => (
-            <div key={recommendation}>{recommendation}</div>
-          ))}
+          {storage.recommendations.map((recommendation) => {
+            const key = recommendationKey(recommendation);
+            return <div key={recommendation}>{key ? t(key as any) : recommendation}</div>;
+          })}
         </div>
       ) : null}
     </div>
