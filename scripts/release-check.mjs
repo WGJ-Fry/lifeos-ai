@@ -683,6 +683,8 @@ function checkAssets() {
     translationsSource.includes("connection.remoteValidationOk") &&
     connectionGuideSource.includes("saveDesktopConnectionConfig") &&
     connectionGuideSource.includes("connection.saveDesktopConfig") &&
+    connectionGuideSource.includes("connection.openPairingQr") &&
+    connectionGuideSource.includes('href="/admin/devices/pair"') &&
     connectionGuideSource.includes("TailscaleServeActions") &&
     connectionGuideSource.includes("startTailscaleHttpsServe") &&
     connectionGuideSource.includes("connection.packageRestartHint") &&
@@ -702,6 +704,7 @@ function checkAssets() {
     translationsSource.includes("connection.recommendedEnv") &&
     translationsSource.includes("connection.copyRecommendedEnv") &&
     translationsSource.includes("connection.saveDesktopConfig") &&
+    translationsSource.includes("connection.openPairingQr") &&
     translationsSource.includes("绑定手机端”二维码都会自动使用这个入口") &&
     translationsSource.includes("Pair Phone QR code will automatically use this entry") &&
     translationsSource.includes("connection.customTitle") &&

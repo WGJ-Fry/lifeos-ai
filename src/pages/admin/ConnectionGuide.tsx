@@ -217,7 +217,7 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
               ) : null}
               {diagnostics.desktopRuntimeConfig ? (
                 <div className="mt-3 rounded-xl border border-emerald-400/15 bg-emerald-500/10 p-3 text-[11px] leading-relaxed text-emerald-100">
-                  {t("connection.savedDesktopConfig", { label: diagnostics.desktopRuntimeConfig.label, url: diagnostics.desktopRuntimeConfig.baseUrl })}
+                  {t("connection.savedDesktopConfig", { label: diagnostics.desktopRuntimeConfig.label, url: diagnostics.desktopRuntimeConfig.baseUrl })} <a href="/admin/devices/pair" className="font-bold text-emerald-50 underline decoration-emerald-200/50 underline-offset-4">{t("connection.openPairingQr")}</a>
                 </div>
               ) : null}
             </div>

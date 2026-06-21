@@ -572,6 +572,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(connectionGuideSource, /connection\.copyEnv/);
   assert.match(connectionGuideSource, /saveDesktopConnectionConfig/);
   assert.match(connectionGuideSource, /connection\.saveDesktopConfig/);
+  assert.match(connectionGuideSource, /connection\.openPairingQr/);
+  assert.match(connectionGuideSource, /href="\/admin\/devices\/pair"/);
   assert.match(connectionGuideSource, /connection\.packageRestartHint/);
   assert.match(connectionGuideSource, /TailscaleServeActions/);
   assert.match(connectionGuideSource, /startTailscaleHttpsServe/);
@@ -595,6 +597,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /退出并重新打开 LifeOS AI/);
   assert.match(translationsSource, /绑定手机端”二维码都会自动使用这个入口/);
   assert.match(translationsSource, /Pair Phone QR code will automatically use this entry/);
+  assert.match(translationsSource, /去重新生成绑定二维码/);
+  assert.match(translationsSource, /Regenerate Pairing QR Code/);
   assert.match(translationsSource, /一键启动 Tailscale HTTPS Serve/);
   assert.match(translationsSource, /未检测到 MagicDNS/);
   assert.match(translationsSource, /Tailscale is installed but not online/);
