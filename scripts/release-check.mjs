@@ -1142,6 +1142,8 @@ function checkAssets() {
     mobileOfflineQueueCardsSource.includes("getOfflineMessageRetryLabel") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueStorageLabel") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueUsageLabel") &&
+    mobileOfflineQueueCardsSource.includes("storage.nearByteLimit") &&
+    mobileOfflineQueueCardsSource.includes("storage.maxBytes") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.storageTitle") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.legacyMirror") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.persistentStorage") &&
@@ -1158,12 +1160,18 @@ function checkAssets() {
     offlineQueueTestSource.includes("getOfflineMessageQueueUsageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageStatus") &&
     offlineQueueTestSource.includes("migrates legacy localStorage into IndexedDB primary storage") &&
+    offlineQueueTestSource.includes("compacts oversized messages and reports byte budget") &&
+    offlineQueueTestSource.includes("trims oldest items when storage budget is exceeded") &&
     offlineQueueSource.includes("IndexedDB primary storage") &&
     offlineQueueSource.includes("hydrateOfflineMessageQueue") &&
     offlineQueueSource.includes("writeIndexedQueue") &&
+    offlineQueueSource.includes("MAX_QUEUE_BYTES") &&
+    offlineQueueSource.includes("MAX_QUEUE_ITEM_BYTES") &&
+    offlineQueueSource.includes("trimQueueToBudget") &&
+    offlineQueueSource.includes("msg_${(hash >>> 0).toString(36)}") &&
     offlineQueueSource.includes("Browser storage is near its limit")
-  ) pass("offline queue UI uses localized status and item retry timing");
-  else warn("offline queue UI lacks localized item status, retry timing, or tests");
+  ) pass("offline queue UI uses localized status, retry timing, and storage budget protection");
+  else warn("offline queue UI lacks localized item status, retry timing, storage budget protection, or tests");
 
   const systemActionsSource = exists("src/components/apps/SystemActionsApp.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/apps/SystemActionsApp.tsx"), "utf8") : "";
   const systemActionsServiceSource = exists("src/services/systemActions.ts") ? fs.readFileSync(path.join(rootDir, "src/services/systemActions.ts"), "utf8") : "";

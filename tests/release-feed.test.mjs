@@ -436,7 +436,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /mobile device page can revoke its own server-side binding with audit coverage/);
   assert.match(result.stdout, /mobile device credentials migrate away from localStorage and expose storage status/);
   assert.match(result.stdout, /frontend clears sensitive localStorage residue without breaking pairing or credential migration/);
-  assert.match(result.stdout, /offline queue UI uses localized status and item retry timing/);
+  assert.match(result.stdout, /offline queue UI uses localized status, retry timing, and storage budget protection/);
   assert.match(result.stdout, /mobile action permission center summarizes, clears, and audits local app launches/);
   assert.match(result.stdout, /mobile action URL scheme whitelist rejects blocked and malformed schemes/);
   assert.match(result.stdout, /data export redaction covers AI keys, tokens, auth headers, crypto fields, URLs, and local paths/);

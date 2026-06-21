@@ -6,6 +6,8 @@ const STORE_NAME = "queues";
 const QUEUE_RECORD_ID = "primary";
 const QUEUE_EVENT = "lifeos-offline-message-queue-changed";
 const MAX_QUEUE_ITEMS = 100;
+const MAX_QUEUE_BYTES = 512 * 1024;
+const MAX_QUEUE_ITEM_BYTES = 64 * 1024;
 const SYNCING_STALE_AFTER_MS = 2 * 60 * 1000;
 const FAILED_RETRY_BACKOFF_MS = [15_000, 30_000, 60_000, 2 * 60_000, 5 * 60_000];
 
@@ -26,6 +28,8 @@ export type OfflineMessageQueueStorageStatus = {
   indexedDbAvailable: boolean;
   legacyLocalStoragePresent: boolean;
   bytes: number;
+  maxBytes: number;
+  nearByteLimit: boolean;
   count: number;
   maxItems: number;
   nearItemLimit: boolean;
@@ -162,8 +166,51 @@ function writeLegacyMirror(queue: OfflineQueuedMessage[]) {
   else localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 }
 
+export function getOfflineQueueSerializedBytes(queue: OfflineQueuedMessage[]) {
+  return new Blob([JSON.stringify(queue)]).size;
+}
+
+function trimQueueToBudget(queue: OfflineQueuedMessage[]) {
+  let next = queue.slice(-MAX_QUEUE_ITEMS);
+  while (next.length > 1 && getOfflineQueueSerializedBytes(next) > MAX_QUEUE_BYTES) {
+    next = next.slice(1);
+  }
+  return next;
+}
+
+function truncateTextByBytes(text: string, maxBytes: number) {
+  if (new Blob([text]).size <= maxBytes) return text;
+  let low = 0;
+  let high = text.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (new Blob([text.slice(0, mid)]).size <= maxBytes) low = mid;
+    else high = mid - 1;
+  }
+  return `${text.slice(0, Math.max(0, low - 120))}\n\n[Offline queue truncated an oversized message before local storage.]`;
+}
+
+function compactMessageForQueue(message: Message) {
+  const initialBytes = new Blob([JSON.stringify(message)]).size;
+  if (initialBytes <= MAX_QUEUE_ITEM_BYTES) return { message, compacted: false, initialBytes };
+
+  const nonTextBytes = new Blob([JSON.stringify({ ...message, parts: message.parts.map((part) => ({ ...part, text: part.text ? "" : part.text })) })]).size;
+  const textBudget = Math.max(512, MAX_QUEUE_ITEM_BYTES - nonTextBytes - 512);
+  const textParts = message.parts.filter((part) => typeof part.text === "string" && part.text.length > 0);
+  const perTextBudget = Math.max(256, Math.floor(textBudget / Math.max(1, textParts.length)));
+  const compacted: Message = {
+    ...message,
+    parts: message.parts.map((part) => (
+      typeof part.text === "string" && part.text.length > 0
+        ? { ...part, text: truncateTextByBytes(part.text, perTextBudget) }
+        : part
+    )),
+  };
+  return { message: compacted, compacted: true, initialBytes };
+}
+
 function writeQueue(queue: OfflineQueuedMessage[], options: WriteQueueOptions = {}) {
-  const next = queue.slice(-MAX_QUEUE_ITEMS);
+  const next = trimQueueToBudget(queue);
   queueCache = next;
   writeLegacyMirror(next);
   void writeIndexedQueue(next).catch(() => undefined);
@@ -214,12 +261,19 @@ function stableStringify(value: unknown): string {
 }
 
 export function getMessageFingerprint(message: Message) {
-  return stableStringify(message);
+  let hash = 2166136261;
+  const input = stableStringify(message);
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `msg_${(hash >>> 0).toString(36)}_${input.length.toString(36)}`;
 }
 
 export function enqueueOfflineMessage(message: Message) {
   const queue = readQueue();
-  const fingerprint = getMessageFingerprint(message);
+  const compacted = compactMessageForQueue(message);
+  const fingerprint = getMessageFingerprint(compacted.message);
   const existing = queue.find((item) => item.fingerprint === fingerprint);
   if (existing) {
     writeQueue(queue.map((item) => item.id === existing.id ? { ...item, status: "pending", lastError: undefined } : item));
@@ -229,11 +283,12 @@ export function enqueueOfflineMessage(message: Message) {
   const id = crypto.randomUUID();
   queue.push({
     id,
-    message,
+    message: compacted.message,
     queuedAt: Date.now(),
     fingerprint,
-    status: "pending",
+    status: compacted.compacted ? "failed" : "pending",
     attempts: 0,
+    lastError: compacted.compacted ? `Message exceeded the offline queue item limit (${formatOfflineMessageQueueBytes(compacted.initialBytes)}). The local fallback copy was truncated; copy the original text again when the desktop is reachable.` : undefined,
   });
   writeQueue(queue);
   return id;
@@ -378,9 +433,9 @@ export async function getOfflineMessageQueueStorageStatus(): Promise<OfflineMess
   const indexedAvailable = indexedDbAvailable();
   const available = indexedAvailable || localStorageAvailable();
   const queue = readQueue();
-  const raw = readRawQueue() || JSON.stringify(queue);
-  const bytes = new Blob([raw]).size;
+  const bytes = getOfflineQueueSerializedBytes(queue);
   const nearItemLimit = queue.length >= Math.floor(MAX_QUEUE_ITEMS * 0.8);
+  const nearByteLimit = bytes >= Math.floor(MAX_QUEUE_BYTES * 0.8);
   let persistentStorageGranted: boolean | null = null;
   let usageBytes: number | undefined;
   let quotaBytes: number | undefined;
@@ -408,6 +463,9 @@ export async function getOfflineMessageQueueStorageStatus(): Promise<OfflineMess
   if (nearItemLimit) {
     recommendations.push("The offline queue is near its limit. Open chat to sync or remove messages that do not need to be written back.");
   }
+  if (nearByteLimit) {
+    recommendations.push("The offline queue is near its storage budget. Sync or remove large messages before adding more offline work.");
+  }
   if (usageRatio !== undefined && usageRatio > 0.8) {
     recommendations.push("Browser storage is near its limit. Sync and clear old queue items to avoid automatic cleanup.");
   }
@@ -424,6 +482,8 @@ export async function getOfflineMessageQueueStorageStatus(): Promise<OfflineMess
     indexedDbAvailable: indexedAvailable,
     legacyLocalStoragePresent,
     bytes,
+    maxBytes: MAX_QUEUE_BYTES,
+    nearByteLimit,
     count: queue.length,
     maxItems: MAX_QUEUE_ITEMS,
     nearItemLimit,

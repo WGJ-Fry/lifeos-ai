@@ -11,7 +11,7 @@ import { useI18n } from "../../i18n/I18nProvider";
 
 export function QueueStorageCard({ storage }: { storage: OfflineMessageQueueStorageStatus }) {
   const { t } = useI18n();
-  const tone = storage.available && !storage.nearItemLimit && (storage.usageRatio === undefined || storage.usageRatio <= 0.8)
+  const tone = storage.available && !storage.nearItemLimit && !storage.nearByteLimit && (storage.usageRatio === undefined || storage.usageRatio <= 0.8)
     ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
     : "border-amber-400/20 bg-amber-500/10 text-amber-100";
   const storageLabel = getOfflineMessageQueueStorageLabel(storage.storage);
@@ -20,7 +20,7 @@ export function QueueStorageCard({ storage }: { storage: OfflineMessageQueueStor
       <div className="mb-2 font-bold">{t("offlineQueue.storageTitle", { storage: storageLabel })}</div>
       <div className="grid gap-1 opacity-85">
         <div>{t("offlineQueue.count", { count: storage.count, max: storage.maxItems })}</div>
-        <div>{t("offlineQueue.size", { size: formatOfflineMessageQueueBytes(storage.bytes) })}</div>
+        <div>{t("offlineQueue.size", { size: `${formatOfflineMessageQueueBytes(storage.bytes)} / ${formatOfflineMessageQueueBytes(storage.maxBytes)}` })}</div>
         <div>{t("offlineQueue.indexedDb")}：{storage.indexedDbAvailable ? t("offlineQueue.available") : t("offlineQueue.unavailable")}</div>
         <div>{t("offlineQueue.legacyMirror")}：{storage.legacyLocalStoragePresent ? t("offlineQueue.exists") : t("offlineQueue.none")}</div>
         <div>{t("offlineQueue.browserUsage", { value: getOfflineMessageQueueUsageLabel(storage) })}</div>

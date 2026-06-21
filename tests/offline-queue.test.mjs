@@ -304,3 +304,50 @@ test("offline message queue migrates legacy localStorage into IndexedDB primary 
   assert.equal(afterClear.count, 0);
   delete globalThis.indexedDB;
 });
+
+test("offline message queue compacts oversized messages and reports byte budget", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  delete globalThis.indexedDB;
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=byte-budget-${Date.now()}`);
+
+  const hugeText = "offline-long-message ".repeat(20_000);
+  const id = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: hugeText }] });
+  const [item] = queueModule.getOfflineMessageQueue();
+  assert.equal(item.id, id);
+  assert.equal(item.status, "failed");
+  assert.match(item.lastError, /offline queue item limit/);
+  assert.ok(item.message.parts[0].text.length < hugeText.length);
+  assert.match(item.message.parts[0].text, /truncated an oversized message/);
+  assert.ok(queueModule.getOfflineQueueSerializedBytes(queueModule.getOfflineMessageQueue()) < 70 * 1024);
+
+  const status = await queueModule.getOfflineMessageQueueStorageStatus();
+  assert.equal(status.maxBytes, 512 * 1024);
+  assert.equal(typeof status.nearByteLimit, "boolean");
+  assert.equal(status.bytes, queueModule.getOfflineQueueSerializedBytes(queueModule.getOfflineMessageQueue()));
+});
+
+test("offline message queue trims oldest items when storage budget is exceeded", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  delete globalThis.indexedDB;
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=trim-budget-${Date.now()}`);
+
+  for (let index = 0; index < 20; index += 1) {
+    queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: `${index}: ${"queued payload ".repeat(2_300)}` }] });
+  }
+
+  const queue = queueModule.getOfflineMessageQueue();
+  assert.ok(queue.length < 20);
+  assert.ok(queueModule.getOfflineQueueSerializedBytes(queue) <= 512 * 1024);
+  assert.equal(queue.some((item) => item.message.parts[0].text.startsWith("0:")), false);
+  assert.equal(queue.at(-1)?.message.parts[0].text.startsWith("19:"), true);
+
+  const status = await queueModule.getOfflineMessageQueueStorageStatus();
+  assert.equal(status.count, queue.length);
+  assert.equal(status.bytes <= status.maxBytes, true);
+});
