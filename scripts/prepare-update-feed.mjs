@@ -7,13 +7,11 @@ const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIF
 const feedDir = path.join(releaseDir, "update-feed");
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
 
-function walk(dir) {
-  if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const fullPath = path.join(dir, entry.name);
-    if (fullPath.startsWith(feedDir)) return [];
-    return entry.isDirectory() ? walk(fullPath) : [fullPath];
-  });
+function topLevelReleaseFiles() {
+  if (!fs.existsSync(releaseDir)) return [];
+  return fs.readdirSync(releaseDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => path.join(releaseDir, entry.name));
 }
 
 function sha512(file) {
@@ -63,13 +61,14 @@ function writeFeed(fileName, artifact, platform) {
   };
 }
 
-const artifacts = walk(releaseDir).filter((file) => /\.(dmg|zip|exe|AppImage)$/i.test(file));
+const releaseFiles = topLevelReleaseFiles();
+const artifacts = releaseFiles.filter((file) => /\.(dmg|zip|exe|AppImage)$/i.test(file));
 if (artifacts.length === 0) {
   console.error("No release artifacts found. Run npm run desktop:dist before npm run release:feed.");
   process.exit(1);
 }
 
-const staleArtifacts = artifacts
+const staleArtifacts = releaseFiles
   .map((file) => ({ file, mismatches: artifactVersionMismatches(file) }))
   .filter((item) => item.mismatches.length > 0);
 if (staleArtifacts.length > 0) {

@@ -5,7 +5,7 @@ const rootDir = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : path.join(rootDir, "release");
 const fix = process.argv.includes("--fix");
-const artifactPattern = /\.(dmg|zip|exe|AppImage)$/i;
+const artifactPattern = /\.(dmg|zip|exe|AppImage|blockmap)$/i;
 
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];

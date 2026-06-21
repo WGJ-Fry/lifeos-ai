@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { CheckCircle2, Copy, Loader2, PlugZap, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { BindingSession, BoundDevice, getBindingSession, getNetworkDiagnostics, NetworkDiagnostics, startBindingSession, testConnectionUrl } from "../../services/lifeosApi";
+import type { ConnectionTestResult } from "../../services/lifeosApi";
+import DevicePairConnectionTestResult from "./DevicePairConnectionTestResult";
 import { useI18n } from "../../i18n/I18nProvider";
 
 export default function DevicePairPage() {
@@ -12,14 +14,14 @@ export default function DevicePairPage() {
   const [copied, setCopied] = useState(false);
   const [pairingBaseUrl, setPairingBaseUrl] = useState("");
   const [diagnostics, setDiagnostics] = useState<NetworkDiagnostics | null>(null);
-  const [connectionTestStatus, setConnectionTestStatus] = useState<string | null>(null);
+  const [connectionTestResult, setConnectionTestResult] = useState<ConnectionTestResult | null>(null);
   const [testingConnection, setTestingConnection] = useState(false);
   const [copiedEnv, setCopiedEnv] = useState(false);
 
   const createSession = async () => {
     setError(null);
     setConfirmedDevice(null);
-    setConnectionTestStatus(null);
+    setConnectionTestResult(null);
     try {
       let recommendedBaseUrl = "";
       try {
@@ -64,18 +66,19 @@ export default function DevicePairPage() {
   const handleTestPairingAddress = async () => {
     if (!pairingBaseUrl) return;
     setTestingConnection(true);
-    setConnectionTestStatus(null);
+    setConnectionTestResult(null);
     try {
       const { result } = await testConnectionUrl(pairingBaseUrl);
-      const passed = result.steps?.filter((step) => step.ok).length || 0;
-      const total = result.steps?.length || 1;
-      setConnectionTestStatus(
-        result.ok
-          ? t("devicePair.testSuccess", { latency: result.latencyMs, url: result.url, passed, total })
-          : t("devicePair.testFailure", { message: result.error || `HTTP ${result.status}`, passed, total }),
-      );
+      setConnectionTestResult(result);
     } catch (err: any) {
-      setConnectionTestStatus(err.message || t("devicePair.testFailed"));
+      setConnectionTestResult({
+        ok: false,
+        status: 0,
+        url: pairingBaseUrl,
+        latencyMs: 0,
+        steps: [],
+        error: err.message || t("devicePair.testFailed"),
+      });
     } finally {
       setTestingConnection(false);
     }
@@ -187,11 +190,7 @@ export default function DevicePairPage() {
                     <PlugZap className="h-3.5 w-3.5" />
                     {testingConnection ? t("connection.testing") : t("devicePair.testCurrent")}
                   </button>
-                  {connectionTestStatus ? (
-                    <div className="mt-2 rounded-xl border border-white/[0.06] bg-[#061016]/55 p-2 text-center leading-relaxed text-zinc-300">
-                      {connectionTestStatus}
-                    </div>
-                  ) : null}
+                  {connectionTestResult ? <DevicePairConnectionTestResult result={connectionTestResult} /> : null}
                 </div>
               ) : null}
               <button

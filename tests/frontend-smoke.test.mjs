@@ -756,12 +756,20 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(devicePairSource, /devicePair\.restartTitle/);
   assert.match(devicePairSource, /devicePair\.temporaryTitle/);
   assert.match(devicePairSource, /devicePair\.temporaryBody/);
+  assert.match(devicePairSource, /DevicePairConnectionTestResult/);
+  const devicePairConnectionTestSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairConnectionTestResult.tsx"), "utf8");
+  assert.match(devicePairConnectionTestSource, /devicePair\.testStep\.health/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.testStep\.mobileShell/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.testStep\.websocket/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.testHttpsWarning/);
   assert.match(translationsSource, /测试当前绑定地址/);
   assert.match(translationsSource, /推荐安全/);
   assert.match(translationsSource, /仅可信网络/);
   assert.match(translationsSource, /复制当前绑定启动环境/);
   assert.match(translationsSource, /重启后生效/);
   assert.match(translationsSource, /这是临时地址/);
+  assert.match(translationsSource, /手机聊天页面/);
+  assert.match(translationsSource, /实时通道/);
 
   const adminDashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
   assert.match(adminDashboardSource, /dashboard\.publicRiskTitle/);

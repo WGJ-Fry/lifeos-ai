@@ -203,6 +203,7 @@ test("release feed generator rejects stale versioned artifacts", async (t) => {
   });
 
   await writeFile(path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg"), "old dmg bytes");
+  await writeFile(path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg.blockmap"), "old blockmap bytes");
   await writeFile(path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe"), "current nsis bytes");
   const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
     cwd: rootDir,
@@ -216,9 +217,37 @@ test("release feed generator rejects stale versioned artifacts", async (t) => {
   assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stderr, /Release artifacts do not match package version 0\.1\.0/);
   assert.match(result.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg contains 0\.0\.0/);
+  assert.match(result.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg\.blockmap contains 0\.0\.0/);
   assert.match(result.stderr, /Rebuild the desktop packages or remove stale release artifacts/);
   assert.equal(await fileExists(path.join(releaseDir, "update-feed", "release-manifest.json")), false);
   assert.equal(await fileExists(path.join(releaseDir, "SHA256SUMS")), false);
+});
+
+test("release feed generator ignores unpacked app internals", async (t) => {
+  const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-feed-unpacked-"));
+  t.after(async () => {
+    await rm(releaseDir, { recursive: true, force: true });
+  });
+
+  await mkdir(path.join(releaseDir, "win-unpacked"), { recursive: true });
+  await writeFile(path.join(releaseDir, "LifeOS AI-0.1.0-arm64-unsigned.zip"), "fake mac zip bytes");
+  await writeFile(path.join(releaseDir, "win-unpacked", "LifeOS AI.exe"), "unpacked executable should not be a release asset");
+
+  const result = spawnSync(process.execPath, ["scripts/prepare-update-feed.mjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_DIR: releaseDir,
+    },
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const manifest = JSON.parse(await readFile(path.join(releaseDir, "update-feed", "release-manifest.json"), "utf8"));
+  assert.deepEqual(manifest.artifacts.map((artifact) => artifact.fileName), ["LifeOS AI-0.1.0-arm64-unsigned.zip"]);
+  assert.equal(await fileExists(path.join(releaseDir, "update-feed", "LifeOS AI.exe")), false);
+  const checksums = await readFile(path.join(releaseDir, "SHA256SUMS"), "utf8");
+  assert.doesNotMatch(checksums, /LifeOS AI\.exe/);
 });
 
 test("release artifact version checker blocks and explicitly cleans stale installers", async (t) => {
@@ -228,8 +257,10 @@ test("release artifact version checker blocks and explicitly cleans stale instal
   });
 
   const staleDmg = path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg");
+  const staleBlockmap = path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg.blockmap");
   const currentExe = path.join(releaseDir, "LifeOS AI Setup 0.1.0.exe");
   await writeFile(staleDmg, "old dmg bytes");
+  await writeFile(staleBlockmap, "old blockmap bytes");
   await writeFile(currentExe, "current nsis bytes");
 
   const check = spawnSync(process.execPath, ["scripts/check-release-artifact-versions.mjs"], {
@@ -240,7 +271,9 @@ test("release artifact version checker blocks and explicitly cleans stale instal
   assert.notEqual(check.status, 0, `${check.stdout}\n${check.stderr}`);
   assert.match(check.stderr, /Release artifacts do not match package version 0\.1\.0/);
   assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg contains 0\.0\.0/);
+  assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg\.blockmap contains 0\.0\.0/);
   assert.equal(await fileExists(staleDmg), true);
+  assert.equal(await fileExists(staleBlockmap), true);
   assert.equal(await fileExists(currentExe), true);
 
   const fixed = spawnSync(process.execPath, ["scripts/check-release-artifact-versions.mjs", "--fix"], {
@@ -251,6 +284,7 @@ test("release artifact version checker blocks and explicitly cleans stale instal
   assert.equal(fixed.status, 0, `${fixed.stdout}\n${fixed.stderr}`);
   assert.match(fixed.stdout, /Deleted/);
   assert.equal(await fileExists(staleDmg), false);
+  assert.equal(await fileExists(staleBlockmap), false);
   assert.equal(await fileExists(currentExe), true);
 });
 
