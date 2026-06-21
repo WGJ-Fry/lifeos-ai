@@ -593,6 +593,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /保存到桌面启动配置/);
   assert.match(translationsSource, /安装包用户/);
   assert.match(translationsSource, /退出并重新打开 LifeOS AI/);
+  assert.match(translationsSource, /绑定手机端”二维码都会自动使用这个入口/);
+  assert.match(translationsSource, /Pair Phone QR code will automatically use this entry/);
   assert.match(translationsSource, /一键启动 Tailscale HTTPS Serve/);
   assert.match(translationsSource, /未检测到 MagicDNS/);
   assert.match(translationsSource, /Tailscale is installed but not online/);

@@ -702,6 +702,8 @@ function checkAssets() {
     translationsSource.includes("connection.recommendedEnv") &&
     translationsSource.includes("connection.copyRecommendedEnv") &&
     translationsSource.includes("connection.saveDesktopConfig") &&
+    translationsSource.includes("绑定手机端”二维码都会自动使用这个入口") &&
+    translationsSource.includes("Pair Phone QR code will automatically use this entry") &&
     translationsSource.includes("connection.customTitle") &&
     translationsSource.includes("connection.customUnsafeUrl") &&
     translationsSource.includes("connection.readiness.status.ready") &&
