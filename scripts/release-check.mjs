@@ -2145,6 +2145,22 @@ function checkReleaseDocs() {
     warn("user install guide is missing: docs/user-install-guide.md");
   }
 
+  if (exists("CONTRIBUTING.md")) {
+    const contributing = fs.readFileSync(path.join(rootDir, "CONTRIBUTING.md"), "utf8");
+    if (
+      contributing.includes("LifeOS AI 使用 MIT License")
+      && contributing.includes("LifeOS AI is licensed under the MIT License")
+      && !contributing.includes("UNLICENSED")
+      && !contributing.includes("no open-source license")
+    ) {
+      pass("CONTRIBUTING.md matches the public MIT license");
+    } else {
+      fail("CONTRIBUTING.md must describe the MIT license and must not claim UNLICENSED/no open-source license");
+    }
+  } else {
+    fail("CONTRIBUTING.md is missing");
+  }
+
   if (exists("docs/release-checklist.md")) {
     const checklist = fs.readFileSync(path.join(rootDir, "docs/release-checklist.md"), "utf8");
     const requiredChecklistMarkers = [
