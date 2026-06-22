@@ -2110,6 +2110,7 @@ function checkReleaseDocs() {
       "APPLE_TEAM_ID",
       "Desktop Package Artifacts",
       "Release draft",
+      "LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch",
     ];
     const missingMarkers = requiredChecklistMarkers.filter((marker) => !checklist.includes(marker));
     if (missingMarkers.length === 0) {
@@ -2127,7 +2128,8 @@ function checkReleaseDocs() {
       "Desktop Package Artifacts",
       "GitHub Release 草稿",
       "GitHub Release draft",
-      "git tag v0.1.1-alpha.0",
+      "git tag v0.1.1-alpha",
+      "LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch",
       "Manual workflow runs still produce Actions artifacts only",
       "只有 `v*` tag 触发时才会写入 GitHub Release 草稿",
     ];

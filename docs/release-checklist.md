@@ -151,11 +151,17 @@ Users unzip the app, move it to Applications, and open it manually. Share `relea
 Preferred GitHub Release path:
 
 ```bash
-git tag v0.1.1-alpha.0
-git push origin v0.1.1-alpha.0
+git tag v0.1.1-alpha
+git push origin v0.1.1-alpha
 ```
 
 Wait for `Desktop Package Artifacts`, open the generated GitHub Release draft, download the assets once for a clean install test, then publish the draft.
+
+After publishing the draft, verify that both public launch entrypoints work without authentication:
+
+```bash
+LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
+```
 
 ## Signed macOS Distribution Strategy
 
