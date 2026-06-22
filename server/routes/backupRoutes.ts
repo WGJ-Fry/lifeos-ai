@@ -1,6 +1,6 @@
 import type express from "express";
 import { insertAuditLog } from "../audit";
-import { cleanupData, createDataExport, normalizeDataExportScope, previewBackup, previewDataCleanup } from "../dataLifecycle";
+import { cleanupData, createDataExport, normalizeDataExportScope, previewBackup, previewDataCleanup, summarizeDataExport } from "../dataLifecycle";
 import { cancelPendingRestore, createDatabaseBackup, getBackupPath, getPendingRestore, listBackups, scheduleDatabaseRestore } from "../db";
 import { requireAdmin } from "../auth";
 import { getBackupSchedule, updateBackupSchedule } from "../backupSchedule";
@@ -173,10 +173,15 @@ export function registerBackupRoutes(app: express.Express) {
       return res.status(400).json({ error: error.message || "Unsupported export scope" });
     }
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    insertAuditLog("data_export_created", "database", "lifeos-data-export", { scopes }, (req as any).actor?.type, (req as any).actor?.id);
+    const exportData = createDataExport(scopes);
+    insertAuditLog("data_export_created", "database", "lifeos-data-export", {
+      ...summarizeDataExport(exportData),
+      delivery: "download",
+      fileName: `lifeos-data-export-${stamp}.json`,
+    }, (req as any).actor?.type, (req as any).actor?.id);
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="lifeos-data-export-${stamp}.json"`);
-    res.json(createDataExport(scopes));
+    res.json(exportData);
   });
 
   app.post("/api/v1/data/cleanup", requireAdmin, (req, res) => {

@@ -797,6 +797,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(JSON.stringify(diagnosticBundle).includes(testAiKey), false);
   assert.equal(JSON.stringify(diagnosticBundle).includes(dataDir), false);
 
+  await request(port, "/api/v1/data/export", { headers: adminHeaders });
+  await request(port, "/api/v1/data/export?scope=chat,devices", { headers: adminHeaders });
+
   const auditAfterExports = await request(port, "/api/v1/audit-logs", { headers: adminHeaders }).then((res) => res.json());
   const auditActions = auditAfterExports.logs.map((log) => log.action);
   assert.ok(auditActions.includes("database_backup_previewed"));
@@ -804,6 +807,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(auditActions.includes("backup_schedule_updated"));
   assert.ok(auditActions.includes("encrypted_backup_exported"));
   assert.ok(auditActions.includes("encrypted_backup_imported"));
+  assert.ok(auditActions.includes("data_export_created"));
   assert.ok(auditActions.includes("data_cleanup_previewed"));
   assert.ok(auditActions.includes("diagnostic_bundle_exported"));
   assert.ok(auditActions.includes("remote_acceptance_report_imported"));
@@ -831,6 +835,26 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const encryptedImportAudit = auditAfterExports.logs.find((log) => log.action === "encrypted_backup_imported");
   assert.equal(encryptedImportAudit.metadata.preview.tableCount >= 1, true);
   assert.equal(typeof encryptedImportAudit.metadata.preview.warningCount, "number");
+  const exportAudits = auditAfterExports.logs.filter((log) => log.action === "data_export_created");
+  const fullExportAudit = exportAudits.find((log) => Array.isArray(log.metadata.scopes) && log.metadata.scopes.includes("auditLogs"));
+  assert.deepEqual(fullExportAudit.metadata.scopes, ["chat", "memories", "devices", "auditLogs"]);
+  assert.equal(fullExportAudit.metadata.scopeCount, 4);
+  assert.equal(fullExportAudit.metadata.includesAuditLogs, true);
+  assert.equal(fullExportAudit.metadata.delivery, "download");
+  assert.match(fullExportAudit.metadata.fileName, /^lifeos-data-export-.*\.json$/);
+  assert.equal(fullExportAudit.metadata.redacted, true);
+  assert.match(fullExportAudit.metadata.redactionPolicy, /tokens, credentials, URLs, and local paths/);
+  assert.equal(typeof fullExportAudit.metadata.counts.chatSessions, "number");
+  assert.equal(typeof fullExportAudit.metadata.counts.messages, "number");
+  assert.equal(typeof fullExportAudit.metadata.counts.memories, "number");
+  assert.equal(typeof fullExportAudit.metadata.counts.devices, "number");
+  assert.equal(typeof fullExportAudit.metadata.counts.auditLogs, "number");
+  const scopedExportAudit = exportAudits.find((log) => Array.isArray(log.metadata.scopes) && log.metadata.scopes.join(",") === "chat,devices");
+  assert.deepEqual(scopedExportAudit.metadata.scopes, ["chat", "devices"]);
+  assert.equal(scopedExportAudit.metadata.scopeCount, 2);
+  assert.equal(scopedExportAudit.metadata.includesAuditLogs, false);
+  assert.equal(scopedExportAudit.metadata.counts.memories, 0);
+  assert.equal(scopedExportAudit.metadata.counts.auditLogs, 0);
   const restoreScheduledAudit = auditAfterExports.logs.find((log) => log.action === "database_restore_scheduled");
   assert.equal(restoreScheduledAudit.actorType, "admin");
   assert.equal(restoreScheduledAudit.targetId, backup.backup.file);

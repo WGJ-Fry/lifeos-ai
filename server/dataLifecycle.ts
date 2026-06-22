@@ -142,6 +142,28 @@ export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys
   return exportData;
 }
 
+export function summarizeDataExport(exportData: Record<string, unknown>) {
+  const chat = exportData.chat as { sessions?: unknown[]; messages?: unknown[] } | undefined;
+  const memories = Array.isArray(exportData.memories) ? exportData.memories : [];
+  const devices = Array.isArray(exportData.devices) ? exportData.devices : [];
+  const auditLogs = Array.isArray(exportData.auditLogs) ? exportData.auditLogs : [];
+  const scopes = Array.isArray(exportData.scopes) ? exportData.scopes.map((scope) => String(scope)) : [];
+  return {
+    scopes,
+    scopeCount: scopes.length,
+    includesAuditLogs: scopes.includes("auditLogs"),
+    redacted: true,
+    redactionPolicy: "sensitive keys, tokens, credentials, URLs, and local paths are redacted before export",
+    counts: {
+      chatSessions: Array.isArray(chat?.sessions) ? chat.sessions.length : 0,
+      messages: Array.isArray(chat?.messages) ? chat.messages.length : 0,
+      memories: memories.length,
+      devices: devices.length,
+      auditLogs: auditLogs.length,
+    },
+  };
+}
+
 export function previewDataCleanup(options: { auditOlderThanDays?: number; chatOlderThanDays?: number; backupKeepCount?: number }) {
   const now = Date.now();
   const result = {

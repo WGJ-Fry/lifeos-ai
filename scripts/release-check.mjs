@@ -1450,6 +1450,8 @@ function checkAssets() {
     backupRoutesSourceForAudit.includes("tableCount") &&
     backupRoutesSourceForAudit.includes("rowTotal") &&
     backupRoutesSourceForAudit.includes("encryption") &&
+    backupRoutesSourceForAudit.includes("summarizeDataExport") &&
+    dataLifecycleSource.includes("redactionPolicy") &&
     adminRoutesSource.includes("diagnostic_bundle_exported") &&
     adminRoutesSource.includes("databaseRowTotal") &&
     adminRoutesSource.includes("securityCriticalCount") &&
@@ -1457,10 +1459,12 @@ function checkAssets() {
     apiAuthTestSource.includes("previousCredentialExpiresAt") &&
     apiAuthTestSource.includes("secureStorage.label") &&
     apiAuthTestSource.includes("encryptedExportAudit.metadata.encryption") &&
+    apiAuthTestSource.includes("fullExportAudit.metadata.counts.auditLogs") &&
+    apiAuthTestSource.includes("scopedExportAudit.metadata.counts.auditLogs") &&
     apiAuthTestSource.includes("diagnosticExportAudit.metadata.databaseRowTotal") &&
     apiAuthTestSource.includes("diagnosticExportAudit.metadata.securityCriticalCount")
-  ) pass("high-risk AI key, device, backup, and diagnostic exports include detailed redacted audit metadata");
-  else warn("high-risk AI key, device, backup, or diagnostic export audit metadata is too shallow or lacks tests");
+  ) pass("high-risk AI key, device, backup, data export, and diagnostic exports include detailed redacted audit metadata");
+  else warn("high-risk AI key, device, backup, data export, or diagnostic export audit metadata is too shallow or lacks tests");
 
   if (exists("dist/server.cjs") && exists("dist/index.html")) pass("build output exists in dist/");
   else warn("dist/ is missing or stale; run npm run build before packaging");
