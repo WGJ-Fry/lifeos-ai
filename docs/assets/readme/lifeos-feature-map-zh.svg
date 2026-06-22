@@ -1,56 +1,64 @@
-<svg width="1280" height="860" viewBox="0 0 1280 860" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">LifeOS AI 功能地图</title>
-  <desc id="desc">LifeOS AI 功能地图：记忆提醒、自动生成解决问题的程序、手机端、异地连接、安全、备份和多模型配置。</desc>
-  <rect width="1280" height="860" rx="34" fill="#071019"/>
-  <text x="64" y="82" fill="#F8FAFC" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="46" font-weight="850">LifeOS AI 功能地图</text>
-  <text x="64" y="124" fill="#94A3B8" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="22">电脑端是私有 AI 核心，手机端是随身入口，把分散的个人数据变成可执行的提醒和动作。</text>
-  <g transform="translate(472 238)">
-    <rect width="336" height="220" rx="30" fill="#102033" stroke="#38BDF8" stroke-width="2"/>
-    <text x="34" y="64" fill="#F8FAFC" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="30" font-weight="850">电脑端私有核心</text>
-    <text x="34" y="108" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19">SQLite、AI 路由、管理员认证、</text>
-    <text x="34" y="138" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19">设备绑定、备份恢复、审计日志。</text>
-    <text x="34" y="180" fill="#67E8F9" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="19" font-weight="800">电脑始终是你的私有大脑。</text>
+<svg width="1280" height="900" viewBox="0 0 1280 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">LifeOS 功能地图</title>
+  <desc id="desc">先解决真实问题，再扩展成长期自用的私有 AI 系统。</desc>
+  <rect width="1280" height="900" rx="34" fill="#071019"/>
+  <rect x="34" y="34" width="1212" height="832" rx="30" fill="#0A1420" stroke="#223449"/>
+  <text x="64" y="94" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="48" font-weight="900">LifeOS 功能地图</text>
+  <text x="64" y="134" fill="#94A3B8" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21">先解决真实问题，再扩展成长期自用的私有 AI 系统。</text>
+  <g transform="translate(438 310)">
+    <rect width="404" height="250" rx="32" fill="#102033" stroke="#38BDF8" stroke-width="2"/>
+    <text x="36" y="72" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="32" font-weight="900">私有电脑核心</text>
+    <text x="36" y="124" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="20">认证 / SQLite / AI Provider</text>
+    <text x="36" y="158" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="20">备份 / 诊断 / 设备绑定</text>
+    <rect x="36" y="190" width="214" height="42" rx="21" fill="#134E4A" stroke="#14B8A6"/>
+    <text x="58" y="217" fill="#CCFBF1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="17" font-weight="850">电脑保留大脑</text>
   </g>
-  <g transform="translate(64 212)">
-    <rect width="312" height="138" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#A7F3D0" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="800">记忆提醒</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">Markdown 笔记、截止日期、</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">承诺、续期、待办遗漏。</text>
+
+  <g transform="translate(78 226)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#67E8F9"/>
+    <text x="28" y="42" fill="#67E8F9" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">个人记忆</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">Markdown、承诺、截止日期</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">续期、任务、来源引用</text>
   </g>
-  <g transform="translate(64 392)">
-    <rect width="312" height="150" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#FDE68A" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="800">生成解决问题的程序</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">遇到记账、规划、表单、</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">计算等问题时生成可运行程序。</text>
+
+  <g transform="translate(78 438)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#FDE68A"/>
+    <text x="28" y="42" fill="#FDE68A" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">自动生成程序</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">针对当前问题生成工具</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">记账、规划、查询、表单</text>
   </g>
-  <g transform="translate(64 586)">
-    <rect width="312" height="138" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#C4B5FD" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="800">多模型配置</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">本地模型、Gemini、OpenAI、</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">OpenRouter 预留配置。</text>
+
+  <g transform="translate(78 650)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#C4B5FD"/>
+    <text x="28" y="42" fill="#C4B5FD" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">长期数据</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">SQLite migration</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">备份恢复、诊断包脱敏</text>
   </g>
-  <g transform="translate(904 212)">
-    <rect width="312" height="138" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#67E8F9" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="800">手机 PWA</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">手机绑定、离线队列、</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">本地动作二次确认。</text>
+
+  <g transform="translate(892 226)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#A7F3D0"/>
+    <text x="28" y="42" fill="#A7F3D0" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">手机入口</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">PWA、离线队列</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">绑定、撤销、本地动作</text>
   </g>
-  <g transform="translate(904 392)">
-    <rect width="312" height="150" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#93C5FD" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="800">异地连接</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">局域网、Tailscale/VPN、</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">Cloudflare Tunnel 向导。</text>
+
+  <g transform="translate(892 438)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#93C5FD"/>
+    <text x="28" y="42" fill="#93C5FD" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">异地连接</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">LAN、Tailscale/VPN</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">Cloudflare Tunnel、HTTPS</text>
   </g>
-  <g transform="translate(904 586)">
-    <rect width="312" height="138" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#FDA4AF" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="24" font-weight="800">安全底座</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">管理员认证、CSRF、脱敏、</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="PingFang SC, Microsoft YaHei, Arial, sans-serif" font-size="18">备份恢复、审计日志。</text>
+
+  <g transform="translate(892 650)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#FDA4AF"/>
+    <text x="28" y="42" fill="#FDA4AF" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">安全底座</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">管理员认证、CSRF</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">URL 白名单、危险确认</text>
   </g>
-  <path d="M376 281H472" stroke="#334155" stroke-width="4"/>
-  <path d="M376 467H472" stroke="#334155" stroke-width="4"/>
-  <path d="M376 655H472" stroke="#334155" stroke-width="4"/>
-  <path d="M808 281H904" stroke="#334155" stroke-width="4"/>
-  <path d="M808 467H904" stroke="#334155" stroke-width="4"/>
-  <path d="M808 655H904" stroke="#334155" stroke-width="4"/>
+  <path d="M388 297H438" stroke="#334155" stroke-width="4"/>
+  <path d="M388 509H438" stroke="#334155" stroke-width="4"/>
+  <path d="M388 721H438" stroke="#334155" stroke-width="4"/>
+  <path d="M842 297H892" stroke="#334155" stroke-width="4"/>
+  <path d="M842 509H892" stroke="#334155" stroke-width="4"/>
+  <path d="M842 721H892" stroke="#334155" stroke-width="4"/>
 </svg>

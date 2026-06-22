@@ -1,41 +1,37 @@
-<svg width="1280" height="620" viewBox="0 0 1280 620" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">LifeOS generated problem-solving programs</title>
-  <desc id="desc">LifeOS Studio can generate runnable programs for concrete personal problems like budgeting, planning, forms, calculations, and dashboards.</desc>
-  <rect width="1280" height="620" rx="32" fill="#080F18"/>
-  <text x="64" y="76" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="850">Generate programs for the problem you are solving now</text>
-  <text x="64" y="116" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="21">When chat is not enough, LifeOS Studio can turn the current need into a runnable tool.</text>
-  <g transform="translate(76 170)">
-    <rect width="338" height="330" rx="28" fill="#111827" stroke="#334155"/>
-    <text x="28" y="52" fill="#FDE68A" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="850">Real needs</text>
-    <text x="28" y="98" fill="#E5E7EB" font-family="Inter, Arial, sans-serif" font-size="19">Budgeting</text>
-    <text x="28" y="135" fill="#E5E7EB" font-family="Inter, Arial, sans-serif" font-size="19">Planning</text>
-    <text x="28" y="172" fill="#E5E7EB" font-family="Inter, Arial, sans-serif" font-size="19">Lookup and sorting</text>
-    <text x="28" y="209" fill="#E5E7EB" font-family="Inter, Arial, sans-serif" font-size="19">Check-ins and forms</text>
-    <text x="28" y="246" fill="#E5E7EB" font-family="Inter, Arial, sans-serif" font-size="19">Calculators and workflow panels</text>
+<svg width="1280" height="650" viewBox="0 0 1280 650" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Generate programs that solve the current problem</title>
+  <desc id="desc">Not a toy app generator: create the tool for the concrete task.</desc>
+  <rect width="1280" height="650" rx="32" fill="#080F18"/>
+  <rect x="34" y="34" width="1212" height="582" rx="30" fill="#0A1420" stroke="#223449"/>
+  <text x="64" y="92" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="45" font-weight="900">Generate programs that solve the current problem</text>
+  <text x="64" y="132" fill="#94A3B8" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21">Not a toy app generator: create the tool for the concrete task.</text>
+  <g transform="translate(74 188)">
+    <rect width="320" height="344" rx="28" fill="#111827" stroke="#334155"/>
+    <text x="30" y="56" fill="#FDE68A" font-family="Inter, Arial, Helvetica, sans-serif" font-size="27" font-weight="900">Real needs</text>
+    <text x="32" y="104" fill="#E5E7EB" font-family="Inter, Arial, Helvetica, sans-serif" font-size="19">Budgeting</text><text x="32" y="134" fill="#E5E7EB" font-family="Inter, Arial, Helvetica, sans-serif" font-size="19">Planning</text><text x="32" y="164" fill="#E5E7EB" font-family="Inter, Arial, Helvetica, sans-serif" font-size="19">Lookup</text><text x="32" y="194" fill="#E5E7EB" font-family="Inter, Arial, Helvetica, sans-serif" font-size="19">Sorting</text><text x="32" y="224" fill="#E5E7EB" font-family="Inter, Arial, Helvetica, sans-serif" font-size="19">Check-ins</text><text x="32" y="254" fill="#E5E7EB" font-family="Inter, Arial, Helvetica, sans-serif" font-size="19">Calculation</text><text x="32" y="284" fill="#E5E7EB" font-family="Inter, Arial, Helvetica, sans-serif" font-size="19">Forms</text><text x="32" y="314" fill="#E5E7EB" font-family="Inter, Arial, Helvetica, sans-serif" font-size="19">Workflow panels</text>
   </g>
-  <path d="M438 335H520" stroke="#64748B" stroke-width="5"/>
-  <path d="M506 316L526 335L506 354" stroke="#64748B" stroke-width="5" fill="none"/>
-  <g transform="translate(544 144)">
-    <rect width="390" height="382" rx="30" fill="#0F172A" stroke="#38BDF8" stroke-width="2"/>
-    <text x="30" y="54" fill="#67E8F9" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="850">LifeOS Studio</text>
-    <rect x="30" y="88" width="330" height="72" rx="18" fill="#172554" stroke="#2563EB"/>
-    <text x="52" y="118" fill="#DBEAFE" font-family="Inter, Arial, sans-serif" font-size="17">Describe the problem, not an app spec.</text>
-    <text x="52" y="143" fill="#DBEAFE" font-family="Inter, Arial, sans-serif" font-size="17">LifeOS designs the useful tool.</text>
-    <rect x="30" y="188" width="330" height="132" rx="18" fill="#020617" stroke="#334155"/>
-    <text x="52" y="224" fill="#A7F3D0" font-family="Inter, Arial, sans-serif" font-size="17">HTML / CSS / JS</text>
-    <text x="52" y="256" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="17">Runnable offline program</text>
-    <text x="52" y="288" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="17">Continue debugging and refining</text>
+  <path d="M422 360H514" stroke="#64748B" stroke-width="5"/>
+  <path d="M500 340L522 360L500 380" stroke="#64748B" stroke-width="5" fill="none"/>
+  <g transform="translate(544 166)">
+    <rect width="384" height="390" rx="30" fill="#0F172A" stroke="#38BDF8" stroke-width="2"/>
+    <text x="32" y="62" fill="#67E8F9" font-family="Inter, Arial, Helvetica, sans-serif" font-size="29" font-weight="900">LifeOS Studio</text>
+    <rect x="32" y="96" width="320" height="68" rx="17" fill="#172554" stroke="#2563EB"/>
+    <text x="52" y="136" fill="#DBEAFE" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">Describe the problem</text>
+    <rect x="32" y="190" width="320" height="126" rx="17" fill="#020617" stroke="#334155"/>
+    <text x="52" y="229" fill="#A7F3D0" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18" font-weight="850">AI generates a runnable program</text>
+    <text x="52" y="264" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">Keep debugging and refining</text>
+    <text x="52" y="297" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">HTML / CSS / JS remains editable</text>
   </g>
-  <path d="M958 335H1040" stroke="#64748B" stroke-width="5"/>
-  <path d="M1026 316L1046 335L1026 354" stroke="#64748B" stroke-width="5" fill="none"/>
-  <g transform="translate(1064 190)">
-    <rect width="152" height="290" rx="26" fill="#111827" stroke="#334155"/>
-    <rect x="22" y="28" width="108" height="58" rx="14" fill="#134E4A"/>
-    <rect x="22" y="108" width="108" height="58" rx="14" fill="#172554"/>
-    <rect x="22" y="188" width="108" height="58" rx="14" fill="#422006"/>
-    <text x="43" y="62" fill="#CCFBF1" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="800">Tool</text>
-    <text x="41" y="142" fill="#DBEAFE" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="800">Panel</text>
-    <text x="31" y="222" fill="#FEF3C7" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="800">Workflow</text>
+  <path d="M954 360H1038" stroke="#64748B" stroke-width="5"/>
+  <path d="M1024 340L1046 360L1024 380" stroke="#64748B" stroke-width="5" fill="none"/>
+  <g transform="translate(1066 206)">
+    <rect width="142" height="308" rx="28" fill="#111827" stroke="#334155"/>
+    <text x="33" y="56" fill="#A7F3D0" font-family="Inter, Arial, Helvetica, sans-serif" font-size="24" font-weight="900">Result</text>
+    <rect x="18" y="86" width="106" height="54" rx="14" fill="#134E4A"/>
+    <text x="34" y="120" fill="#CCFBF1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="15" font-weight="850">Runnable tool</text>
+    <rect x="18" y="164" width="106" height="54" rx="14" fill="#172554"/>
+    <text x="31" y="198" fill="#DBEAFE" font-family="Inter, Arial, Helvetica, sans-serif" font-size="15" font-weight="850">Editable panel</text>
+    <rect x="18" y="242" width="106" height="44" rx="14" fill="#422006"/>
+    <text x="32" y="270" fill="#FEF3C7" font-family="Inter, Arial, Helvetica, sans-serif" font-size="15" font-weight="850">Problem workflow</text>
   </g>
-  <text x="64" y="566" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="19">Not just “generate a small app from a prompt” — generate the specific program that helps solve the current problem.</text>
 </svg>

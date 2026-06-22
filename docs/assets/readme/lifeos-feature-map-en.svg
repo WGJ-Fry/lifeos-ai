@@ -1,56 +1,64 @@
-<svg width="1280" height="860" viewBox="0 0 1280 860" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">LifeOS AI feature map</title>
-  <desc id="desc">A feature map for LifeOS AI: memory, generated problem-solving apps, mobile companion, remote access, safety, backups, and AI providers.</desc>
-  <rect width="1280" height="860" rx="34" fill="#071019"/>
-  <text x="64" y="82" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="46" font-weight="850">LifeOS AI Feature Map</text>
-  <text x="64" y="124" fill="#94A3B8" font-family="Inter, Arial, sans-serif" font-size="22">A private desktop core, a mobile companion, and tools that turn scattered personal data into useful action.</text>
-  <g transform="translate(472 238)">
-    <rect width="336" height="220" rx="30" fill="#102033" stroke="#38BDF8" stroke-width="2"/>
-    <text x="34" y="64" fill="#F8FAFC" font-family="Inter, Arial, sans-serif" font-size="30" font-weight="850">Private Desktop Core</text>
-    <text x="34" y="108" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="19">SQLite, AI routing, admin auth,</text>
-    <text x="34" y="138" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="19">device pairing, backups, audit logs.</text>
-    <text x="34" y="180" fill="#67E8F9" font-family="Inter, Arial, sans-serif" font-size="19" font-weight="800">Your computer stays the brain.</text>
+<svg width="1280" height="900" viewBox="0 0 1280 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">LifeOS Feature Map</title>
+  <desc id="desc">Solve real problems first, then grow into a private long-term LifeOS.</desc>
+  <rect width="1280" height="900" rx="34" fill="#071019"/>
+  <rect x="34" y="34" width="1212" height="832" rx="30" fill="#0A1420" stroke="#223449"/>
+  <text x="64" y="94" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="48" font-weight="900">LifeOS Feature Map</text>
+  <text x="64" y="134" fill="#94A3B8" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21">Solve real problems first, then grow into a private long-term LifeOS.</text>
+  <g transform="translate(438 310)">
+    <rect width="404" height="250" rx="32" fill="#102033" stroke="#38BDF8" stroke-width="2"/>
+    <text x="36" y="72" fill="#F8FAFC" font-family="Inter, Arial, Helvetica, sans-serif" font-size="32" font-weight="900">Private Desktop Core</text>
+    <text x="36" y="124" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="20">Auth / SQLite / AI Providers</text>
+    <text x="36" y="158" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="20">Backups / Diagnostics / Device Pairing</text>
+    <rect x="36" y="190" width="214" height="42" rx="21" fill="#134E4A" stroke="#14B8A6"/>
+    <text x="58" y="217" fill="#CCFBF1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="17" font-weight="850">Computer stays the brain</text>
   </g>
-  <g transform="translate(64 212)">
-    <rect width="312" height="138" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#A7F3D0" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">Memory Recall</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">Markdown notes, deadlines,</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">promises, renewals, tasks.</text>
+
+  <g transform="translate(78 226)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#67E8F9"/>
+    <text x="28" y="42" fill="#67E8F9" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">Personal Memory</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">Markdown, promises, deadlines</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">renewals, tasks, source refs</text>
   </g>
-  <g transform="translate(64 392)">
-    <rect width="312" height="150" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#FDE68A" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">Generated Tools</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">AI creates runnable programs</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">for the problem at hand.</text>
+
+  <g transform="translate(78 438)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#FDE68A"/>
+    <text x="28" y="42" fill="#FDE68A" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">Generated Programs</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">Create tools for the current problem</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">budgeting, planning, lookup, forms</text>
   </g>
-  <g transform="translate(64 586)">
-    <rect width="312" height="138" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#C4B5FD" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">Multi-provider AI</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">Local models, Gemini, OpenAI,</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">OpenRouter-ready settings.</text>
+
+  <g transform="translate(78 650)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#C4B5FD"/>
+    <text x="28" y="42" fill="#C4B5FD" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">Long-term Data</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">SQLite migrations</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">backup/restore, redacted diagnostics</text>
   </g>
-  <g transform="translate(904 212)">
-    <rect width="312" height="138" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#67E8F9" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">Mobile PWA</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">Paired phone, offline queue,</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">local actions with confirmation.</text>
+
+  <g transform="translate(892 226)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#A7F3D0"/>
+    <text x="28" y="42" fill="#A7F3D0" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">Mobile Companion</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">PWA, offline queue</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">pairing, revoke, local actions</text>
   </g>
-  <g transform="translate(904 392)">
-    <rect width="312" height="150" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#93C5FD" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">Remote Access</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">LAN, Tailscale/VPN,</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">Cloudflare Tunnel guidance.</text>
+
+  <g transform="translate(892 438)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#93C5FD"/>
+    <text x="28" y="42" fill="#93C5FD" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">Remote Access</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">LAN, Tailscale/VPN</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">Cloudflare Tunnel, HTTPS</text>
   </g>
-  <g transform="translate(904 586)">
-    <rect width="312" height="138" rx="24" fill="#0F172A" stroke="#334155"/>
-    <text x="26" y="46" fill="#FDA4AF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="800">Safety Layer</text>
-    <text x="26" y="82" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">Admin auth, CSRF, redaction,</text>
-    <text x="26" y="110" fill="#CBD5E1" font-family="Inter, Arial, sans-serif" font-size="18">backup/restore, audit logs.</text>
+
+  <g transform="translate(892 650)">
+    <rect width="310" height="142" rx="22" fill="#0F172A" stroke="#26384F"/>
+    <rect x="0" y="0" width="7" height="142" rx="4" fill="#FDA4AF"/>
+    <text x="28" y="42" fill="#FDA4AF" font-family="Inter, Arial, Helvetica, sans-serif" font-size="21" font-weight="850">Safety Layer</text>
+    <text x="28" y="78" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">Admin auth, CSRF</text><text x="28" y="106" fill="#CBD5E1" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18">URL allowlist, risky action confirm</text>
   </g>
-  <path d="M376 281H472" stroke="#334155" stroke-width="4"/>
-  <path d="M376 467H472" stroke="#334155" stroke-width="4"/>
-  <path d="M376 655H472" stroke="#334155" stroke-width="4"/>
-  <path d="M808 281H904" stroke="#334155" stroke-width="4"/>
-  <path d="M808 467H904" stroke="#334155" stroke-width="4"/>
-  <path d="M808 655H904" stroke="#334155" stroke-width="4"/>
+  <path d="M388 297H438" stroke="#334155" stroke-width="4"/>
+  <path d="M388 509H438" stroke="#334155" stroke-width="4"/>
+  <path d="M388 721H438" stroke="#334155" stroke-width="4"/>
+  <path d="M842 297H892" stroke="#334155" stroke-width="4"/>
+  <path d="M842 509H892" stroke="#334155" stroke-width="4"/>
+  <path d="M842 721H892" stroke="#334155" stroke-width="4"/>
 </svg>
