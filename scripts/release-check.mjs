@@ -1786,6 +1786,56 @@ function checkReleaseDocs() {
   if (exists("docs/rollback.md")) pass("rollback guide exists: docs/rollback.md");
   else warn("rollback guide is missing: docs/rollback.md");
 
+  const publicReleaseDocPaths = [
+    "README.md",
+    "docs/release-assets.md",
+    "docs/github-release.md",
+    "docs/release-notes-v0.1.0.md",
+    "docs/user-install-guide.md",
+  ];
+  const publicReleaseDocs = publicReleaseDocPaths
+    .filter((relativePath) => exists(relativePath))
+    .map((relativePath) => [relativePath, fs.readFileSync(path.join(rootDir, relativePath), "utf8")]);
+  const staleCurrentReleaseMarkers = [
+    "Download `LifeOS AI-0.1.0-arm64.dmg`",
+    "下载 `LifeOS AI-0.1.0-arm64.dmg`",
+    "macOS: open the DMG",
+    "macOS：打开 DMG",
+    "The current DMG is signed and notarized",
+    "当前 DMG 已签名并公证",
+    "a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a",
+    "ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022",
+    "12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279",
+  ];
+  const staleFindings = [];
+  for (const [relativePath, source] of publicReleaseDocs) {
+    for (const marker of staleCurrentReleaseMarkers) {
+      if (source.includes(marker)) staleFindings.push(`${relativePath}: ${marker}`);
+    }
+  }
+  if (staleFindings.length === 0) {
+    pass("public release docs do not present unavailable DMG/EXE/AppImage assets as current downloads");
+  } else {
+    fail(`public release docs still contain stale current-download markers: ${staleFindings.join("; ")}`);
+  }
+
+  const publicReleaseCombined = publicReleaseDocs.map(([, source]) => source).join("\n");
+  const requiredPublicReleaseMarkers = [
+    "LifeOS.AI-0.1.0-arm64-unsigned.zip",
+    "50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e",
+    "INSTALL-unsigned-mac.md",
+    "Windows x64：准备中",
+    "Linux x64：准备中",
+    "Windows x64: preparing",
+    "Linux x64: preparing",
+  ];
+  const missingPublicReleaseMarkers = requiredPublicReleaseMarkers.filter((marker) => !publicReleaseCombined.includes(marker));
+  if (missingPublicReleaseMarkers.length === 0) {
+    pass("public release docs describe the real v0.1.0 uploaded assets and platform gaps");
+  } else {
+    fail(`public release docs are missing current v0.1.0 asset markers: ${missingPublicReleaseMarkers.join(", ")}`);
+  }
+
   if (exists("docs/user-install-guide.md")) {
     const userGuide = fs.readFileSync(path.join(rootDir, "docs/user-install-guide.md"), "utf8");
     const requiredUserGuideMarkers = [

@@ -4,9 +4,11 @@
 
 ## 下载
 
-- macOS Apple Silicon：`LifeOS AI-0.1.0-arm64.dmg`
-- Windows x64：`LifeOS AI Setup 0.1.0.exe`
-- Linux x64：`LifeOS AI-0.1.0.AppImage`
+- macOS Apple Silicon 测试包：`LifeOS.AI-0.1.0-arm64-unsigned.zip`
+- 校验文件：`SHA256SUMS`
+- 安装说明：`INSTALL-unsigned-mac.md`
+- Windows x64：准备中，当前 Release 未上传 EXE。
+- Linux x64：准备中，当前 Release 未上传 AppImage。
 
 ## 这个版本有什么
 
@@ -18,35 +20,26 @@
 - 手机离线队列、连接状态、动作权限中心。
 - URL Scheme 白名单和危险动作确认。
 - 桌面诊断包、日志目录、启动失败提示。
-- macOS 签名、公证、DMG staple。
-- Windows NSIS 和 Linux AppImage 发布包。
+- macOS unsigned ZIP 公开测试包。
+- Windows NSIS 和 Linux AppImage 构建路线已接入，公开二进制待真实打包验证后上传。
 
 ## 安装
 
-macOS：打开 DMG，把 LifeOS AI 拖到 Applications。
+macOS：下载 unsigned ZIP，解压后把 `LifeOS AI.app` 拖到 Applications。如果 macOS 提示无法验证开发者，请按 `INSTALL-unsigned-mac.md` 操作。
 
-Windows：运行 EXE。当前 Windows 包未 Authenticode 签名，SmartScreen 可能提示未知发布者。
-
-Linux：
-
-```bash
-chmod +x "LifeOS AI-0.1.0.AppImage"
-./"LifeOS AI-0.1.0.AppImage"
-```
+Windows/Linux：当前 `v0.1.0` 未提供公开安装包。请等待真实 EXE/AppImage 资产上传。
 
 ## 校验
 
 ```text
-a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.1.0-arm64.dmg
-ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.1.0.exe
-12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.1.0.AppImage
+50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e  LifeOS AI-0.1.0-arm64-unsigned.zip
 ```
 
 ## 注意
 
 - 当前未配置 `LIFEOS_UPDATE_URL`，所以不会自动更新。
-- macOS 包是 Apple Silicon arm64，不是 Intel/Universal。
-- Windows 包可安装但未正式签名。
+- macOS 包是 Apple Silicon arm64 unsigned ZIP，不是 Intel/Universal，也不是已签名公证 DMG。
+- Windows/Linux 包当前未上传到 `v0.1.0` Release。
 - 首次启动后请先设置管理员密码，再配置 AI Key 和绑定手机。
 
 ---
@@ -55,9 +48,11 @@ ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setu
 
 ## Downloads
 
-- macOS Apple Silicon: `LifeOS AI-0.1.0-arm64.dmg`
-- Windows x64: `LifeOS AI Setup 0.1.0.exe`
-- Linux x64: `LifeOS AI-0.1.0.AppImage`
+- macOS Apple Silicon test build: `LifeOS.AI-0.1.0-arm64-unsigned.zip`
+- Checksum file: `SHA256SUMS`
+- Install guide: `INSTALL-unsigned-mac.md`
+- Windows x64: preparing; no EXE is uploaded in this Release.
+- Linux x64: preparing; no AppImage is uploaded in this Release.
 
 ## What's Included
 
@@ -69,33 +64,24 @@ ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setu
 - Mobile offline queue, connection status, action permission center.
 - URL Scheme allowlist and dangerous-action confirmation.
 - Desktop diagnostics, logs folder, startup failure page.
-- macOS signing, notarization, and DMG stapling.
-- Windows NSIS and Linux AppImage packages.
+- Public macOS unsigned ZIP test build.
+- Windows NSIS and Linux AppImage packaging paths are wired in, with public binaries pending real package verification.
 
 ## Install
 
-macOS: open the DMG and drag LifeOS AI to Applications.
+macOS: download the unsigned ZIP, unzip it, and drag `LifeOS AI.app` into Applications. If macOS blocks the first launch, follow `INSTALL-unsigned-mac.md`.
 
-Windows: run the EXE. The current Windows build is not Authenticode signed, so SmartScreen may warn about an unknown publisher.
-
-Linux:
-
-```bash
-chmod +x "LifeOS AI-0.1.0.AppImage"
-./"LifeOS AI-0.1.0.AppImage"
-```
+Windows/Linux: no public installer is provided in `v0.1.0` yet. Wait for verified EXE/AppImage assets.
 
 ## Verification
 
 ```text
-a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.1.0-arm64.dmg
-ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.1.0.exe
-12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.1.0.AppImage
+50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e  LifeOS AI-0.1.0-arm64-unsigned.zip
 ```
 
 ## Notes
 
 - `LIFEOS_UPDATE_URL` is not configured, so auto-update is disabled.
-- The macOS artifact is Apple Silicon arm64, not Intel/Universal.
-- The Windows package is installable but not Authenticode signed.
+- The macOS artifact is an Apple Silicon arm64 unsigned ZIP, not an Intel/Universal build and not a signed/notarized DMG.
+- Windows/Linux packages are not uploaded to the `v0.1.0` Release yet.
 - On first launch, set an admin password, configure an AI key, and pair the phone.

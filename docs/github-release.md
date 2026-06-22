@@ -44,37 +44,30 @@ LifeOS AI is a desktop local core plus mobile PWA personal AI system.
 
 ### Downloads
 
-- macOS Apple Silicon: `LifeOS AI-0.1.0-arm64.dmg`
-- Windows x64: `LifeOS AI Setup 0.1.0.exe`
-- Linux x64: `LifeOS AI-0.1.0.AppImage`
+- macOS Apple Silicon test build: `LifeOS.AI-0.1.0-arm64-unsigned.zip`
+- Checksum: `SHA256SUMS`
+- Install guide: `INSTALL-unsigned-mac.md`
+- Windows x64: preparing; no EXE is uploaded in this release.
+- Linux x64: preparing; no AppImage is uploaded in this release.
 
 ### Install
 
-macOS: open the DMG and drag LifeOS AI to Applications.
+macOS: download the unsigned ZIP, unzip it, drag `LifeOS AI.app` to Applications, then follow `INSTALL-unsigned-mac.md` if Gatekeeper blocks the first launch.
 
-Windows: run the installer. This build is not Windows Authenticode signed yet, so SmartScreen may show an unknown-publisher warning.
-
-Linux:
-
-```bash
-chmod +x "LifeOS AI-0.1.0.AppImage"
-./"LifeOS AI-0.1.0.AppImage"
-```
+Windows/Linux: packaging paths are wired into the project, but public binaries are not uploaded in `v0.1.0` yet.
 
 ### Verification
 
 SHA256:
 
 ```text
-a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.1.0-arm64.dmg
-ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.1.0.exe
-12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.1.0.AppImage
+50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e  LifeOS AI-0.1.0-arm64-unsigned.zip
 ```
 
 ### Notes
 
-- macOS build is Developer ID signed, notarized, and stapled.
-- Windows build is usable but not Authenticode signed yet.
+- macOS build is unsigned and may require the macOS Open Anyway flow.
+- Windows and Linux public binaries are intentionally withheld until real package verification is complete.
 - Auto-update is not enabled until `LIFEOS_UPDATE_URL` is configured in a future release.
 - On first launch, set an admin password, configure an AI provider, then bind the phone PWA.
 ```

@@ -12,43 +12,44 @@
 v0.1.0
 ```
 
-## 必传文件
+## 当前已上传的公开文件
 
-从 `release/` 上传：
+`v0.1.0` 当前 GitHub Release 已上传：
+
+```text
+LifeOS.AI-0.1.0-arm64-unsigned.zip
+SHA256SUMS
+INSTALL-unsigned-mac.md
+USER-INSTALL.md
+latest-mac.yml
+release-manifest.json
+```
+
+## 待真实打包验证后再上传
+
+下面这些是发布链路目标，不是当前公开下载资产。只有在真实生成、校验、签名策略确认后才能上传：
 
 ```text
 LifeOS AI-0.1.0-arm64.dmg
 LifeOS AI Setup 0.1.0.exe
 LifeOS AI-0.1.0.AppImage
-SHA256SUMS
-```
-
-## 建议同时上传的更新文件
-
-从 `release/update-feed/` 上传：
-
-```text
-latest-mac.yml
 latest.yml
 latest-linux.yml
-release-manifest.json
 ```
 
-如果未来启用自动更新，安装包会读取这些 feed 文件。即使当前没有配置 `LIFEOS_UPDATE_URL`，也建议先上传，方便后续排障和核验。
+如果未来启用自动更新，安装包会读取这些 feed 文件。当前没有配置 `LIFEOS_UPDATE_URL`，所以 update feed 主要用于诊断和后续准备。
 
 ## 当前 SHA256
 
 ```text
-a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.1.0-arm64.dmg
-ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.1.0.exe
-12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.1.0.AppImage
+50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e  LifeOS AI-0.1.0-arm64-unsigned.zip
 ```
 
 ## 平台说明
 
-- macOS：支持 Developer ID Application 签名 + Apple notarization + DMG stapled 的正式发布路径；如果本地没有签名环境，则应按 unsigned/Gatekeeper 流程说明发布。
-- Windows：NSIS 安装包可用，但未配置 Windows Authenticode 正式签名，SmartScreen 可能提示未知发布者。
-- Linux：AppImage 可用，通常通过 SHA256 校验完整性。
+- macOS：当前公开资产是 unsigned ZIP。正式路径仍支持 Developer ID Application 签名 + Apple notarization + DMG stapled，但需要重新生成并上传真实 DMG。
+- Windows：NSIS 安装包路线已接入构建脚本和 CI smoke；当前 Release 未上传 EXE。
+- Linux：AppImage 路线已接入构建脚本和 CI smoke；当前 Release 未上传 AppImage。
 
 ## 不要上传
 
@@ -67,11 +68,11 @@ release/*-unpacked/
 
 ## 上传后检查
 
-1. GitHub Release 页面能看到三平台二进制和 `SHA256SUMS`。
-2. 下载 macOS DMG 后可以正常打开。
-3. 下载 Windows EXE 后文件大小约 106 MB。
-4. 下载 Linux AppImage 后可执行权限需要用户自行设置。
-5. `release-manifest.json` 里的文件名、大小和 sha256 与 Release 资产一致。
+1. GitHub Release 页面能看到 macOS unsigned ZIP、`SHA256SUMS`、安装说明和 `release-manifest.json`。
+2. 下载 macOS ZIP 后可以解压出 `LifeOS AI.app`。
+3. `SHA256SUMS` 与下载文件校验一致。
+4. `release-manifest.json` 里的文件名、大小和 sha256 与 Release 资产一致。
+5. Windows/Linux 下载说明没有指向尚未上传的资产。
 
 ---
 
@@ -87,43 +88,44 @@ Recommended GitHub Release tag:
 v0.1.0
 ```
 
-## Required Assets
+## Currently Uploaded Public Assets
 
-Upload from `release/`:
+The current `v0.1.0` GitHub Release uploads:
+
+```text
+LifeOS.AI-0.1.0-arm64-unsigned.zip
+SHA256SUMS
+INSTALL-unsigned-mac.md
+USER-INSTALL.md
+latest-mac.yml
+release-manifest.json
+```
+
+## Upload Later After Real Package Verification
+
+These are release-chain targets, not current public download assets. Upload them only after real generation, verification, and signing-policy review:
 
 ```text
 LifeOS AI-0.1.0-arm64.dmg
 LifeOS AI Setup 0.1.0.exe
 LifeOS AI-0.1.0.AppImage
-SHA256SUMS
-```
-
-## Recommended Feed Assets
-
-Upload from `release/update-feed/`:
-
-```text
-latest-mac.yml
 latest.yml
 latest-linux.yml
-release-manifest.json
 ```
 
-These files are required for future auto-update support and are useful for support diagnostics even before `LIFEOS_UPDATE_URL` is configured.
+These feed files are required for future auto-update support. Because `LIFEOS_UPDATE_URL` is not configured yet, the current feed files are mostly for diagnostics and future preparation.
 
 ## Current SHA256
 
 ```text
-a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a  LifeOS AI-0.1.0-arm64.dmg
-ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022  LifeOS AI Setup 0.1.0.exe
-12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279  LifeOS AI-0.1.0.AppImage
+50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e  LifeOS AI-0.1.0-arm64-unsigned.zip
 ```
 
 ## Platform Notes
 
-- macOS: the repo supports a Developer ID signed, Apple notarized, stapled DMG release path. If signing variables are not present, treat the build as unsigned and publish it with Gatekeeper fallback instructions instead.
-- Windows: NSIS installer is usable but not Authenticode signed yet, so SmartScreen may warn about an unknown publisher.
-- Linux: AppImage is usable; integrity is normally verified with SHA256.
+- macOS: the current public asset is an unsigned ZIP. The formal path still supports Developer ID signing, Apple notarization, and a stapled DMG, but a real DMG must be regenerated and uploaded first.
+- Windows: the NSIS packaging path is wired into scripts and CI smoke checks; the current Release does not upload an EXE.
+- Linux: the AppImage packaging path is wired into scripts and CI smoke checks; the current Release does not upload an AppImage.
 
 ## Do Not Upload
 
@@ -142,8 +144,8 @@ release/*-unpacked/
 
 ## Post-Upload Check
 
-1. The GitHub Release shows all three platform binaries and `SHA256SUMS`.
-2. macOS DMG downloads and opens normally.
-3. Windows EXE download size is about 106 MB.
-4. Linux AppImage requires users to set executable permission.
-5. `release-manifest.json` file names, sizes, and sha256 values match the uploaded assets.
+1. The GitHub Release shows the macOS unsigned ZIP, `SHA256SUMS`, install guides, and `release-manifest.json`.
+2. The macOS ZIP downloads and extracts to `LifeOS AI.app`.
+3. `SHA256SUMS` verifies the downloaded file.
+4. `release-manifest.json` file names, sizes, and sha256 values match the uploaded assets.
+5. Windows/Linux download instructions do not link to assets that have not been uploaded yet.

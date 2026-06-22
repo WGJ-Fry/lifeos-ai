@@ -11,22 +11,22 @@ LifeOS AI 是电脑端应用 + 手机端 PWA。电脑端负责运行本地核心
 文件：
 
 ```text
-LifeOS AI-0.1.0-arm64.dmg
+LifeOS.AI-0.1.0-arm64-unsigned.zip
 ```
 
 安装：
 
-1. 下载 DMG。
-2. 打开 DMG。
-3. 把 `LifeOS AI` 拖到 Applications。
+1. 下载 unsigned ZIP。
+2. 解压 ZIP。
+3. 把 `LifeOS AI.app` 拖到 Applications。
 4. 从 Applications 打开。
 
-如果这次发布是带签名环境构建的 macOS DMG，那么它会是 Developer ID 签名、Apple 公证、并完成 stapled；如果是本地或 unsigned 构建，macOS 仍可能提示 Gatekeeper，需要按系统提示继续打开或改用签名版发布包。
+当前 `v0.1.0` 公开资产是 unsigned ZIP，不是已签名公证 DMG。macOS 可能提示 Gatekeeper，需要按 Release 里的 `INSTALL-unsigned-mac.md` 继续打开。后续如果发布带签名环境构建的 macOS DMG，它会是 Developer ID 签名、Apple 公证、并完成 stapled。
 
 如果你习惯用终端复制 `.app`，优先使用 `ditto`，不要用 `cp -R`。`ditto` 更接近 Finder 拖拽安装，能更稳定地保留 macOS 对签名应用需要的元数据：
 
 ```bash
-ditto "/Volumes/LifeOS AI/LifeOS AI.app" "/Applications/LifeOS AI.app"
+ditto "/path/to/LifeOS AI.app" "/Applications/LifeOS AI.app"
 ```
 
 兼容说明：`macOS Unsigned Zip` 仍可用于私有测试；无签名包可能需要在系统设置中选择 `Open Anyway`。面向普通用户公开分发时，推荐使用带 Developer ID 签名和 Apple 公证的 DMG。
@@ -36,17 +36,18 @@ ditto "/Volumes/LifeOS AI/LifeOS AI.app" "/Applications/LifeOS AI.app"
 文件：
 
 ```text
-LifeOS AI Setup 0.1.0.exe
+v0.1.0 当前未上传 Windows EXE
 ```
 
 安装：
 
-1. 下载 EXE。
-2. 双击运行安装器。
-3. 如果 Windows SmartScreen 提示未知发布者，请确认下载来源是官方 GitHub Release，并对照 `SHA256SUMS`。
-4. 安装后从开始菜单或桌面快捷方式打开。
+1. 等待 GitHub Release 上传真实 `LifeOS AI Setup 0.1.0.exe`。
+2. 下载 EXE。
+3. 双击运行安装器。
+4. 如果 Windows SmartScreen 提示未知发布者，请确认下载来源是官方 GitHub Release，并对照 `SHA256SUMS`。
+5. 安装后从开始菜单或桌面快捷方式打开。
 
-当前 Windows 包可安装，但还没有 Authenticode 正式签名。
+Windows NSIS 安装包路线已经接入构建脚本和 CI smoke，但当前公开 Release 暂未提供 EXE。未来 Windows 包如果没有 Authenticode 正式签名，SmartScreen 可能提示未知发布者。
 
 这是 `Windows NSIS Installer` 路线。
 
@@ -55,19 +56,20 @@ LifeOS AI Setup 0.1.0.exe
 文件：
 
 ```text
-LifeOS AI-0.1.0.AppImage
+v0.1.0 当前未上传 Linux AppImage
 ```
 
 运行：
 
 ```bash
+# 真实 AppImage 上传后再执行：
 chmod +x "LifeOS AI-0.1.0.AppImage"
 ./"LifeOS AI-0.1.0.AppImage"
 ```
 
 如果 AppImage 无法启动，请确认系统有 FUSE/AppImage 支持，或从终端启动查看缺失依赖。
 
-这是 `Linux AppImage` 路线。
+Linux AppImage 路线已经接入构建脚本和 CI smoke，但当前公开 Release 暂未提供 AppImage。
 
 ## 首次启动
 
@@ -227,22 +229,22 @@ LifeOS AI is a desktop app plus a mobile PWA. The desktop app runs the local cor
 File:
 
 ```text
-LifeOS AI-0.1.0-arm64.dmg
+LifeOS.AI-0.1.0-arm64-unsigned.zip
 ```
 
 Install:
 
-1. Download the DMG.
-2. Open it.
-3. Drag `LifeOS AI` to Applications.
+1. Download the unsigned ZIP.
+2. Unzip it.
+3. Drag `LifeOS AI.app` to Applications.
 4. Open it from Applications.
 
-When the macOS DMG is built with the signing environment configured, it is Developer ID signed, Apple notarized, and stapled. Local unsigned builds can still trigger Gatekeeper and may require the macOS `Open Anyway` flow.
+The current `v0.1.0` public asset is an unsigned ZIP, not a signed and notarized DMG. macOS can trigger Gatekeeper and may require the `INSTALL-unsigned-mac.md` flow from the Release. When a future macOS DMG is built with the signing environment configured, it will be Developer ID signed, Apple notarized, and stapled.
 
 If you prefer installing from Terminal, use `ditto` instead of `cp -R`. `ditto` is closer to the Finder drag-and-drop flow and preserves the metadata macOS expects for signed apps more reliably:
 
 ```bash
-ditto "/Volumes/LifeOS AI/LifeOS AI.app" "/Applications/LifeOS AI.app"
+ditto "/path/to/LifeOS AI.app" "/Applications/LifeOS AI.app"
 ```
 
 Compatibility note: the earlier `macOS Unsigned Zip` path is still useful for private testing. Unsigned builds may require the macOS `Open Anyway` flow. For public distribution to ordinary users, the signed and notarized DMG is the recommended path.
@@ -252,17 +254,18 @@ Compatibility note: the earlier `macOS Unsigned Zip` path is still useful for pr
 File:
 
 ```text
-LifeOS AI Setup 0.1.0.exe
+v0.1.0 does not currently upload a Windows EXE
 ```
 
 Install:
 
-1. Download the EXE.
-2. Run the installer.
-3. If SmartScreen warns about an unknown publisher, verify that the file came from the official GitHub Release and compare it with `SHA256SUMS`.
-4. Open LifeOS AI from the Start Menu or desktop shortcut.
+1. Wait until the GitHub Release uploads a real `LifeOS AI Setup 0.1.0.exe`.
+2. Download the EXE.
+3. Run the installer.
+4. If SmartScreen warns about an unknown publisher, verify that the file came from the official GitHub Release and compare it with `SHA256SUMS`.
+5. Open LifeOS AI from the Start Menu or desktop shortcut.
 
-The current Windows package is installable but not Authenticode signed yet.
+The Windows NSIS packaging path is wired into scripts and CI smoke checks, but the current public Release does not provide an EXE yet. If a future Windows package is not Authenticode signed, SmartScreen may warn about an unknown publisher.
 
 This is the `Windows NSIS Installer` path.
 
@@ -271,19 +274,20 @@ This is the `Windows NSIS Installer` path.
 File:
 
 ```text
-LifeOS AI-0.1.0.AppImage
+v0.1.0 does not currently upload a Linux AppImage
 ```
 
 Run:
 
 ```bash
+# Run this after a real AppImage has been uploaded:
 chmod +x "LifeOS AI-0.1.0.AppImage"
 ./"LifeOS AI-0.1.0.AppImage"
 ```
 
 If it does not start, make sure your distribution has FUSE/AppImage support, or run it from a terminal to see missing dependency messages.
 
-This is the `Linux AppImage` path.
+The Linux AppImage packaging path is wired into scripts and CI smoke checks, but the current public Release does not provide an AppImage yet.
 
 ## First Launch
 
