@@ -264,9 +264,24 @@ test("release artifact version checker blocks and explicitly cleans stale instal
   const staleDmg = path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg");
   const staleBlockmap = path.join(releaseDir, "LifeOS AI-0.0.0-arm64.dmg.blockmap");
   const currentExe = path.join(releaseDir, currentWinInstallerName);
+  const feedDir = path.join(releaseDir, "update-feed");
+  const staleFeed = path.join(feedDir, "latest-mac.yml");
+  const staleManifest = path.join(feedDir, "release-manifest.json");
+  const staleChecksums = path.join(releaseDir, "SHA256SUMS");
   await writeFile(staleDmg, "old dmg bytes");
   await writeFile(staleBlockmap, "old blockmap bytes");
   await writeFile(currentExe, "current nsis bytes");
+  await mkdir(feedDir, { recursive: true });
+  await writeFile(staleFeed, [
+    'version: "0.0.0"',
+    'path: "LifeOS AI-0.0.0-arm64.dmg"',
+    "",
+  ].join("\n"));
+  await writeFile(staleManifest, JSON.stringify({
+    version: "0.0.0",
+    artifacts: [{ fileName: "LifeOS AI-0.0.0-arm64.dmg", feedFile: "latest-mac.yml" }],
+  }, null, 2));
+  await writeFile(staleChecksums, `deadbeef  LifeOS AI-0.0.0-arm64.dmg\n`);
 
   const check = spawnSync(process.execPath, ["scripts/check-release-artifact-versions.mjs"], {
     cwd: rootDir,
@@ -275,11 +290,17 @@ test("release artifact version checker blocks and explicitly cleans stale instal
   });
   assert.notEqual(check.status, 0, `${check.stdout}\n${check.stderr}`);
   assert.match(check.stderr, new RegExp(`Release artifacts do not match package version ${currentVersionPattern}`));
-  assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg contains 0\.0\.0/);
-  assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg\.blockmap contains 0\.0\.0/);
+  assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg \(artifact\) contains 0\.0\.0/);
+  assert.match(check.stderr, /LifeOS AI-0\.0\.0-arm64\.dmg\.blockmap \(artifact\) contains 0\.0\.0/);
+  assert.match(check.stderr, /latest-mac\.yml \(metadata\) contains 0\.0\.0/);
+  assert.match(check.stderr, /release-manifest\.json \(metadata\) contains 0\.0\.0/);
+  assert.match(check.stderr, /SHA256SUMS \(metadata\) contains 0\.0\.0/);
   assert.equal(await fileExists(staleDmg), true);
   assert.equal(await fileExists(staleBlockmap), true);
   assert.equal(await fileExists(currentExe), true);
+  assert.equal(await fileExists(staleFeed), true);
+  assert.equal(await fileExists(staleManifest), true);
+  assert.equal(await fileExists(staleChecksums), true);
 
   const fixed = spawnSync(process.execPath, ["scripts/check-release-artifact-versions.mjs", "--fix"], {
     cwd: rootDir,
@@ -291,6 +312,9 @@ test("release artifact version checker blocks and explicitly cleans stale instal
   assert.equal(await fileExists(staleDmg), false);
   assert.equal(await fileExists(staleBlockmap), false);
   assert.equal(await fileExists(currentExe), true);
+  assert.equal(await fileExists(staleFeed), false);
+  assert.equal(await fileExists(staleManifest), false);
+  assert.equal(await fileExists(staleChecksums), false);
 });
 
 test("release feed generator writes Windows and Linux updater metadata", async (t) => {
@@ -502,8 +526,8 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /PWA client reloads after service worker updates/);
   assert.match(result.stdout, /first-launch onboarding has authoritative status, completion, audit, and login routing/);
   assert.match(result.stdout, /connection guide ranks usable URLs for pairing QR and tunnel setup/);
-  assert.match(result.stdout, /device pairing QR page exposes recommended URL safety and reachability test/);
-  assert.match(result.stdout, /connection diagnostics have Cloudflare\/Tailscale mock coverage, Named Tunnel reconnect, and sanitize test URLs/);
+  assert.match(result.stdout, /device pairing QR page exposes recommended URL safety, reachability test, and repair guidance/);
+  assert.match(result.stdout, /connection diagnostics have Cloudflare\/Tailscale mock coverage, Named Tunnel reconnect, sanitize test URLs, and repair hints/);
   assert.match(result.stdout, /public mode health and dashboard expose actionable security risk items/);
   assert.match(result.stdout, /PWA preserves pending pairing token across iOS add-to-home-screen/);
   assert.match(result.stdout, /PWA pairing intent rejects malformed and unsafe tokens/);
@@ -530,7 +554,7 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /backup restore previews are shown before restore in settings and dashboard/);
   assert.match(result.stdout, /backup restore UI confirmation copy is shared and tested/);
   assert.match(result.stdout, /ordinary SQLite backups exclude AI keys and sensitive client state by default/);
-  assert.match(result.stdout, /data cleanup has dry-run preview across API, UI, audit, and tests/);
+  assert.match(result.stdout, /data cleanup has dry-run preview, protection backup, UI, audit, and tests/);
   assert.match(result.stdout, /desktop logs folder menu action is implemented/);
   assert.match(result.stdout, /desktop diagnostic includes redacted log tail/);
   assert.match(result.stdout, /desktop diagnostic exposes a safe logs directory label/);

@@ -24,10 +24,29 @@ function versionMismatches(file) {
     .filter((version) => version !== packageVersionCore || packageJson.version !== packageVersionCore);
 }
 
+function metadataVersionMismatches(file) {
+  const content = fs.readFileSync(file, "utf8");
+  const scanContent = content.split(packageJson.version).join("");
+  return [...scanContent.matchAll(/\b(\d+\.\d+\.\d+)\b/g)]
+    .map((match) => match[1])
+    .filter((version) => version !== packageVersionCore || packageJson.version !== packageVersionCore);
+}
+
+function isReleaseMetadata(file) {
+  const name = path.basename(file);
+  const parent = path.basename(path.dirname(file));
+  return name === "SHA256SUMS" || (parent === "update-feed" && (/^latest.*\.yml$/.test(name) || name === "release-manifest.json"));
+}
+
 const artifacts = walk(releaseDir).filter((file) => artifactPattern.test(file));
-const stale = artifacts
-  .map((file) => ({ file, mismatches: versionMismatches(file) }))
+const metadata = walk(releaseDir).filter(isReleaseMetadata);
+const staleArtifacts = artifacts
+  .map((file) => ({ file, mismatches: versionMismatches(file), kind: "artifact" }))
   .filter((item) => item.mismatches.length > 0);
+const staleMetadata = metadata
+  .map((file) => ({ file, mismatches: metadataVersionMismatches(file), kind: "metadata" }))
+  .filter((item) => item.mismatches.length > 0);
+const stale = [...staleArtifacts, ...staleMetadata];
 
 if (stale.length === 0) {
   console.log(`Release artifact versions are clean for ${packageJson.version}.`);
@@ -36,7 +55,7 @@ if (stale.length === 0) {
 
 console.error(`Release artifacts do not match package version ${packageJson.version}:`);
 for (const item of stale) {
-  console.error(`- ${path.relative(rootDir, item.file)} contains ${item.mismatches.join(", ")}`);
+  console.error(`- ${path.relative(rootDir, item.file)} (${item.kind}) contains ${item.mismatches.join(", ")}`);
 }
 
 if (!fix) {
