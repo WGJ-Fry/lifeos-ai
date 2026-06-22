@@ -5,6 +5,7 @@ import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
 
 type Mode = "loading" | "setup" | "login";
+type PublicRiskItem = Awaited<ReturnType<typeof getHealth>>["publicRisk"]["items"][number];
 
 export default function AdminLoginPage() {
   const { t } = useI18n();
@@ -15,6 +16,7 @@ export default function AdminLoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [publicSetupRisk, setPublicSetupRisk] = useState(false);
+  const [publicRiskItems, setPublicRiskItems] = useState<PublicRiskItem[]>([]);
 
   useEffect(() => {
     Promise.all([getAdminStatus(), getHealth().catch(() => null)])
@@ -22,6 +24,7 @@ export default function AdminLoginPage() {
         const [adminStatus, health] = status;
         setEnvManaged(adminStatus.envManaged);
         setPublicSetupRisk(Boolean(health?.publicSetupRisk));
+        setPublicRiskItems(health?.publicRisk?.items || []);
         if (adminStatus.authenticated) {
           window.location.href = adminStatus.nextPath || "/chat";
           return;
@@ -84,6 +87,22 @@ export default function AdminLoginPage() {
               {t("auth.publicSetupTitle")}
             </div>
             {t("auth.publicSetupBody")}
+            {publicRiskItems.length ? (
+              <div className="mt-3 space-y-2">
+                {publicRiskItems.slice(0, 4).map((item) => (
+                  <div key={item.id} className="rounded-xl border border-red-100/10 bg-black/15 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="font-bold text-red-50">{item.label}</div>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${item.status === "critical" ? "bg-red-400/15 text-red-50" : "bg-amber-400/15 text-amber-100"}`}>
+                        {item.status === "critical" ? t("auth.mustFix") : t("auth.shouldFix")}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-red-100/75">{item.message}</div>
+                    <div className="mt-1 text-xs text-red-100/55">{item.action}</div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
 

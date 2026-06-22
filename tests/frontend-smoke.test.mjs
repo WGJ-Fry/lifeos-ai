@@ -285,6 +285,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const loginSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminLoginPage.tsx"), "utf8");
   assert.match(loginSource, /onboardingRequired/);
   assert.match(loginSource, /session\.nextPath/);
+  assert.match(loginSource, /publicRiskItems/);
+  assert.match(loginSource, /publicRiskItems\.slice\(0, 4\)\.map/);
+  assert.match(loginSource, /auth\.mustFix/);
+  assert.match(loginSource, /item\.action/);
   assert.match(lifeosApiSource, /admin\|mobile\|chat/);
 
   const onboardingSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminOnboardingPage.tsx"), "utf8");
@@ -313,6 +317,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /开启每日自动备份/);
   assert.match(translationsSource, /打开日志文件夹/);
   assert.match(translationsSource, /导出诊断包/);
+  assert.match(translationsSource, /必须处理/);
+  assert.match(translationsSource, /Must Fix/);
   assert.match(translationsSource, /本地模型端点/);
   assert.match(translationsSource, /Local Model Endpoint/);
   assert.match(translationsSource, /Set as Default Chat Provider/);
