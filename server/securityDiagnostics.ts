@@ -28,16 +28,36 @@ const weakPasswordSamples = new Set([
 ]);
 const staleBackupAgeMs = 7 * 24 * 60 * 60 * 1000;
 
+function hasLongRepeatedRun(password: string) {
+  return /(.)\1{5,}/i.test(password);
+}
+
+function hasSequentialRun(password: string) {
+  const normalized = password.toLowerCase();
+  const sequences = ["abcdefghijklmnopqrstuvwxyz", "0123456789", "qwertyuiop", "asdfghjkl", "zxcvbnm"];
+  return sequences.some((sequence) => {
+    for (let index = 0; index <= sequence.length - 6; index += 1) {
+      const chunk = sequence.slice(index, index + 6);
+      if (normalized.includes(chunk) || normalized.includes([...chunk].reverse().join(""))) return true;
+    }
+    return false;
+  });
+}
+
 export function evaluatePasswordPolicy(password: string) {
   const normalized = password.trim().toLowerCase();
   const lengthOk = password.length >= 12;
   const hasVariety = [/[a-z]/i, /\d/, /[^a-z0-9\s]/i, /\s/].filter((pattern) => pattern.test(password)).length >= 2;
   const notCommon = !weakPasswordSamples.has(normalized);
+  const noLongRepeats = !hasLongRepeatedRun(password);
+  const noSequentialPattern = !hasSequentialRun(password);
   return {
-    meetsPolicy: lengthOk && hasVariety && notCommon,
+    meetsPolicy: lengthOk && hasVariety && notCommon && noLongRepeats && noSequentialPattern,
     lengthBucket: password.length >= 16 ? "16+" : password.length >= 12 ? "12-15" : "8-11",
     hasVariety,
     notCommon,
+    noLongRepeats,
+    noSequentialPattern,
     checkedAt: Date.now(),
   };
 }
@@ -72,11 +92,11 @@ export function getSecurityDiagnostics() {
       message: passwordPolicy
         ? passwordPolicy.meetsPolicy
           ? "Password policy passed."
-          : "Current password policy is weak."
+          : "Current password policy is weak, common, repetitive, or sequential."
         : publicMode
           ? "No password strength summary found, so public mode cannot prove the password is strong enough."
           : "No blocking password strength item found in local mode.",
-      action: passwordPolicy?.meetsPolicy ? "No action needed." : "Reset to at least 12 characters and mix phrases, numbers, or symbols.",
+      action: passwordPolicy?.meetsPolicy ? "No action needed." : "Reset to at least 12 characters and avoid common words, long repeats, or keyboard/number sequences.",
     },
     {
       id: "https",

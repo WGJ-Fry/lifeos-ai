@@ -158,6 +158,24 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "publicOptIn" && item.status === "ok"), true);
   assert.equal(diagnostics.storage.backupSchedule.enabled, false);
 
+  const repetitivePasswordResponse = await request(port, "/api/v1/admin/password", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ currentPassword: "password123", newPassword: "aaaaaaaaaaaa1!" }),
+  }).then((res) => res.json());
+  assert.equal(repetitivePasswordResponse.passwordPolicy.meetsPolicy, false);
+  assert.equal(repetitivePasswordResponse.passwordPolicy.noLongRepeats, false);
+  assert.equal(repetitivePasswordResponse.securityCheck.items.some((item) => item.id === "password" && item.status === "critical"), true);
+
+  const sequentialPasswordResponse = await request(port, "/api/v1/admin/password", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ currentPassword: "aaaaaaaaaaaa1!", newPassword: "abcdef123456!" }),
+  }).then((res) => res.json());
+  assert.equal(sequentialPasswordResponse.passwordPolicy.meetsPolicy, false);
+  assert.equal(sequentialPasswordResponse.passwordPolicy.noSequentialPattern, false);
+  assert.equal(sequentialPasswordResponse.securityCheck.items.some((item) => item.id === "password" && item.status === "critical"), true);
+
   const backupResponse = await request(port, "/api/v1/backups", {
     method: "POST",
     headers: adminHeaders,
@@ -180,7 +198,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   const passwordResponse = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
-    body: JSON.stringify({ currentPassword: "password123", newPassword: "correct horse battery staple" }),
+    body: JSON.stringify({ currentPassword: "abcdef123456!", newPassword: "correct horse battery staple" }),
   });
   assert.equal(passwordResponse.status, 200);
 

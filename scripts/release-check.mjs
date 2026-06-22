@@ -1001,6 +1001,10 @@ function checkAssets() {
     securityDiagnosticsSource.includes("getBackupSchedule") &&
     securityDiagnosticsSource.includes("inspectConfiguredPublicBaseUrlInput") &&
     securityDiagnosticsSource.includes('id: "publicBaseUrlInput"') &&
+    securityDiagnosticsSource.includes("hasLongRepeatedRun") &&
+    securityDiagnosticsSource.includes("hasSequentialRun") &&
+    securityDiagnosticsSource.includes("noLongRepeats") &&
+    securityDiagnosticsSource.includes("noSequentialPattern") &&
     adminDashboardSource.includes("dashboard.publicRiskTitle") &&
     adminDashboardSource.includes("health.publicRisk.items.map") &&
     adminDashboardSource.includes("dashboard.createBackupNow") &&
@@ -1011,6 +1015,8 @@ function checkAssets() {
     publicModeTestSource.includes("health exposes saved desktop remote entry mode for mobile recovery") &&
     publicModeTestSource.includes("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input") &&
     publicModeTestSource.includes("public-secret") &&
+    publicModeTestSource.includes("aaaaaaaaaaaa1!") &&
+    publicModeTestSource.includes("abcdef123456!") &&
     publicModeTestSource.includes('health.remoteEntryMode, "cloudflare"') &&
     publicModeTestSource.includes("configuredHealth.publicSetupRisk, true") &&
     publicModeTestSource.includes("improvedHealth.publicRisk.items")

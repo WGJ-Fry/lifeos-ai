@@ -283,10 +283,30 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(weakPasswordChange.ok, true);
   assert.equal(weakPasswordChange.passwordPolicy.meetsPolicy, false);
   assert.equal(weakPasswordChange.securityCheck.items.some((item) => item.id === "password" && item.status === "warning"), true);
+  const repetitivePasswordChange = await request(port, "/api/v1/admin/password", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ currentPassword: "password123", newPassword: "aaaaaaaaaaaa1!" }),
+  }).then((res) => res.json());
+  assert.equal(repetitivePasswordChange.ok, true);
+  assert.equal(repetitivePasswordChange.passwordPolicy.meetsPolicy, false);
+  assert.equal(repetitivePasswordChange.passwordPolicy.noLongRepeats, false);
+  assert.equal(repetitivePasswordChange.passwordPolicy.noSequentialPattern, true);
+  assert.equal(repetitivePasswordChange.securityCheck.items.some((item) => item.id === "password" && item.status === "warning"), true);
+  const sequentialPasswordChange = await request(port, "/api/v1/admin/password", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ currentPassword: "aaaaaaaaaaaa1!", newPassword: "abcdef123456!" }),
+  }).then((res) => res.json());
+  assert.equal(sequentialPasswordChange.ok, true);
+  assert.equal(sequentialPasswordChange.passwordPolicy.meetsPolicy, false);
+  assert.equal(sequentialPasswordChange.passwordPolicy.noLongRepeats, true);
+  assert.equal(sequentialPasswordChange.passwordPolicy.noSequentialPattern, false);
+  assert.equal(sequentialPasswordChange.securityCheck.items.some((item) => item.id === "password" && item.status === "warning"), true);
   const strongPasswordChange = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
-    body: JSON.stringify({ currentPassword: "password123", newPassword: "correct horse battery staple" }),
+    body: JSON.stringify({ currentPassword: "abcdef123456!", newPassword: "correct horse battery staple" }),
   }).then((res) => res.json());
   assert.equal(strongPasswordChange.ok, true);
   assert.equal(strongPasswordChange.passwordPolicy.meetsPolicy, true);
