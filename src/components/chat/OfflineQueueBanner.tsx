@@ -34,6 +34,7 @@ export default function OfflineQueueBanner({
   network,
 }: OfflineQueueBannerProps) {
   const { t } = useI18n();
+  const networkLabel = t(network.labelKey as any);
   if (summary.count === 0 && network.quality !== "offline" && network.quality !== "poor") return null;
 
   return (
@@ -41,14 +42,14 @@ export default function OfflineQueueBanner({
       <div className="flex items-center justify-between gap-3">
         <span className="min-w-0">
           {summary.count === 0
-            ? network.label
+            ? networkLabel
             : status === "syncing"
               ? t("offlineQueue.syncing", { count: summary.syncing || summary.count })
               : status === "error"
                 ? t("offlineQueue.syncFailed", { count: summary.failed || summary.count })
                 : t("offlineQueue.waiting", { count: summary.pending || summary.count })}
           {network.quality === "poor" && summary.count > 0 ? (
-            <span className="mt-1 block text-[10px] text-amber-200/70">{network.label}</span>
+            <span className="mt-1 block text-[10px] text-amber-200/70">{networkLabel}</span>
           ) : null}
           {summary.lastError ? (
             <span className="mt-1 block truncate text-[10px] text-amber-200/70">{summary.lastError}</span>

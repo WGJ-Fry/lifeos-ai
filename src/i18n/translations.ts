@@ -31,6 +31,10 @@ export const translations = {
     "common.preview": "预览",
     "common.reading": "读取中",
     "common.language": "语言",
+    "network.offline": "当前离线。消息会先保存在本地队列。",
+    "network.weak": "当前网络较弱。发送失败的消息会进入离线队列。",
+    "network.available": "网络可用。",
+    "network.unknown": "暂时无法判断网络状态。",
 
     "auth.setupTitle": "设置管理员密码",
     "auth.loginTitle": "管理员登录",
@@ -1499,6 +1503,10 @@ export const translations = {
     "common.preview": "Preview",
     "common.reading": "Reading",
     "common.language": "Language",
+    "network.offline": "You are offline. Messages will be saved locally first.",
+    "network.weak": "The network is weak. Failed sends will enter the offline queue.",
+    "network.available": "Network is available.",
+    "network.unknown": "Network status is unknown.",
 
     "auth.setupTitle": "Set Admin Password",
     "auth.loginTitle": "Admin Login",

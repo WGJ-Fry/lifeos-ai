@@ -346,7 +346,7 @@ export default function MobileDevicePage() {
             </div>
             <div>
               <h2 className="text-base font-bold">{t("mobileDevice.connectionQueue")}</h2>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-400">{network.label}</p>
+              <p className="mt-1 text-sm leading-relaxed text-zinc-400">{t(network.labelKey as any)}</p>
             </div>
           </div>
           <div className="grid grid-cols-4 gap-2 text-center text-xs">

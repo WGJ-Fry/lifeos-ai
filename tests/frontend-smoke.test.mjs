@@ -516,7 +516,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.persistentStorage/);
   assert.match(mobileDeviceSource, /offlineQueue\.remoteEntryTitle/);
   assert.match(mobileDeviceSource, /currentEntryGuidance\.map/);
+  assert.match(mobileDeviceSource, /network\.labelKey/);
+  assert.doesNotMatch(mobileDeviceSource, /network\.label(?!Key)/);
   assert.match(translationsSource, /offlineQueue\.remoteEntryTitle/);
+  assert.match(translationsSource, /network\.offline/);
+  assert.match(translationsSource, /当前网络较弱/);
   assert.match(translationsSource, /离线队列存储/);
   assert.match(translationsSource, /待同步/);
   assert.match(translationsSource, /可以重试/);
@@ -530,6 +534,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const offlineQueueBannerSource = await readFile(path.join(rootDir, "src", "components", "chat", "OfflineQueueBanner.tsx"), "utf8");
   assert.match(offlineQueueBannerSource, /getOfflineMessageStatusLabel/);
   assert.match(offlineQueueBannerSource, /getOfflineMessageRetryLabel/);
+  assert.match(offlineQueueBannerSource, /networkLabel/);
+  assert.match(offlineQueueBannerSource, /network\.labelKey/);
+  assert.doesNotMatch(offlineQueueBannerSource, /network\.label(?!Key)/);
   assert.doesNotMatch(offlineQueueBannerSource, /\{item\.status\}/);
 
   const offlineQueueSource = await readFile(path.join(rootDir, "src", "services", "offlineMessageQueue.ts"), "utf8");

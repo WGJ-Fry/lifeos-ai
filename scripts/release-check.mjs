@@ -1178,10 +1178,15 @@ function checkAssets() {
     offlineQueueSource.includes("Ready to retry") &&
     offlineQueueBannerSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueBannerSource.includes("getOfflineMessageRetryLabel") &&
+    offlineQueueBannerSource.includes("networkLabel") &&
+    offlineQueueBannerSource.includes("network.labelKey") &&
+    !/network\.label(?!Key)/.test(offlineQueueBannerSource) &&
     mobileDeviceSource.includes("getOfflineMessageQueueStorageStatus") &&
     mobileDeviceSource.includes("MobileOfflineQueueCards") &&
     mobileDeviceSource.includes("offlineQueue.remoteEntryTitle") &&
     mobileDeviceSource.includes("currentEntryGuidance.map") &&
+    mobileDeviceSource.includes("network.labelKey") &&
+    !/network\.label(?!Key)/.test(mobileDeviceSource) &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageNextRetryAt") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.status.pending") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.status.syncing") &&
@@ -1207,6 +1212,8 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.readyToRetry") &&
     translationsSource.includes("offlineQueue.recommendation.browserStorage") &&
     translationsSource.includes("offlineQueue.recommendation.empty") &&
+    translationsSource.includes("network.offline") &&
+    translationsSource.includes("network.weak") &&
     offlineQueueTestSource.includes("getOfflineMessageStatusLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageRetryLabel") &&
     offlineQueueTestSource.includes("formatOfflineMessageQueueBytes") &&
