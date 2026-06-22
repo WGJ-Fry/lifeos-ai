@@ -2029,6 +2029,22 @@ function checkReleaseDocs() {
     fail(`GitHub support templates need current version placeholders: ${communityTemplateFindings.join("; ") || "missing template"}`);
   }
 
+  if (exists(".github/ISSUE_TEMPLATE/config.yml")) {
+    const issueTemplateConfig = fs.readFileSync(path.join(rootDir, ".github/ISSUE_TEMPLATE/config.yml"), "utf8");
+    if (
+      issueTemplateConfig.includes("blank_issues_enabled: false")
+      && issueTemplateConfig.includes("docs/user-install-guide.md")
+      && issueTemplateConfig.includes("/discussions/categories/support")
+      && issueTemplateConfig.includes("请勿粘贴密钥")
+    ) {
+      pass("GitHub issue template config routes support safely and disables blank issues");
+    } else {
+      fail("GitHub issue template config must disable blank issues and route users to docs/support without secrets");
+    }
+  } else {
+    fail("GitHub issue template config is missing: .github/ISSUE_TEMPLATE/config.yml");
+  }
+
   const publicReleaseDocPaths = [
     "README.md",
     "docs/release-assets.md",
