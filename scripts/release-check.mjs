@@ -1966,6 +1966,21 @@ function checkReleaseDocs() {
     fail(`Docker quickstart is incomplete; missing files: ${missingDockerFiles.join(", ") || "none"}; missing markers: ${missingDockerMarkers.join(", ") || "none"}`);
   }
 
+  const testScript = packageJson.scripts?.test || "";
+  const chatVaultRouteTest = exists("tests/chat-vault-route.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/chat-vault-route.test.mjs"), "utf8") : "";
+  if (
+    testScript.includes("tests/chat-vault-route.test.mjs") &&
+    chatVaultRouteTest.includes("chat route sends mounted Markdown vault context to the forced local quickstart model") &&
+    chatVaultRouteTest.includes("LOCAL MARKDOWN VAULT CONTEXT - UNTRUSTED USER DATA") &&
+    chatVaultRouteTest.includes("providerId: \"gemini\"") &&
+    chatVaultRouteTest.includes("modelEngine: \"Gemini 2.0 Flash\"") &&
+    chatVaultRouteTest.includes("llama3.2")
+  ) {
+    pass("Docker quickstart chat route proves local Markdown vault context reaches the forced local model");
+  } else {
+    fail("Docker quickstart chat route lacks coverage for mounted Markdown vault context, forced local provider, or llama3.2");
+  }
+
   const readmeEn = dockerQuickstartFiles["README.md"];
   const readmeZh = exists("README.zh-CN.md") ? fs.readFileSync(path.join(rootDir, "README.zh-CN.md"), "utf8") : "";
   if (
