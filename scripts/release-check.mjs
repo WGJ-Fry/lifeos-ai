@@ -1520,6 +1520,7 @@ function checkSecurityConfig() {
 
   const dbSource = exists("server/db.ts") ? fs.readFileSync(path.join(rootDir, "server/db.ts"), "utf8") : "";
   const backupRoutesSource = exists("server/routes/backupRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/backupRoutes.ts"), "utf8") : "";
+  const dataLifecycleSourceForBackup = exists("server/dataLifecycle.ts") ? fs.readFileSync(path.join(rootDir, "server/dataLifecycle.ts"), "utf8") : "";
   const lifeosApiSource = exists("src/services/lifeosApi.ts") ? fs.readFileSync(path.join(rootDir, "src/services/lifeosApi.ts"), "utf8") : "";
   const backupRestorePanelSource = exists("src/pages/admin/settings/BackupRestorePanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/BackupRestorePanel.tsx"), "utf8") : "";
   const backupScheduleCardSource = exists("src/pages/admin/settings/BackupScheduleCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/BackupScheduleCard.tsx"), "utf8") : "";
@@ -1622,18 +1623,25 @@ function checkSecurityConfig() {
   if (
     backupRoutesSource.includes('app.post("/api/v1/data/cleanup/preview"') &&
     backupRoutesSource.includes("data_cleanup_previewed") &&
+    backupRoutesSource.includes("protectionBackupCreated") &&
+    dataLifecycleSourceForBackup.includes("protectionBackup") &&
+    dataLifecycleSourceForBackup.includes("createDatabaseBackup") &&
     lifeosApiSource.includes("previewDataCleanup") &&
     backupRestorePanelSource.includes("previewDataCleanup") &&
     backupRestorePanelSource.includes("backup.previewCleanup") &&
+    backupRestorePanelSource.includes("backup.cleanupDoneWithProtection") &&
     translationsSource.includes("backup.previewCleanup") &&
+    translationsSource.includes("backup.cleanupDoneWithProtection") &&
     backupRestorePanelSource.includes("cleanupPreview") &&
     backupRestoreUiSource.includes("formatCleanupSummary") &&
     backupRestoreUiSource.includes("Estimated cleanup") &&
     backupRestorePanelSource.includes("buildCleanupConfirmMessage") &&
     backupRestoreTestSource.includes("/api/v1/data/cleanup/preview") &&
-    apiAuthTestSource.includes("data_cleanup_previewed")
-  ) pass("data cleanup has dry-run preview across API, UI, audit, and tests");
-  else warn("data cleanup lacks dry-run preview coverage across API, UI, audit, or tests");
+    backupRestoreTestSource.includes("protectionBackup") &&
+    apiAuthTestSource.includes("data_cleanup_previewed") &&
+    apiAuthTestSource.includes("protectionBackupCreated")
+  ) pass("data cleanup has dry-run preview, protection backup, UI, audit, and tests");
+  else warn("data cleanup lacks dry-run preview, protection backup, UI, audit, or tests");
 
   const desktopMain = exists("desktop/main.cjs") ? fs.readFileSync(path.join(rootDir, "desktop/main.cjs"), "utf8") : "";
   if (desktopMain.includes("showStartupFailureWindow")) pass("desktop startup failure window is implemented");

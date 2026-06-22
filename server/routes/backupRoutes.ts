@@ -235,6 +235,7 @@ export function registerBackupRoutes(app: express.Express) {
     });
     insertAuditLog("data_cleanup_completed", "database", "lifeos-data", {
       ...result,
+      protectionBackupCreated: Boolean(result.protectionBackup),
       requested: {
         auditOlderThanDays: req.body?.auditOlderThanDays,
         chatOlderThanDays: req.body?.chatOlderThanDays,

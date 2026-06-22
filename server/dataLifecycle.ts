@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "fs";
-import { db, getBackupPath, getPendingRestore, listBackups } from "./db";
+import { createDatabaseBackup, db, getBackupPath, getPendingRestore, listBackups } from "./db";
 import { getDevices } from "./devices";
 import { getMemories } from "./memories";
 import { listAuditLogs, redactAuditMetadata } from "./audit";
@@ -201,6 +201,7 @@ export function previewDataCleanup(options: { auditOlderThanDays?: number; chatO
 export function cleanupData(options: { auditOlderThanDays?: number; chatOlderThanDays?: number; backupKeepCount?: number }) {
   const preview = previewDataCleanup(options);
   const now = Date.now();
+  const protectionBackup = createDatabaseBackup();
 
   if (Number.isFinite(options.auditOlderThanDays) && Number(options.auditOlderThanDays) > 0) {
     const cutoff = now - Number(options.auditOlderThanDays) * 24 * 60 * 60 * 1000;
@@ -232,7 +233,11 @@ export function cleanupData(options: { auditOlderThanDays?: number; chatOlderTha
     pruneBackupsToCount(Number(options.backupKeepCount));
   }
 
-  return preview;
+  return {
+    ...preview,
+    protectionBackup: publicBackupRecord(protectionBackup),
+    ordinaryBackupExcludesSecrets: true,
+  };
 }
 
 function backupsToPrune(keepCount: number) {

@@ -144,6 +144,8 @@ export type CleanupResult = {
   chatSessionsDeleted: number;
   messagesDeleted: number;
   backupsDeleted: number;
+  protectionBackup?: BackupRecord;
+  ordinaryBackupExcludesSecrets?: boolean;
 };
 
 export type BackupSchedule = {

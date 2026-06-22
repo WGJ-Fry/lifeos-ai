@@ -128,7 +128,9 @@ export default function BackupRestorePanel({
         return;
       }
       const result = await cleanupData(cleanupPolicy.options);
-      setStatus(t("backup.cleanupDone", { backups: result.cleanup.backupsDeleted, auditLogs: result.cleanup.auditLogsDeleted, sessions: result.cleanup.chatSessionsDeleted }));
+      setStatus(result.cleanup.protectionBackup
+        ? t("backup.cleanupDoneWithProtection", { backups: result.cleanup.backupsDeleted, auditLogs: result.cleanup.auditLogsDeleted, sessions: result.cleanup.chatSessionsDeleted, file: result.cleanup.protectionBackup.file })
+        : t("backup.cleanupDone", { backups: result.cleanup.backupsDeleted, auditLogs: result.cleanup.auditLogsDeleted, sessions: result.cleanup.chatSessionsDeleted }));
       await onChanged();
     } catch (error: any) {
       setStatus(error.message || t("backup.cleanupFailed"));

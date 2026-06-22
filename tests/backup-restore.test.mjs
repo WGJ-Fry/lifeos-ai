@@ -315,14 +315,23 @@ test("data cleanup treats zero retention windows as no-op", { timeout: 30_000 },
     headers: adminHeaders,
     body: JSON.stringify({ backupKeepCount: 0, auditOlderThanDays: 0, chatOlderThanDays: 0 }),
   }).then((res) => res.json());
-  assert.deepEqual(cleanup.cleanup, cleanupPreview.cleanup);
+  assert.deepEqual({
+    backupsDeleted: cleanup.cleanup.backupsDeleted,
+    auditLogsDeleted: cleanup.cleanup.auditLogsDeleted,
+    chatSessionsDeleted: cleanup.cleanup.chatSessionsDeleted,
+    messagesDeleted: cleanup.cleanup.messagesDeleted,
+  }, cleanupPreview.cleanup);
   assert.equal(cleanup.cleanup.backupsDeleted, 0);
   assert.equal(cleanup.cleanup.auditLogsDeleted, 0);
   assert.equal(cleanup.cleanup.chatSessionsDeleted, 0);
   assert.equal(cleanup.cleanup.messagesDeleted, 0);
+  assert.match(cleanup.cleanup.protectionBackup.file, /^lifeos-.*\.db$/);
+  assert.equal(cleanup.cleanup.protectionBackup.path, undefined);
+  assert.equal(cleanup.cleanup.ordinaryBackupExcludesSecrets, true);
 
   const sessions = await request(port, "/api/v1/chat/sessions", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(sessions.sessions.length, 1);
   const backups = await request(port, "/api/v1/backups", { headers: adminHeaders }).then((res) => res.json());
   assert.ok(backups.backups.some((item) => item.file === backup.backup.file));
+  assert.ok(backups.backups.some((item) => item.file === cleanup.cleanup.protectionBackup.file));
 });

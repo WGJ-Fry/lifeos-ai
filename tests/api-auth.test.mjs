@@ -916,6 +916,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     auditOlderThanDays: 99999,
     chatOlderThanDays: 99999,
   });
+  assert.equal(cleanupAudit.metadata.protectionBackupCreated, true);
+  assert.match(cleanupAudit.metadata.protectionBackup.file, /^lifeos-.*\.db$/);
+  assert.equal(cleanupAudit.metadata.protectionBackup.path, undefined);
+  assert.equal(cleanupAudit.metadata.ordinaryBackupExcludesSecrets, true);
   const cleanupPreviewAudit = auditAfterExports.logs.find((log) => log.action === "data_cleanup_previewed");
   assert.equal(cleanupPreviewAudit.actorType, "admin");
   assert.deepEqual(cleanupPreviewAudit.metadata.requested, {
