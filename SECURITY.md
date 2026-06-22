@@ -6,6 +6,13 @@
 
 当前版本是早期自用/小范围分发版本。已经具备管理员认证、CSRF、防暴力尝试、设备绑定、SQLite 数据、审计日志和危险动作确认，但仍建议只在可信环境中使用。
 
+## 支持版本
+
+| 版本 | 安全支持 |
+| --- | --- |
+| `v0.1.1-alpha` / `0.1.1-alpha.0` | 当前 alpha，接收安全修复 |
+| `v0.1.0` | 仅保留历史下载说明，建议升级 |
+
 ## 重要安全建议
 
 - 首次启动后立即设置强管理员密码。
@@ -23,12 +30,14 @@
 
 ## 报告安全问题
 
-如果发现安全问题，请不要公开发 issue。请通过私下渠道联系项目维护者，并提供：
+如果发现安全问题，请不要公开发 issue、discussion 或社交媒体帖子。优先使用 GitHub 的私密漏洞报告功能；如果仓库没有开启该功能，请通过维护者的非公开渠道联系，并提供：
 
 - 影响范围。
 - 复现步骤。
 - 相关版本。
 - 你是否已经公开披露。
+
+不要附加原始数据库、未加密备份、未脱敏诊断包、AI Key、Token、证书、私钥、管理员密码、设备绑定 token、Cookie 或 Authorization Header。请先使用管理端导出的脱敏诊断包，并在发送前再检查一次。
 
 ## 发布密钥处理
 
@@ -43,6 +52,13 @@ macOS 签名需要 Developer ID Application `.p12`、证书密码、Apple ID、A
 ## Supported Status
 
 This is an early personal/small-distribution release. It includes admin auth, CSRF protection, brute-force mitigation, device pairing, SQLite persistence, audit logs, and dangerous-action confirmation, but should still be used only in trusted environments.
+
+## Supported Versions
+
+| Version | Security Support |
+| --- | --- |
+| `v0.1.1-alpha` / `0.1.1-alpha.0` | Current alpha, security fixes accepted |
+| `v0.1.0` | Historical download notes only; upgrade recommended |
 
 ## Security Recommendations
 
@@ -61,12 +77,14 @@ Mobile URL Scheme actions use an allowlist and dangerous-action confirmation. Ar
 
 ## Reporting Security Issues
 
-Please do not open public issues for security problems. Contact the maintainer privately and include:
+Please do not open public issues, discussions, or social posts for security problems. Prefer GitHub private vulnerability reporting when it is enabled. If it is not enabled for the repository, contact the maintainer through a non-public channel and include:
 
 - Impact.
 - Reproduction steps.
 - Affected version.
 - Whether the issue has been disclosed elsewhere.
+
+Do not attach raw databases, unencrypted backups, unredacted diagnostic bundles, AI keys, tokens, certificates, private keys, admin passwords, device pairing tokens, cookies, or Authorization headers. Prefer a redacted diagnostic bundle exported from the admin UI, and review it again before sending.
 
 ## Release Secret Handling
 

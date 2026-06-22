@@ -2161,6 +2161,26 @@ function checkReleaseDocs() {
     fail("CONTRIBUTING.md is missing");
   }
 
+  if (exists("SECURITY.md")) {
+    const securityPolicy = fs.readFileSync(path.join(rootDir, "SECURITY.md"), "utf8");
+    const requiredSecurityMarkers = [
+      "`v0.1.1-alpha` / `0.1.1-alpha.0`",
+      "`v0.1.0` | 仅保留历史下载说明，建议升级",
+      "GitHub 的私密漏洞报告功能",
+      "不要附加原始数据库、未加密备份、未脱敏诊断包",
+      "GitHub private vulnerability reporting",
+      "Do not attach raw databases, unencrypted backups, unredacted diagnostic bundles",
+    ];
+    const missingSecurityMarkers = requiredSecurityMarkers.filter((marker) => !securityPolicy.includes(marker));
+    if (missingSecurityMarkers.length === 0) {
+      pass("SECURITY.md documents supported versions and private vulnerability reporting");
+    } else {
+      fail(`SECURITY.md is missing public security policy markers: ${missingSecurityMarkers.join(", ")}`);
+    }
+  } else {
+    fail("SECURITY.md is missing");
+  }
+
   if (exists("docs/release-checklist.md")) {
     const checklist = fs.readFileSync(path.join(rootDir, "docs/release-checklist.md"), "utf8");
     const requiredChecklistMarkers = [
