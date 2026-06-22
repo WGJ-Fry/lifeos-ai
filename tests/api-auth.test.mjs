@@ -611,6 +611,17 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(updatedSchedule.schedule.intervalHours, 12);
   assert.equal(typeof updatedSchedule.schedule.nextRunAt, "number");
 
+  const runScheduleNow = await request(port, "/api/v1/backups/schedule/run-now", {
+    method: "POST",
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.match(runScheduleNow.backup.file, /^lifeos-.*\.db$/);
+  assert.equal(runScheduleNow.backup.path, undefined);
+  assert.equal(runScheduleNow.schedule.enabled, true);
+  assert.equal(runScheduleNow.schedule.intervalHours, 12);
+  assert.equal(typeof runScheduleNow.schedule.lastRunAt, "number");
+  assert.equal(typeof runScheduleNow.schedule.nextRunAt, "number");
+
   const backupPreview = await request(port, `/api/v1/backups/${encodeURIComponent(backup.backup.file)}/preview`, { headers: adminHeaders }).then((res) => res.json());
   assert.equal(backupPreview.preview.backup.file, backup.backup.file);
   assert.equal(typeof backupPreview.preview.tables.devices, "number");
@@ -832,6 +843,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(auditActions.includes("database_backup_previewed"));
   assert.ok(auditActions.includes("database_backup_downloaded"));
   assert.ok(auditActions.includes("backup_schedule_updated"));
+  assert.ok(auditActions.includes("scheduled_backup_run_now"));
   assert.ok(auditActions.includes("encrypted_backup_exported"));
   assert.ok(auditActions.includes("encrypted_backup_imported"));
   assert.ok(auditActions.includes("encrypted_backup_import_failed"));

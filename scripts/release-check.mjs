@@ -1522,10 +1522,13 @@ function checkSecurityConfig() {
   const backupRoutesSource = exists("server/routes/backupRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/backupRoutes.ts"), "utf8") : "";
   const lifeosApiSource = exists("src/services/lifeosApi.ts") ? fs.readFileSync(path.join(rootDir, "src/services/lifeosApi.ts"), "utf8") : "";
   const backupRestorePanelSource = exists("src/pages/admin/settings/BackupRestorePanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/BackupRestorePanel.tsx"), "utf8") : "";
+  const backupScheduleCardSource = exists("src/pages/admin/settings/BackupScheduleCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/BackupScheduleCard.tsx"), "utf8") : "";
   const backupListSource = exists("src/pages/admin/settings/BackupList.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/BackupList.tsx"), "utf8") : "";
   const backupPreviewCardSource = exists("src/pages/admin/settings/BackupPreviewCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/BackupPreviewCard.tsx"), "utf8") : "";
   const backupRestoreUiSource = exists("src/services/backupRestoreUi.ts") ? fs.readFileSync(path.join(rootDir, "src/services/backupRestoreUi.ts"), "utf8") : "";
   const backupRestoreUiTestSource = exists("tests/backup-restore-ui.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/backup-restore-ui.test.mjs"), "utf8") : "";
+  const backupScheduleSource = exists("server/backupSchedule.ts") ? fs.readFileSync(path.join(rootDir, "server/backupSchedule.ts"), "utf8") : "";
+  const backupScheduleTestSource = exists("tests/backup-schedule.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/backup-schedule.test.mjs"), "utf8") : "";
   const adminDashboardSource = exists("src/pages/admin/AdminDashboardPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminDashboardPage.tsx"), "utf8") : "";
   const backupRestoreTestSource = exists("tests/backup-restore.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/backup-restore.test.mjs"), "utf8") : "";
   const apiAuthTestSource = exists("tests/api-auth.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/api-auth.test.mjs"), "utf8") : "";
@@ -1602,6 +1605,20 @@ function checkSecurityConfig() {
     apiAuthTestSource.includes("ordinaryBackupExcludesSecrets")
   ) pass("ordinary SQLite backups exclude AI keys and sensitive client state by default");
   else warn("ordinary SQLite backups may still include AI keys or sensitive client state");
+  if (
+    backupScheduleSource.includes("runBackupScheduleNow") &&
+    backupScheduleSource.includes("scheduled_backup_run_now") &&
+    backupRoutesSource.includes('app.post("/api/v1/backups/schedule/run-now"') &&
+    lifeosApiSource.includes("runBackupScheduleNow") &&
+    backupRestorePanelSource.includes("runBackupScheduleNow") &&
+    backupScheduleCardSource.includes("backup.runScheduleNow") &&
+    backupRestorePanelSource.includes("backup.scheduleRunNowDone") &&
+    translationsSource.includes("backup.runScheduleNow") &&
+    backupScheduleTestSource.includes("can be run immediately by an admin") &&
+    apiAuthTestSource.includes("/api/v1/backups/schedule/run-now") &&
+    apiAuthTestSource.includes("scheduled_backup_run_now")
+  ) pass("automatic backup schedule can be manually verified through API, UI, audit, and tests");
+  else warn("automatic backup schedule lacks manual run verification across API, UI, audit, or tests");
   if (
     backupRoutesSource.includes('app.post("/api/v1/data/cleanup/preview"') &&
     backupRoutesSource.includes("data_cleanup_previewed") &&

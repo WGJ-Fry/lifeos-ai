@@ -3,7 +3,7 @@ import { insertAuditLog } from "../audit";
 import { cleanupData, createDataExport, normalizeDataExportScope, previewBackup, previewDataCleanup, summarizeDataExport } from "../dataLifecycle";
 import { cancelPendingRestore, createDatabaseBackup, getBackupPath, getPendingRestore, listBackups, scheduleDatabaseRestore } from "../db";
 import { requireAdmin } from "../auth";
-import { getBackupSchedule, updateBackupSchedule } from "../backupSchedule";
+import { getBackupSchedule, runBackupScheduleNow, updateBackupSchedule } from "../backupSchedule";
 import { encryptBackupFile, importEncryptedBackup } from "../encryptedBackups";
 
 function publicBackupRecord(backup: ReturnType<typeof listBackups>[number]) {
@@ -90,6 +90,15 @@ export function registerBackupRoutes(app: express.Express) {
       intervalHours,
     }, (req as any).actor);
     res.json({ schedule });
+  });
+
+  app.post("/api/v1/backups/schedule/run-now", requireAdmin, (req, res) => {
+    try {
+      const result = runBackupScheduleNow((req as any).actor);
+      res.json({ backup: publicBackupRecord(result.backup), schedule: result.schedule });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || "Failed to run scheduled backup" });
+    }
   });
 
   app.get("/api/v1/backups/pending-restore", requireAdmin, (_req, res) => {

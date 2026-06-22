@@ -1111,6 +1111,12 @@ export function updateBackupSchedule(input: { enabled: boolean; intervalHours: n
   });
 }
 
+export function runBackupScheduleNow() {
+  return requestJson<{ backup: BackupRecord; schedule: BackupSchedule }>("/api/v1/backups/schedule/run-now", {
+    method: "POST",
+  });
+}
+
 export function listAuditLogs() {
   return requestJson<{ logs: AuditLogRecord[] }>("/api/v1/audit-logs");
 }

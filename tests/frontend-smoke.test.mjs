@@ -875,7 +875,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /自动备份/);
 
   const backupRestorePanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupRestorePanel.tsx"), "utf8");
-  assert.match(backupRestorePanelSource, /id="backup-schedule"/);
+  const backupScheduleCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupScheduleCard.tsx"), "utf8");
+  assert.match(backupRestorePanelSource, /BackupScheduleCard/);
+  assert.match(backupScheduleCardSource, /id="backup-schedule"/);
+  assert.match(backupRestorePanelSource, /runBackupScheduleNow/);
+  assert.match(backupScheduleCardSource, /backup\.runScheduleNow/);
   assert.match(backupRestorePanelSource, /previewDataCleanup/);
   assert.match(backupRestorePanelSource, /backup\.previewCleanup/);
   assert.match(backupRestorePanelSource, /cleanupPreview/);
@@ -883,6 +887,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(backupRestorePanelSource, /BackupPreviewCard/);
   assert.match(backupRestorePanelSource, /BackupList/);
   assert.match(translationsSource, /预览清理/);
+  assert.match(translationsSource, /立即运行一次/);
 
   const backupListSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupList.tsx"), "utf8");
   assert.match(backupListSource, /backupList\.empty/);

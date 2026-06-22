@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, DatabaseBackup, Download, LockKeyhole, Plus, Sparkles, Upload, XCircle } from "lucide-react";
-import { backupDownloadUrl, cancelPendingRestore, cleanupData, createBackup, dataExportDownloadUrl, exportEncryptedBackup, getBackupSchedule, importEncryptedBackup, listBackups, previewBackup, previewDataCleanup, restoreBackup, updateBackupSchedule } from "../../../services/lifeosApi";
+import { backupDownloadUrl, cancelPendingRestore, cleanupData, createBackup, dataExportDownloadUrl, exportEncryptedBackup, getBackupSchedule, importEncryptedBackup, listBackups, previewBackup, previewDataCleanup, restoreBackup, runBackupScheduleNow, updateBackupSchedule } from "../../../services/lifeosApi";
 import type { BackupPreview, BackupSchedule, DataExportScope, PendingRestore } from "../../../services/lifeosApi";
 import { buildCleanupConfirmMessage, buildCleanupPolicyOptions, buildRestoreConfirmMessage, formatCleanupSummary } from "../../../services/backupRestoreUi";
 import { useI18n } from "../../../i18n/I18nProvider";
 import type { TranslationKey } from "../../../i18n/translations";
 import { BackupList } from "./BackupList";
 import { BackupPreviewCard } from "./BackupPreviewCard";
+import { BackupScheduleCard } from "./BackupScheduleCard";
 
 type BackupItem = Awaited<ReturnType<typeof listBackups>>["backups"][number];
 const dataExportScopeIds: DataExportScope[] = ["chat", "memories", "devices", "auditLogs"];
@@ -189,6 +190,23 @@ export default function BackupRestorePanel({
     }
   };
 
+  const handleRunScheduleNow = async () => {
+    setBusy("schedule-run-now");
+    setStatus(null);
+    try {
+      const result = await runBackupScheduleNow();
+      setSchedule(result.schedule);
+      setScheduleEnabled(result.schedule.enabled);
+      setScheduleInterval(result.schedule.intervalHours);
+      setStatus(t("backup.scheduleRunNowDone", { file: result.backup.file }));
+      await onChanged();
+    } catch (error: any) {
+      setStatus(error.message || t("backup.scheduleRunNowFailed"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const handleEncryptedExport = async (backup: BackupItem) => {
     if (encryptionPassphrase.length < 10) {
       setStatus(t("backup.exportPassphraseShort"));
@@ -305,7 +323,7 @@ export default function BackupRestorePanel({
 
       {status ? <div className="mb-4 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-sm text-zinc-300">{status}</div> : null}
 
-      <div id="backup-schedule" className="mb-4 scroll-mt-6 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
+      <div id="backup-export-scope" className="mb-4 scroll-mt-6 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-sm font-bold text-zinc-100">{t("backup.exportScopeTitle")}</div>
@@ -339,49 +357,16 @@ export default function BackupRestorePanel({
         <div className="mt-2 truncate font-mono text-xs text-cyan-200">{exportHref}</div>
       </div>
 
-      <div className="mb-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-bold text-zinc-100">{t("backup.scheduleTitle")}</div>
-            <div className="mt-1 text-xs text-zinc-500">
-              {schedule?.enabled && schedule.nextRunAt
-                ? t("backup.nextRun", { time: new Date(schedule.nextRunAt).toLocaleString() })
-                : t("backup.scheduleOffHint")}
-            </div>
-          </div>
-          <button
-            onClick={handleSaveSchedule}
-            disabled={Boolean(busy)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy === "schedule" ? t("backup.saving") : t("backup.saveSchedule")}
-          </button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_160px]">
-          <label className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-[#060a10] px-3 py-2 text-sm text-zinc-300">
-            <input
-              type="checkbox"
-              checked={scheduleEnabled}
-              onChange={(event) => setScheduleEnabled(event.target.checked)}
-              className="h-4 w-4 accent-emerald-400"
-            />
-            {t("backup.enableSchedule")}
-          </label>
-          <label className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-[#060a10] px-3 py-2 text-sm text-zinc-300">
-            <span className="shrink-0 text-xs text-zinc-500">{t("backup.interval")}</span>
-            <input
-              type="number"
-              min={1}
-              max={720}
-              value={scheduleInterval}
-              onChange={(event) => setScheduleInterval(Number(event.target.value))}
-              className="min-w-0 flex-1 bg-transparent text-right font-mono outline-none"
-            />
-            <span className="shrink-0 text-xs text-zinc-500">{t("backup.hours")}</span>
-          </label>
-        </div>
-        {schedule?.lastRunAt ? <div className="mt-2 text-xs text-zinc-500">{t("backup.lastRun", { time: new Date(schedule.lastRunAt).toLocaleString() })}</div> : null}
-      </div>
+      <BackupScheduleCard
+        busy={busy}
+        schedule={schedule}
+        scheduleEnabled={scheduleEnabled}
+        scheduleInterval={scheduleInterval}
+        onRunNow={handleRunScheduleNow}
+        onSave={handleSaveSchedule}
+        onToggleEnabled={setScheduleEnabled}
+        onIntervalChange={setScheduleInterval}
+      />
 
       <div className="mb-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

@@ -65,6 +65,10 @@ export function runDueBackupSchedule(now = Date.now()) {
   const schedule = getBackupSchedule();
   if (!schedule.enabled || !schedule.nextRunAt || schedule.nextRunAt > now) return null;
 
+  return createScheduledBackup(schedule, now, "scheduled_backup_created", { type: "system", id: "backup-scheduler" });
+}
+
+function createScheduledBackup(schedule: BackupSchedule, now: number, auditAction: "scheduled_backup_created" | "scheduled_backup_run_now", actor?: { type: string; id: string }) {
   const backup = createDatabaseBackup();
   const next: BackupSchedule = {
     ...schedule,
@@ -72,15 +76,24 @@ export function runDueBackupSchedule(now = Date.now()) {
     nextRunAt: computeNextRun(now, schedule.intervalHours, now),
     updatedAt: now,
   };
-  setClientState(BACKUP_SCHEDULE_KEY, next, { type: "system", id: "backup-scheduler" });
-  insertAuditLog("scheduled_backup_created", "database", backup.file, {
+  setClientState(BACKUP_SCHEDULE_KEY, next, actor || { type: "system", id: "backup-scheduler" });
+  insertAuditLog(auditAction, "database", backup.file, {
     size: backup.size,
     intervalHours: schedule.intervalHours,
+    manual: auditAction === "scheduled_backup_run_now",
     nextRunAt: next.nextRunAt,
     redaction: backup.redaction,
     ordinaryBackupExcludesSecrets: true,
-  });
+  }, actor?.type || "system", actor?.id);
   return { backup, schedule: next };
+}
+
+export function runBackupScheduleNow(actor?: { type: string; id: string }, now = Date.now()) {
+  const schedule = getBackupSchedule();
+  if (!schedule.enabled) {
+    throw new Error("Automatic backup schedule is disabled");
+  }
+  return createScheduledBackup(schedule, now, "scheduled_backup_run_now", actor);
 }
 
 export function startBackupScheduler() {
