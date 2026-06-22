@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Download, KeyRound, LogOut, RefreshCw, ShieldCheck, Smartphone, Trash2, Wifi } from "lucide-react";
-import { clearStoredDeviceCredential, getHealth, getStoredDeviceCredential, getStoredDeviceCredentialAsync, getStoredDeviceCredentialStorageStatus, reportMobileConnectivity, revokeCurrentDeviceBinding, rotateDeviceToken } from "../../services/lifeosApi";
-import type { DeviceCredentialStorageStatus } from "../../services/lifeosApi";
+import { clearStoredDeviceCredential, getHealth, getLatestMobileConnectivityReport, getStoredDeviceCredential, getStoredDeviceCredentialAsync, getStoredDeviceCredentialStorageStatus, reportMobileConnectivity, revokeCurrentDeviceBinding, rotateDeviceToken } from "../../services/lifeosApi";
+import type { DeviceConnectivityReport, DeviceCredentialStorageStatus } from "../../services/lifeosApi";
 import { clearOfflineMessageQueue, getOfflineMessageQueue, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeOfflineMessages, resetFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
 import type { OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { getNetworkStatus } from "../../services/networkStatus";
@@ -37,6 +37,7 @@ export default function MobileDevicePage() {
   const [queueStorage, setQueueStorage] = useState<OfflineMessageQueueStorageStatus | null>(null);
   const [health, setHealth] = useState<Awaited<ReturnType<typeof getHealth>> | null>(null);
   const [connectivityTest, setConnectivityTest] = useState<MobileConnectivityResult | null>(null);
+  const [lastConnectivityReport, setLastConnectivityReport] = useState<DeviceConnectivityReport | null>(null);
   const [connectivityBusy, setConnectivityBusy] = useState(false);
   const expiresAt = useMemo(() => credential?.accessTokenExpiresAt ? new Date(credential.accessTokenExpiresAt).toLocaleString() : t("mobileDevice.longLivedSignature"), [credential, t]);
   const currentEntry = useMemo(() => getRemoteEntryStatus({ configuredBaseUrl: health?.publicBaseUrl, configuredMode: health?.remoteEntryMode }), [health]);
@@ -58,6 +59,9 @@ export default function MobileDevicePage() {
     }).catch(() => {
       if (!cancelled) setHealth(null);
     });
+    getLatestMobileConnectivityReport().then((next) => {
+      if (!cancelled) setLastConnectivityReport(next.report);
+    }).catch(() => null);
     return () => {
       cancelled = true;
     };
@@ -164,7 +168,8 @@ export default function MobileDevicePage() {
     try {
       const result = await testMobileRemoteConnectivity();
       setConnectivityTest(result);
-      await reportMobileConnectivity(result).catch(() => null);
+      const saved = await reportMobileConnectivity(result).catch(() => null);
+      if (saved?.report) setLastConnectivityReport(saved.report);
     } finally {
       setConnectivityBusy(false);
     }
@@ -329,6 +334,35 @@ export default function MobileDevicePage() {
               </div>
             </div>
           </div>
+          {lastConnectivityReport ? (
+            <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${lastConnectivityReport.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
+              <div className="font-bold">
+                {lastConnectivityReport.ok ? t("mobileDevice.lastConnectivityOk") : t("mobileDevice.lastConnectivityFailed")}
+              </div>
+              <div className="mt-1 opacity-85">
+                {t("mobileDevice.lastConnectivityBody", {
+                  time: new Date(lastConnectivityReport.createdAt).toLocaleString(),
+                  entry: lastConnectivityReport.currentBaseUrl,
+                  latency: lastConnectivityReport.latencyMs,
+                })}
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
+                  <div className="font-bold">{lastConnectivityReport.healthOk ? t("mobileDevice.pass") : t("mobileDevice.fail")}</div>
+                  <div className="mt-1 opacity-75">{t("mobileDevice.connectivityHealth")}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
+                  <div className="font-bold">{lastConnectivityReport.mobileShellOk ? t("mobileDevice.pass") : t("mobileDevice.fail")}</div>
+                  <div className="mt-1 opacity-75">{t("mobileDevice.connectivityMobileShell")}</div>
+                </div>
+                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
+                  <div className="font-bold">{lastConnectivityReport.websocketOk ? t("mobileDevice.pass") : t("mobileDevice.fail")}</div>
+                  <div className="mt-1 opacity-75">{t("mobileDevice.connectivityRealtime")}</div>
+                </div>
+              </div>
+              {lastConnectivityReport.error ? <div className="mt-2 opacity-85">{t("mobileDevice.lastConnectivityError", { message: lastConnectivityReport.error })}</div> : null}
+            </div>
+          ) : null}
           <button
             onClick={handleConnectivityTest}
             disabled={connectivityBusy}

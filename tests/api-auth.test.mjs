@@ -1023,6 +1023,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: JSON.stringify({ ok: true }),
   });
   assert.equal(unauthConnectivityReport.status, 401);
+  const unauthLatestConnectivityReport = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: adminHeaders,
+  });
+  assert.equal(unauthLatestConnectivityReport.status, 401);
   const connectivityReport = await request(port, "/api/v1/devices/me/connectivity-report", {
     method: "POST",
     headers: deviceHeaders,
@@ -1046,6 +1050,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(connectivityReport.body.report.websocketOk, true);
   assert.equal(connectivityReport.body.report.error.includes("connectivity-secret"), false);
   assert.equal(connectivityReport.body.report.error.includes("user:password"), false);
+  const latestConnectivityReport = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: deviceHeaders,
+  }).then((res) => res.json());
+  assert.equal(latestConnectivityReport.report.id, connectivityReport.body.report.id);
+  assert.equal(latestConnectivityReport.report.ok, true);
+  assert.equal(latestConnectivityReport.report.currentBaseUrl, "https://phone.example.test/lifeos");
+  assert.equal(latestConnectivityReport.report.websocketOk, true);
+  assert.equal(latestConnectivityReport.report.error.includes("connectivity-secret"), false);
   const devicesAfterConnectivityReport = await request(port, "/api/v1/devices", { headers: adminHeaders }).then((res) => res.json());
   const reportedDevice = devicesAfterConnectivityReport.devices.find((device) => device.id === credential.device.id);
   assert.equal(reportedDevice.connectivityReport.ok, true);

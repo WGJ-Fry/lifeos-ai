@@ -266,6 +266,15 @@ export function registerDeviceRoutes(app: express.Express) {
     res.json({ ok: true, report });
   });
 
+  app.get("/api/v1/devices/me/connectivity-report", (req, res) => {
+    const actor = getRequestActor(req);
+    if (!actor || actor.type !== "device") return res.status(401).json({ error: "Device authentication required" });
+    const device = getDevice(actor.id);
+    if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
+
+    res.json({ report: getLatestDeviceConnectivityReport(device.id) || null });
+  });
+
   app.get("/api/v1/devices", requireAdmin, (_req, res) => {
     res.json({
       devices: getDevices().map((device) => ({

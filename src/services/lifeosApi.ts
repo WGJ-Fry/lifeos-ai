@@ -1000,6 +1000,10 @@ export function reportMobileConnectivity(result: MobileConnectivityReportInput) 
   });
 }
 
+export function getLatestMobileConnectivityReport() {
+  return requestJson<{ report: DeviceConnectivityReport | null }>("/api/v1/devices/me/connectivity-report");
+}
+
 export async function createDeviceWebSocketAuthMessage() {
   const credential = await getStoredDeviceCredentialAsync();
   if (!credential) return null;

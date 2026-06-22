@@ -317,6 +317,10 @@ export const translations = {
     "mobileDevice.legacyCredential": "localStorage 旧凭证",
     "mobileDevice.pendingMigration": "仍待迁移",
     "mobileDevice.cleaned": "已清理",
+    "mobileDevice.lastConnectivityOk": "上次连接测试通过",
+    "mobileDevice.lastConnectivityFailed": "上次连接测试失败",
+    "mobileDevice.lastConnectivityBody": "{{time}} 使用 {{entry}}，总延迟 {{latency}}ms。",
+    "mobileDevice.lastConnectivityError": "失败原因：{{message}}",
 
     "aiKey.details.openrouter": "多模型聚合路由",
     "aiKey.storage.system": "系统安全存储",
@@ -1789,6 +1793,10 @@ export const translations = {
     "mobileDevice.legacyCredential": "Legacy localStorage credential",
     "mobileDevice.pendingMigration": "Pending migration",
     "mobileDevice.cleaned": "Cleaned",
+    "mobileDevice.lastConnectivityOk": "Last Connection Test Passed",
+    "mobileDevice.lastConnectivityFailed": "Last Connection Test Failed",
+    "mobileDevice.lastConnectivityBody": "{{time}} via {{entry}}, total latency {{latency}}ms.",
+    "mobileDevice.lastConnectivityError": "Failure reason: {{message}}",
 
     "aiKey.details.openrouter": "Multi-model routing aggregator",
     "aiKey.storage.system": "System secure storage",
