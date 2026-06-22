@@ -10,6 +10,8 @@ import GuideCard from "./ConnectionGuideCard";
 import RemoteStabilitySection from "./RemoteStabilitySection";
 import RemoteReadinessCard from "./RemoteReadinessCard";
 import TailscaleServeActions from "./TailscaleServeActions";
+import NoPhoneReachableNotice from "./NoPhoneReachableNotice";
+import ConnectionMobileEntryPanel from "./ConnectionMobileEntryPanel";
 type Health = Awaited<ReturnType<typeof getHealth>>;
 type ConnectionResult = Awaited<ReturnType<typeof testConnectionUrl>>["result"];
 function connectionStatusMessage(result: ConnectionResult, t: ReturnType<typeof useI18n>["t"]) {
@@ -30,9 +32,9 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
   const [tailscaleServeBusy, setTailscaleServeBusy] = useState<"start" | "stop" | null>(null);
   const [testing, setTesting] = useState(false);
   const [remoteHealthBusy, setRemoteHealthBusy] = useState(false);
-  const baseUrl = diagnostics?.recommendedBaseUrl || health?.publicBaseUrl || "http://LAN-IP:3000";
-  const mobileChatUrl = `${baseUrl.replace(/\/$/, "")}/mobile/chat`;
-  const recommendedCandidate = diagnostics?.connectionCandidates?.[0] || null;
+  const recommendedCandidate = diagnostics?.connectionCandidates?.find((candidate) => candidate.mode !== "local") || null;
+  const baseUrl = recommendedCandidate?.baseUrl || health?.publicBaseUrl || diagnostics?.recommendedBaseUrl || "http://LAN-IP:3000";
+  const mobileChatUrl = recommendedCandidate ? `${baseUrl.replace(/\/$/, "")}/mobile/chat` : "";
 
   useEffect(() => {
     let cancelled = false;
@@ -200,7 +202,9 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
               </div>
               <div className="mt-2 font-mono text-sm text-cyan-50">{recommendedCandidate?.baseUrl || baseUrl}</div>
               <div className="mt-2 text-xs leading-relaxed text-cyan-100/75">
-                {recommendedCandidate?.requiresRestart
+                {!recommendedCandidate
+                  ? t("connection.noPhoneReachableDescription")
+                  : recommendedCandidate.requiresRestart
                   ? t("connection.restartRequiredDescription")
                   : t("connection.activeDescription")}
               </div>
@@ -220,15 +224,20 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
                   {t("connection.savedDesktopConfig", { label: diagnostics.desktopRuntimeConfig.label, url: diagnostics.desktopRuntimeConfig.baseUrl })} <a href="/admin/devices/pair" className="font-bold text-emerald-50 underline decoration-emerald-200/50 underline-offset-4">{t("connection.openPairingQr")}</a>
                 </div>
               ) : null}
+              {!recommendedCandidate ? (
+                <NoPhoneReachableNotice />
+              ) : null}
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => copyText("recommended-mobile", recommendedCandidate?.mobileChatUrl || mobileChatUrl)}
-                className="inline-flex items-center gap-2 rounded-xl border border-cyan-100/20 bg-[#061016]/45 px-3 py-2 text-xs font-bold text-cyan-50"
-              >
-                <Copy className="h-3.5 w-3.5" />
-                {copied === "recommended-mobile" ? t("connection.copiedMobileEntry") : t("connection.copyMobileEntry")}
-              </button>
+              {recommendedCandidate ? (
+                <button
+                  onClick={() => copyText("recommended-mobile", recommendedCandidate.mobileChatUrl || mobileChatUrl)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-100/20 bg-[#061016]/45 px-3 py-2 text-xs font-bold text-cyan-50"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  {copied === "recommended-mobile" ? t("connection.copiedMobileEntry") : t("connection.copyMobileEntry")}
+                </button>
+              ) : null}
               {recommendedCandidate?.envTemplate ? (
                 <button
                   aria-label={t("connection.copyRecommendedEnvAria")}
@@ -239,14 +248,16 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
                   {copied === "recommended-env" ? t("connection.copiedRecommendedEnv") : t("connection.copyRecommendedEnv")}
                 </button>
               ) : null}
-              <button
-                onClick={() => handleTestCandidate(recommendedCandidate?.id || "recommended", recommendedCandidate?.baseUrl || baseUrl)}
-                disabled={testingCandidate === (recommendedCandidate?.id || "recommended")}
-                className="inline-flex items-center gap-2 rounded-xl border border-cyan-100/20 bg-[#061016]/45 px-3 py-2 text-xs font-bold text-cyan-50 disabled:opacity-50"
-              >
-                <PlugZap className="h-3.5 w-3.5" />
-                {testingCandidate === (recommendedCandidate?.id || "recommended") ? t("connection.testing") : t("connection.testRecommended")}
-              </button>
+              {recommendedCandidate ? (
+                <button
+                  onClick={() => handleTestCandidate(recommendedCandidate.id, recommendedCandidate.baseUrl)}
+                  disabled={testingCandidate === recommendedCandidate.id}
+                  className="inline-flex items-center gap-2 rounded-xl border border-cyan-100/20 bg-[#061016]/45 px-3 py-2 text-xs font-bold text-cyan-50 disabled:opacity-50"
+                >
+                  <PlugZap className="h-3.5 w-3.5" />
+                  {testingCandidate === recommendedCandidate.id ? t("connection.testing") : t("connection.testRecommended")}
+                </button>
+              ) : null}
               {recommendedCandidate ? (
                 <button
                   onClick={() => handleSaveCandidate(recommendedCandidate)}
@@ -445,29 +456,7 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
           </button>
         </div>
       ) : null}
-      <div className="mt-4 grid gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-xs text-zinc-400 md:grid-cols-[1fr_1fr_auto]">
-        <div>
-          <div className="mb-1 font-bold text-zinc-200">{t("connection.mobileEntry")}</div>
-          <div aria-label={t("connection.mobileEntryAria")} className="font-mono text-cyan-200">{mobileChatUrl}</div>
-          <div className="mt-1 leading-relaxed text-zinc-500">
-            {t("connection.pairingQrHint")}
-          </div>
-        </div>
-        <div>
-          <div className="mb-1 font-bold text-zinc-200">{t("connection.mobileChatEntry")}</div>
-          <div aria-label={t("connection.mobileChatEntryAria")} className="font-mono text-cyan-200">{mobileChatUrl}</div>
-        </div>
-        <div className="flex items-end">
-          <button
-            onClick={handleTestConnection}
-            disabled={testing}
-            className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-3 py-2 text-xs font-bold text-cyan-200 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <PlugZap className="h-3.5 w-3.5" />
-            {testing ? t("connection.testing") : t("connection.testRecommended")}
-          </button>
-        </div>
-      </div>
+      <ConnectionMobileEntryPanel mobileChatUrl={mobileChatUrl} recommendedCandidate={recommendedCandidate} testing={testing} onTest={handleTestConnection} />
       {testStatus ? <div className="mt-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 text-xs leading-relaxed text-zinc-300">{testStatus}</div> : null}
       {diagnostics?.safety.requiresHttpsForInternet ? (
         <div className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">

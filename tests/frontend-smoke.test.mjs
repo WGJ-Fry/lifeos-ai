@@ -593,8 +593,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(connectionGuideSource, /connectionCandidates/);
   assert.match(connectionGuideSource, /connection\.restartBadge/);
   assert.match(connectionGuideSource, /connection\.copyMobileEntry/);
-  assert.match(connectionGuideSource, /connection\.mobileEntry/);
-  assert.match(connectionGuideSource, /connection\.pairingQrHint/);
+  assert.match(connectionGuideSource, /ConnectionMobileEntryPanel/);
+  const connectionMobileEntryPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "ConnectionMobileEntryPanel.tsx"), "utf8");
+  assert.match(connectionMobileEntryPanelSource, /connection\.mobileEntry/);
+  assert.match(connectionMobileEntryPanelSource, /connection\.pairingQrHint/);
+  assert.match(connectionMobileEntryPanelSource, /connection\.noPhoneReachableShort/);
   assert.match(translationsSource, /mobile\/install/);
   assert.doesNotMatch(connectionGuideSource, /copyText\("recommended-pair"/);
   assert.doesNotMatch(connectionGuideSource, /copyText\(candidate\.id, candidate\.mobilePairUrl\)/);

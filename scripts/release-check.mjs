@@ -458,6 +458,13 @@ function checkAssets() {
   const networkDiagnosticsSource = exists("server/networkDiagnostics.ts") ? fs.readFileSync(path.join(rootDir, "server/networkDiagnostics.ts"), "utf8") : "";
   const desktopRuntimeConfigSource = exists("server/desktopRuntimeConfig.ts") ? fs.readFileSync(path.join(rootDir, "server/desktopRuntimeConfig.ts"), "utf8") : "";
   const connectionGuideSource = exists("src/pages/admin/ConnectionGuide.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionGuide.tsx"), "utf8") : "";
+  const connectionMobileEntryPanelSource = exists("src/pages/admin/ConnectionMobileEntryPanel.tsx")
+    ? fs.readFileSync(path.join(rootDir, "src/pages/admin/ConnectionMobileEntryPanel.tsx"), "utf8")
+    : "";
+  const noPhoneReachableNoticeSource = exists("src/pages/admin/NoPhoneReachableNotice.tsx")
+    ? fs.readFileSync(path.join(rootDir, "src/pages/admin/NoPhoneReachableNotice.tsx"), "utf8")
+    : "";
+  const connectionGuideCombinedSource = `${connectionGuideSource}\n${connectionMobileEntryPanelSource}\n${noPhoneReachableNoticeSource}`;
   const remoteStabilitySectionSource = exists("src/pages/admin/RemoteStabilitySection.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteStabilitySection.tsx"), "utf8") : "";
   const remoteHealthSummaryCardSource = exists("src/pages/admin/RemoteHealthSummaryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteHealthSummaryCard.tsx"), "utf8") : "";
   const remoteAcceptanceChecklistSource = exists("src/pages/admin/RemoteAcceptanceChecklistCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteAcceptanceChecklistCard.tsx"), "utf8") : "";
@@ -524,10 +531,10 @@ function checkAssets() {
     connectionGuideSource.includes("recommended-env") &&
     connectionGuideSource.includes("connection.copyRecommendedEnv") &&
     connectionGuideSource.includes("connection.copyMobileEntry") &&
-    connectionGuideSource.includes("connection.mobileEntry") &&
-    connectionGuideSource.includes("connection.pairingQrHint") &&
-    !connectionGuideSource.includes('copyText("recommended-pair"') &&
-    !connectionGuideSource.includes("copyText(candidate.id, candidate.mobilePairUrl)") &&
+    connectionGuideCombinedSource.includes("connection.mobileEntry") &&
+    connectionGuideCombinedSource.includes("connection.pairingQrHint") &&
+    !connectionGuideCombinedSource.includes('copyText("recommended-pair"') &&
+    !connectionGuideCombinedSource.includes("copyText(candidate.id, candidate.mobilePairUrl)") &&
     connectionGuideSource.includes("connectionCandidates") &&
     connectionGuideSource.includes("candidate.envTemplate") &&
     connectionGuideSource.includes("connection.copyEnv") &&
@@ -770,7 +777,12 @@ function checkAssets() {
     packageJson.scripts.test.includes("tests/client-routing.test.mjs") &&
     desktopRuntimeConfigSmokeTestSource.includes("loads saved connection config before starting local core") &&
     desktopRuntimeConfigSmokeTestSource.includes("autostarts saved Tailscale HTTPS Serve config") &&
-    (devicePairSource.includes("diagnostics.recommendedBaseUrl") || devicePairSource.includes("networkDiagnostics.recommendedBaseUrl"))
+    devicePairSource.includes("networkDiagnostics.recommendedBaseUrl") &&
+    devicePairSource.includes('candidate.mode !== "local"') &&
+    connectionGuideCombinedSource.includes('candidate.mode !== "local"') &&
+    connectionGuideCombinedSource.includes("NoPhoneReachableNotice") &&
+    connectionGuideCombinedSource.includes("ConnectionMobileEntryPanel") &&
+    translationsSource.includes("connection.noPhoneReachableShort")
   ) pass("connection guide ranks usable URLs for pairing QR and tunnel setup");
   else warn("connection guide does not rank usable pairing URLs from diagnostics");
   if (
