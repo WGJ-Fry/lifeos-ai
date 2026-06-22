@@ -436,6 +436,58 @@ test("release draft assembler merges platform artifacts into one payload", async
   assert.deepEqual(manifest.artifacts.map((artifact) => artifact.feedFile).sort(), ["latest-linux.yml", "latest-mac.yml", "latest.yml"]);
 });
 
+test("release draft assembler rejects incomplete platform artifact sets", async (t) => {
+  const artifactsDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-draft-incomplete-"));
+  const outputDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-draft-incomplete-output-"));
+  t.after(async () => {
+    await rm(artifactsDir, { recursive: true, force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  });
+
+  async function writePlatformArtifact(platform, fileName, feedFile, bytes) {
+    const dir = path.join(artifactsDir, `lifeos-ai-${platform}-1`);
+    await mkdir(dir, { recursive: true });
+    const sha256 = crypto.createHash("sha256").update(bytes).digest("hex");
+    const sha512 = crypto.createHash("sha512").update(bytes).digest("base64");
+    await writeFile(path.join(dir, fileName), bytes);
+    await writeFile(path.join(dir, "SHA256SUMS"), `${sha256}  ${fileName}\n`);
+    await writeFile(path.join(dir, feedFile), [
+      `version: "${currentVersion}"`,
+      `path: "${fileName}"`,
+      `sha512: "${sha512}"`,
+      "",
+    ].join("\n"));
+    await writeFile(path.join(dir, "release-manifest.json"), `${JSON.stringify({
+      version: currentVersion,
+      generatedAt: new Date(0).toISOString(),
+      artifacts: [{
+        platform,
+        feedFile,
+        fileName,
+        size: Buffer.byteLength(bytes),
+        sha512,
+        sha256,
+        releaseDate: new Date(0).toISOString(),
+      }],
+    }, null, 2)}\n`);
+  }
+
+  await writePlatformArtifact("mac", currentMacZipName, "latest-mac.yml", "mac zip bytes");
+  await writePlatformArtifact("windows", currentWinInstallerName, "latest.yml", "windows exe bytes");
+
+  const result = spawnSync(process.execPath, ["scripts/assemble-release-draft-assets.mjs"], {
+    cwd: rootDir,
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_ARTIFACTS_DIR: artifactsDir,
+      LIFEOS_RELEASE_DRAFT_DIR: outputDir,
+    },
+    encoding: "utf8",
+  });
+  assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stderr, /Release draft is missing platform artifact\(s\): linux/);
+});
+
 test("release feed generator removes stale metadata before rewriting feeds", async (t) => {
   const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-feed-stale-"));
   t.after(async () => {

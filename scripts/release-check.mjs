@@ -257,6 +257,10 @@ function checkScripts() {
   const desktopArtifactsWorkflowPath = path.join(rootDir, ".github", "workflows", "desktop-artifacts.yml");
   if (fs.existsSync(desktopArtifactsWorkflowPath)) {
     const artifactsWorkflow = fs.readFileSync(desktopArtifactsWorkflowPath, "utf8");
+    const draftAssemblerPath = path.join(rootDir, "scripts", "assemble-release-draft-assets.mjs");
+    const draftAssembler = fs.existsSync(draftAssemblerPath) ? fs.readFileSync(draftAssemblerPath, "utf8") : "";
+    const releaseFeedTestPath = path.join(rootDir, "tests", "release-feed.test.mjs");
+    const releaseFeedTests = fs.existsSync(releaseFeedTestPath) ? fs.readFileSync(releaseFeedTestPath, "utf8") : "";
     if (
       artifactsWorkflow.includes("actions/upload-artifact@v4") &&
       artifactsWorkflow.includes("actions/download-artifact@v4") &&
@@ -287,7 +291,11 @@ function checkScripts() {
       artifactsWorkflow.includes("release-draft/SHA256SUMS") &&
       artifactsWorkflow.includes("release-draft/latest*.yml") &&
       artifactsWorkflow.includes("release-draft/release-manifest.json") &&
-      exists("scripts/assemble-release-draft-assets.mjs")
+      draftAssembler.includes("requiredPlatforms = [\"mac\", \"windows\", \"linux\"]") &&
+      draftAssembler.includes("Release draft is missing platform artifact(s)") &&
+      draftAssembler.includes("Release draft is missing feed file") &&
+      draftAssembler.includes("Release draft SHA256SUMS is missing artifact") &&
+      releaseFeedTests.includes("release draft assembler rejects incomplete platform artifact sets")
     ) pass("desktop package artifact workflow aggregates macOS, Windows, Linux packages into one draft GitHub Release");
     else fail("desktop package artifact workflow must build, verify, aggregate, and attach all platform package artifacts plus update metadata to one draft GitHub Release");
   } else {

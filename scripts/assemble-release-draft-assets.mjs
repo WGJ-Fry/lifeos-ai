@@ -10,6 +10,7 @@ const outputDir = process.env.LIFEOS_RELEASE_DRAFT_DIR
   : path.join(rootDir, "release-draft");
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
 const packageVersion = packageJson.version;
+const requiredPlatforms = ["mac", "windows", "linux"];
 
 function walk(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -86,10 +87,26 @@ if (uniqueArtifacts.length === 0) {
   throw new Error("No release manifest artifacts found");
 }
 
+const presentPlatforms = new Set(uniqueArtifacts.map((artifact) => artifact.platform));
+const missingPlatforms = requiredPlatforms.filter((platform) => !presentPlatforms.has(platform));
+if (missingPlatforms.length > 0) {
+  throw new Error(`Release draft is missing platform artifact(s): ${missingPlatforms.join(", ")}`);
+}
+
 const requiredArtifactNames = new Set(uniqueArtifacts.map((artifact) => artifact.fileName));
 for (const name of requiredArtifactNames) {
   if (!fs.existsSync(path.join(outputDir, name))) {
     throw new Error(`Release draft is missing manifest artifact: ${name}`);
+  }
+  if (!checksumLines.some((line) => line.endsWith(`  ${name}`))) {
+    throw new Error(`Release draft SHA256SUMS is missing artifact: ${name}`);
+  }
+}
+
+const requiredFeedFiles = new Set(uniqueArtifacts.map((artifact) => artifact.feedFile).filter(Boolean));
+for (const name of requiredFeedFiles) {
+  if (!fs.existsSync(path.join(outputDir, name))) {
+    throw new Error(`Release draft is missing feed file: ${name}`);
   }
 }
 
