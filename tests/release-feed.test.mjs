@@ -540,6 +540,11 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /packaged macOS app desktop diagnostic includes release metadata snapshot/);
   assert.match(result.stdout, /unsigned macOS release includes user install and Gatekeeper guidance/);
   assert.match(result.stdout, /unsigned macOS release includes non-developer user install guide/);
+  const releaseCheckSource = await readFile(path.join(rootDir, "scripts", "release-check.mjs"), "utf8");
+  assert.match(releaseCheckSource, /docs\/promotion-kit\.md/);
+  assert.match(releaseCheckSource, /docs\/faq\.md/);
+  assert.match(releaseCheckSource, /macOS build is Developer ID signed and Apple notarized/);
+  assert.match(releaseCheckSource, /当前已经有 macOS \/ Windows \/ Linux 安装包/);
   assert.match(result.stdout, /user install guide covers install, first launch, phone binding, backups, updates, and troubleshooting/);
   assert.doesNotMatch(result.stdout, /release USER-INSTALL\.md should explain first launch, browser fallback recovery, phone binding, add-to-home-screen recovery/);
   assert.match(result.stdout, /release checklist documents unsigned\/signed distribution, update feed, and signing inputs/);

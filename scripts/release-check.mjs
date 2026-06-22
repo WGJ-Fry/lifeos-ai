@@ -1813,6 +1813,8 @@ function checkReleaseDocs() {
     "docs/github-release.md",
     "docs/release-notes-v0.1.0.md",
     "docs/user-install-guide.md",
+    "docs/promotion-kit.md",
+    "docs/faq.md",
   ];
   const publicReleaseDocs = publicReleaseDocPaths
     .filter((relativePath) => exists(relativePath))
@@ -1824,6 +1826,12 @@ function checkReleaseDocs() {
     "macOS：打开 DMG",
     "The current DMG is signed and notarized",
     "当前 DMG 已签名并公证",
+    "macOS build is Developer ID signed and Apple notarized",
+    "macOS 包已 Developer ID 签名和 Apple 公证",
+    "The current release includes macOS / Windows / Linux desktop builds",
+    "Current release includes:\n- macOS / Windows / Linux desktop builds",
+    "现在已经有 macOS / Windows / Linux 安装包",
+    "当前已经有 macOS / Windows / Linux 安装包",
     "a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a",
     "ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022",
     "12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279",
