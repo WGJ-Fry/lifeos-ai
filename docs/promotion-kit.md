@@ -276,5 +276,6 @@ LifeOS AI turns your desktop into a private AI core for providers, local SQLite 
 ## Links
 
 - Repository: `https://github.com/WGJ-Fry/lifeos-ai`
-- Release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0`
+- Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.1-alpha`
+- Desktop unsigned ZIP release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0`
 - Install guide: `docs/user-install-guide.md`

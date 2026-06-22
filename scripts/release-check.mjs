@@ -1993,6 +1993,20 @@ function checkReleaseDocs() {
     fail("Bilingual README demo GIFs are mismatched; English must use docs/assets/real-demo-en.gif and Chinese must use docs/assets/real-demo.gif");
   }
 
+  if (exists("docs/promotion-kit.md")) {
+    const promotionKit = fs.readFileSync(path.join(rootDir, "docs/promotion-kit.md"), "utf8");
+    if (
+      promotionKit.includes("Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.1-alpha`")
+      && promotionKit.includes("Desktop unsigned ZIP release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0`")
+    ) {
+      pass("promotion kit separates the v0.1.1-alpha cold launch from the v0.1.0 desktop ZIP release");
+    } else {
+      fail("promotion kit must link the v0.1.1-alpha cold launch separately from the v0.1.0 desktop ZIP release");
+    }
+  } else {
+    fail("promotion kit is missing: docs/promotion-kit.md");
+  }
+
   const publicReleaseDocPaths = [
     "README.md",
     "docs/release-assets.md",
