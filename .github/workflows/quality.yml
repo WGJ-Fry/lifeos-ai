@@ -26,6 +26,9 @@ jobs:
       - name: Install Electron binary
         run: npm run electron:install
 
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
       - name: Lint
         run: npm run lint
 
@@ -33,6 +36,16 @@ jobs:
         env:
           NODE_OPTIONS: --experimental-sqlite
         run: npm test
+
+      - name: E2E tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run test:e2e
+
+      - name: Desktop smoke tests
+        env:
+          NODE_OPTIONS: --experimental-sqlite
+        run: npm run test:desktop
 
       - name: Remote connection mock smoke
         env:

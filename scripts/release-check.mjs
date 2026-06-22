@@ -210,6 +210,14 @@ function checkScripts() {
       qualityWorkflow.includes("npm run remote:mock-smoke")
     ) pass("GitHub Actions remote mock smoke covers health, mobile shell, and websocket");
     else fail("remote mock smoke must be wired into package scripts and GitHub Actions with health/mobile/websocket coverage");
+
+    if (
+      qualityWorkflow.includes("npx playwright install --with-deps chromium") &&
+      qualityWorkflow.includes("npm run test:e2e") &&
+      qualityWorkflow.includes("npm run test:desktop") &&
+      qualityWorkflow.match(/NODE_OPTIONS:\s*--experimental-sqlite/g)?.length >= 4
+    ) pass("GitHub Actions quality gate runs Playwright E2E, desktop smoke, SQLite-enabled tests, and remote smoke");
+    else fail("GitHub Actions quality gate must run Playwright E2E, desktop smoke, SQLite-enabled tests, and remote smoke");
   } else {
     fail("missing remote mock smoke script: scripts/remote-connection-mock-smoke.mjs");
   }
