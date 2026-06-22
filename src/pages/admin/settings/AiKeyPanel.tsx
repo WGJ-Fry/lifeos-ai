@@ -252,7 +252,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
                 list="lifeos-local-ai-models"
                 aria-label={t("aiKey.modelLabel", { provider: activeProvider.provider })}
                 disabled={busy}
-                placeholder="llama3.1"
+                placeholder="llama3.2"
                 className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm text-zinc-100 outline-none focus:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-55"
               />
               <datalist id="lifeos-local-ai-models">

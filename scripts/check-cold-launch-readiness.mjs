@@ -1,0 +1,106 @@
+import fs from "node:fs";
+import path from "node:path";
+
+const rootDir = process.cwd();
+const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
+const version = packageJson.version;
+const publicTag = version.includes("-") && version.endsWith(".0") ? version.slice(0, -2) : version;
+const releaseTag = `v${publicTag}`;
+const image = `ghcr.io/wgj-fry/lifeos-ai:${releaseTag}`;
+const failures = [];
+const passes = [];
+
+function read(relativePath) {
+  return fs.readFileSync(path.join(rootDir, relativePath), "utf8");
+}
+
+function exists(relativePath) {
+  return fs.existsSync(path.join(rootDir, relativePath));
+}
+
+function check(condition, passMessage, failMessage = passMessage) {
+  if (condition) passes.push(passMessage);
+  else failures.push(failMessage);
+}
+
+async function checkGhcrManifest() {
+  if (process.env.LIFEOS_CHECK_GHCR !== "1") {
+    passes.push("GHCR anonymous manifest check skipped; set LIFEOS_CHECK_GHCR=1 before public announcement");
+    return;
+  }
+
+  const imageName = "wgj-fry/lifeos-ai";
+  const accept = [
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.oci.image.manifest.v1+json",
+    "application/vnd.docker.distribution.manifest.v2+json",
+  ].join(", ");
+  const tokenUrl = `https://ghcr.io/token?service=ghcr.io&scope=repository:${imageName}:pull`;
+  const tokenResponse = await fetch(tokenUrl);
+  if (!tokenResponse.ok) {
+    failures.push(`GHCR anonymous token request failed: HTTP ${tokenResponse.status}`);
+    return;
+  }
+  const tokenBody = await tokenResponse.json().catch(() => ({}));
+  if (!tokenBody.token) {
+    failures.push("GHCR anonymous token response did not include a token");
+    return;
+  }
+
+  const manifestResponse = await fetch(`https://ghcr.io/v2/${imageName}/manifests/${releaseTag}`, {
+    headers: {
+      Accept: accept,
+      Authorization: `Bearer ${tokenBody.token}`,
+    },
+  });
+  if (!manifestResponse.ok) {
+    const body = await manifestResponse.text().catch(() => "");
+    failures.push(`GHCR image is not anonymously pullable for ${releaseTag}: HTTP ${manifestResponse.status} ${body.slice(0, 240)}`.trim());
+    return;
+  }
+  passes.push(`GHCR image is anonymously pullable: ${image}`);
+}
+
+const readme = read("README.md");
+const compose = read("docker-compose.yml");
+const coldLaunch = read("docs/cold-launch-checklist.md");
+const appSecrets = read("server/appSecrets.ts");
+const aiRuntime = read("server/aiProviderRuntime.ts");
+const aiRoutes = read("server/aiRoutes.ts");
+const releaseNotesPath = `docs/release-notes-${releaseTag}.md`;
+
+check(packageJson.private === false, "package.json is publishable", "package.json must keep private=false for public launch");
+check(version === "0.1.1-alpha.0", "package version is the current alpha package version", `package.json version is ${version}, expected 0.1.1-alpha.0`);
+check(exists("Dockerfile"), "Dockerfile exists");
+check(exists("docker-compose.yml"), "docker-compose.yml exists");
+check(compose.includes(`image: ${image}`), "docker-compose image uses the current public alpha tag", `docker-compose.yml must use image: ${image}`);
+check(compose.includes("LOCAL_MODEL_NAME=llama3.2"), "docker-compose selects llama3.2 for the quickstart local model");
+check(readme.includes(image), "README exposes the same GHCR image tag", `README.md must mention ${image}`);
+check(readme.includes(`release tag is \`${releaseTag}\``), "README explains release tag versus package version", `README.md must explain release tag ${releaseTag}`);
+check(coldLaunch.includes(image), "cold launch checklist verifies the same GHCR image tag", `docs/cold-launch-checklist.md must mention ${image}`);
+check(coldLaunch.includes(`docker pull ${image}`), "cold launch checklist includes anonymous docker pull proof", `docs/cold-launch-checklist.md must include docker pull ${image}`);
+check(coldLaunch.includes(`Tag: ${releaseTag}`), "cold launch checklist uses the current release tag", `docs/cold-launch-checklist.md must use Tag: ${releaseTag}`);
+check(exists(releaseNotesPath), "release notes exist for the current alpha tag", `missing ${releaseNotesPath}`);
+check(exists("README.zh-CN.md"), "Chinese README exists");
+check(readme.includes("README.zh-CN.md") || read("README.zh-CN.md").includes("README.md"), "README files link across languages", "README.md and README.zh-CN.md must link across languages");
+check(exists("docs/assets/real-demo-en.gif"), "English README demo GIF exists");
+check(exists("docs/assets/real-demo.gif"), "Chinese README demo GIF exists");
+check(appSecrets.includes('defaultModel: "llama3.2"'), "local provider defaults to llama3.2");
+check(appSecrets.includes('models: ["llama3.2", "llama3.2:1b", "llama3.1", "qwen2.5", "mistral"]'), "local provider catalog includes llama3.2 and compatible alternatives");
+check(appSecrets.includes("process.env.LIFEOS_LOCAL_MODEL_NAME || process.env.LOCAL_MODEL_NAME"), "selected local model honors LOCAL_MODEL_NAME");
+check(aiRuntime.includes('process.env.LIFEOS_QUICKSTART === "1"') && aiRuntime.includes('return "local"'), "quickstart forces local provider over frontend hints");
+check(aiRuntime.includes('if (providerId === "local") return selectedModel'), "local provider rejects frontend non-local model names");
+check(aiRoutes.includes("loadVaultMarkdownContext()") && aiRoutes.includes("LOCAL MARKDOWN VAULT CONTEXT - UNTRUSTED USER DATA"), "chat route injects local Markdown vault context safely");
+
+await checkGhcrManifest();
+
+for (const message of passes) console.log(`[PASS] ${message}`);
+for (const message of failures) console.error(`[FAIL] ${message}`);
+
+if (failures.length) {
+  console.error(`Cold launch readiness failed: ${failures.length} issue(s).`);
+  process.exit(1);
+}
+
+console.log(`Cold launch readiness passed for ${releaseTag}.`);

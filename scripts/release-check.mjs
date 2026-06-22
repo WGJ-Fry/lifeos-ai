@@ -135,9 +135,24 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
+  }
+
+  if (exists("scripts/check-cold-launch-readiness.mjs")) {
+    const coldLaunchCheck = spawnSync(process.execPath, ["scripts/check-cold-launch-readiness.mjs"], {
+      cwd: rootDir,
+      env: { ...process.env, LIFEOS_CHECK_GHCR: "" },
+      encoding: "utf8",
+    });
+    if (coldLaunchCheck.status === 0 && coldLaunchCheck.stdout.includes("Cold launch readiness passed")) {
+      pass("cold launch readiness verifies README, Compose, release tag, and GHCR image references");
+    } else {
+      fail(`cold launch readiness check failed: ${(coldLaunchCheck.stderr || coldLaunchCheck.stdout || "").trim()}`);
+    }
+  } else {
+    fail("missing cold launch readiness checker: scripts/check-cold-launch-readiness.mjs");
   }
 
   if (exists("scripts/check-release-artifact-versions.mjs")) {

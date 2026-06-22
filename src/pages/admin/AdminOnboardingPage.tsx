@@ -415,7 +415,7 @@ export default function AdminOnboardingPage() {
                         list="lifeos-onboarding-local-models"
                         aria-label={t("onboarding.modelLabel", { provider: providerLabels[selectedProvider] })}
                         disabled={busy === "ai"}
-                        placeholder="llama3.1"
+                        placeholder="llama3.2"
                         className="w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-4 py-3 text-sm outline-none focus:border-cyan-400/60 disabled:opacity-55"
                       />
                       <datalist id="lifeos-onboarding-local-models">

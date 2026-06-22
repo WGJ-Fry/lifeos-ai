@@ -603,6 +603,8 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /package script exists: desktop:artifact:smoke:launch/);
   assert.match(result.stdout, /package script exists: quality:gate/);
   assert.match(result.stdout, /package script exists: release:artifacts:check/);
+  assert.match(result.stdout, /package script exists: check:cold-launch/);
+  assert.match(result.stdout, /cold launch readiness verifies README, Compose, release tag, and GHCR image references/);
   assert.match(result.stdout, /release artifact version checker can block and explicitly clean stale installers/);
   assert.match(result.stdout, /quality gate script runs lint, tests, e2e, desktop, and release checks/);
   assert.match(result.stdout, /GitHub Actions quality gate runs Playwright E2E, desktop smoke, SQLite-enabled tests, and remote smoke/);

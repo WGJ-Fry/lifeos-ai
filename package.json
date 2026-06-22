@@ -31,6 +31,7 @@
     "release:artifacts:check": "node scripts/check-release-artifact-versions.mjs",
     "release:artifacts:fix": "node scripts/check-release-artifact-versions.mjs --fix",
     "release:feed": "node scripts/prepare-update-feed.mjs",
+    "check:cold-launch": "node scripts/check-cold-launch-readiness.mjs",
     "remote:smoke": "node scripts/remote-connection-smoke.mjs",
     "remote:acceptance": "node scripts/remote-acceptance-runbook.mjs",
     "remote:mock-smoke": "node scripts/remote-connection-mock-smoke.mjs",
