@@ -254,6 +254,28 @@ function checkScripts() {
     }
   }
 
+  const desktopArtifactsWorkflowPath = path.join(rootDir, ".github", "workflows", "desktop-artifacts.yml");
+  if (fs.existsSync(desktopArtifactsWorkflowPath)) {
+    const artifactsWorkflow = fs.readFileSync(desktopArtifactsWorkflowPath, "utf8");
+    if (
+      artifactsWorkflow.includes("actions/upload-artifact@v4") &&
+      artifactsWorkflow.includes("npm run desktop:release:smoke") &&
+      artifactsWorkflow.includes("macos-latest") &&
+      artifactsWorkflow.includes("windows-latest") &&
+      artifactsWorkflow.includes("ubuntu-latest") &&
+      artifactsWorkflow.includes("release/*.dmg") &&
+      artifactsWorkflow.includes("release/*.zip") &&
+      artifactsWorkflow.includes("release/*.exe") &&
+      artifactsWorkflow.includes("release/*.AppImage") &&
+      artifactsWorkflow.includes("release/SHA256SUMS") &&
+      artifactsWorkflow.includes("release/update-feed/latest*.yml") &&
+      artifactsWorkflow.includes("release/update-feed/release-manifest.json")
+    ) pass("desktop package artifact workflow uploads macOS, Windows, Linux packages and update metadata");
+    else fail("desktop package artifact workflow must build, verify, and upload package artifacts plus update metadata for all platforms");
+  } else {
+    fail("missing desktop package artifact workflow: .github/workflows/desktop-artifacts.yml");
+  }
+
   if (exists("scripts/desktop-artifact-smoke.mjs")) {
     const artifactSmoke = fs.readFileSync(path.join(rootDir, "scripts/desktop-artifact-smoke.mjs"), "utf8");
     const launchSmokeScript = packageJson.scripts?.["desktop:artifact:smoke:launch"] || "";
