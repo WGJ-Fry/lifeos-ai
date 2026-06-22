@@ -14,7 +14,18 @@ export type SecurityCheckItem = {
   action: string;
 };
 
-const weakPasswordSamples = new Set(["password", "password123", "12345678", "123456789", "lifeos123", "admin123", "changeme"]);
+const weakPasswordSamples = new Set([
+  "password",
+  "password123",
+  "12345678",
+  "123456789",
+  "lifeos",
+  "lifeos123",
+  "lifeos-ai",
+  "lifeos-local-demo",
+  "admin123",
+  "changeme",
+]);
 const staleBackupAgeMs = 7 * 24 * 60 * 60 * 1000;
 
 export function evaluatePasswordPolicy(password: string) {
@@ -36,7 +47,8 @@ export function getSecurityDiagnostics() {
   const publicBaseUrlInput = inspectConfiguredPublicBaseUrlInput();
   const host = process.env.LIFEOS_HOST || "127.0.0.1";
   const publicMode = Boolean(publicBaseUrl) || host === "0.0.0.0";
-  const passwordPolicy = getClientState("lifeos_admin_password_policy")?.value as ReturnType<typeof evaluatePasswordPolicy> | undefined;
+  const storedPasswordPolicy = getClientState("lifeos_admin_password_policy")?.value as ReturnType<typeof evaluatePasswordPolicy> | undefined;
+  const passwordPolicy = process.env.LIFEOS_ADMIN_PASSWORD ? evaluatePasswordPolicy(process.env.LIFEOS_ADMIN_PASSWORD) : storedPasswordPolicy;
   const aiConfigured = listAiProviderStatuses().some((provider) => provider.configured);
   const backupCount = listBackups().length;
   const latestBackup = listBackups()[0];

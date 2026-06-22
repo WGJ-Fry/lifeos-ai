@@ -265,6 +265,41 @@ test("quickstart env password login skips onboarding and routes to chat", async 
   assert.equal(onboarding.onboarding.steps.every((step) => step.done), true);
 });
 
+test("public mode flags the quickstart demo password even when it is env-managed", async (t) => {
+  const port = 11910 + Math.floor(Math.random() * 1000);
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-public-demo-password-test-"));
+  const { child, output } = startServer({
+    LIFEOS_PORT: String(port),
+    LIFEOS_DATA_DIR: dataDir,
+    LIFEOS_HOST: "0.0.0.0",
+    LIFEOS_ALLOW_PUBLIC: "1",
+    LIFEOS_ADMIN_PASSWORD: "lifeos-local-demo",
+    PUBLIC_BASE_URL: "https://lifeos.example.test",
+  });
+
+  t.after(async () => {
+    await stopServer(child);
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  await waitForHealth(port, child, output);
+
+  const health = await request(port, "/api/v1/health").then((res) => res.json());
+  assert.equal(health.adminConfigured, true);
+  assert.equal(health.publicRisk.items.some((item) => item.id === "password" && item.status === "critical"), true);
+  assert.equal(health.publicRisk.items.some((item) => item.id === "https"), false);
+  assert.equal(JSON.stringify(health).includes("lifeos-local-demo"), false);
+
+  const loginResponse = await request(port, "/api/v1/admin/login", {
+    method: "POST",
+    body: JSON.stringify({ password: "lifeos-local-demo" }),
+  });
+  assert.equal(loginResponse.status, 200);
+  const diagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: cookieHeader(loginResponse) }).then((res) => res.json());
+  assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "password" && item.status === "critical"), true);
+  assert.equal(JSON.stringify(diagnostics).includes("lifeos-local-demo"), false);
+});
+
 test("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input", async (t) => {
   const port = 12410 + Math.floor(Math.random() * 1000);
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-public-url-input-test-"));
