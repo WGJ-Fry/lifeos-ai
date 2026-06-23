@@ -6,7 +6,7 @@ import { testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import {
   clearPendingPairingToken,
-  consumePendingPairingToken,
+  consumePendingPairingTokenAsync,
   extractPairingToken,
   pairingInstallPath,
   savePendingPairingToken,
@@ -30,12 +30,15 @@ export default function MobilePairPage() {
 
   useEffect(() => {
     if (!token) {
-      const pendingToken = consumePendingPairingToken();
-      if (pendingToken) {
+      let cancelled = false;
+      void consumePendingPairingTokenAsync().then((pendingToken) => {
+        if (cancelled || !pendingToken) return;
         savePendingPairingToken(pendingToken);
         window.location.replace(pairingInstallPath(pendingToken));
-      }
-      return undefined;
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     savePendingPairingToken(token);
     const installPath = pairingInstallPath(token);

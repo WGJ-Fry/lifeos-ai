@@ -1058,9 +1058,13 @@ function checkAssets() {
   if (
     pairingIntentSource.includes("savePendingPairingToken") &&
     pairingIntentSource.includes("consumePendingPairingToken") &&
+    pairingIntentSource.includes("consumePendingPairingTokenAsync") &&
     pairingIntentSource.includes("peekPendingPairingToken") &&
+    pairingIntentSource.includes("peekPendingPairingTokenAsync") &&
+    pairingIntentSource.includes("writeIndexedPairingIntent") &&
+    pairingIntentSource.includes("localStorage.setItem(PAIRING_INTENT_KEY") &&
     pairingIntentSource.includes("24 * 60 * 60 * 1000") &&
-    mobileChatSource.includes("consumePendingPairingToken") &&
+    mobileChatSource.includes("consumePendingPairingTokenAsync") &&
     mobileChatSource.includes("recoveringPairingIntent")
   ) pass("PWA preserves pending pairing token across iOS add-to-home-screen");
   else warn("PWA does not preserve pending pairing token across add-to-home-screen");
@@ -1068,6 +1072,8 @@ function checkAssets() {
     pairingIntentSource.includes("safeDecodeURIComponent") &&
     pairingIntentSource.includes("bind_[A-Za-z0-9_-]{8,180}") &&
     mobilePairingIntentTestSource.includes("mobile pairing intent rejects malformed or unsafe install tokens") &&
+    mobilePairingIntentTestSource.includes("mobile pairing intent uses IndexedDB primary storage and clears legacy localStorage") &&
+    mobilePairingIntentTestSource.includes("mobile pairing intent migrates legacy localStorage into IndexedDB") &&
     mobilePairingIntentTestSource.includes("bind_<script>alert(1)</script>") &&
     mobilePairingIntentTestSource.includes("/mobile/install/%E0%A4%A")
   ) pass("PWA pairing intent rejects malformed and unsafe tokens");

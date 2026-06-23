@@ -3,7 +3,7 @@ import { Command, Download, Link2, RefreshCw, ShieldCheck, Smartphone, X } from 
 import App from "../../App";
 import { useLifeOSRealtime } from "../../hooks/useLifeOSRealtime";
 import { getMobilePairingIntent, getStoredDeviceCredential, getStoredDeviceCredentialAsync } from "../../services/lifeosApi";
-import { consumePendingPairingToken, extractPairingToken, pairingInstallPath, peekPendingPairingToken, savePendingPairingToken, setPairingManifestToken } from "../../services/mobilePairingIntent";
+import { consumePendingPairingTokenAsync, extractPairingToken, pairingInstallPath, peekPendingPairingToken, savePendingPairingToken, setPairingManifestToken } from "../../services/mobilePairingIntent";
 import { loadMobileInstallHintDismissed, saveMobileInstallHintDismissed } from "../../services/mobileInstallHintStorage";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -56,12 +56,22 @@ export default function MobileChatPage() {
 
   useEffect(() => {
     if (!loadedCredential || credential) return;
-    const pendingPairingToken = launchPairingToken || consumePendingPairingToken();
-    if (pendingPairingToken) {
+    let cancelled = false;
+    let recovered = false;
+    const recover = async () => {
+      const pendingPairingToken = launchPairingToken || await consumePendingPairingTokenAsync();
+      if (cancelled || !pendingPairingToken) return;
+      recovered = true;
       setRecoveringPairingIntent(true);
       savePendingPairingToken(pendingPairingToken);
       window.location.replace(pairingInstallPath(pendingPairingToken));
-    }
+    };
+    void recover().finally(() => {
+      if (!cancelled && !launchPairingToken && !recovered) setRecoveringPairingIntent(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [credential, launchPairingToken, loadedCredential]);
 
   useEffect(() => {
