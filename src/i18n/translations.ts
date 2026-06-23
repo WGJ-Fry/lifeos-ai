@@ -350,7 +350,10 @@ export const translations = {
     "mobileDevice.lastConnectivityError": "失败原因：{{message}}",
     "mobileDevice.lastConnectivityFixTitle": "上次失败的修复建议",
 
+    "aiKey.details.gemini": "Google Gemini API 密钥",
+    "aiKey.details.openai": "OpenAI Responses / Chat Completions",
     "aiKey.details.openrouter": "多模型聚合路由",
+    "aiKey.details.local": "Ollama / LM Studio 本地端点",
     "aiKey.storage.system": "系统安全存储",
     "aiKey.storage.encrypted": "本地加密存储",
     "aiKey.storage.env": "{{envVar}} 环境变量",
@@ -1931,7 +1934,10 @@ export const translations = {
     "mobileDevice.lastConnectivityError": "Failure reason: {{message}}",
     "mobileDevice.lastConnectivityFixTitle": "Suggested Fix From Last Failure",
 
+    "aiKey.details.gemini": "Google Gemini API Key",
+    "aiKey.details.openai": "Responses / Chat Completions",
     "aiKey.details.openrouter": "Multi-model routing aggregator",
+    "aiKey.details.local": "Ollama / LM Studio local endpoint",
     "aiKey.storage.system": "System secure storage",
     "aiKey.storage.encrypted": "Local encrypted storage",
     "aiKey.storage.env": "{{envVar}} environment variable",

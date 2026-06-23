@@ -4,13 +4,6 @@ import { deleteAiProviderKey, listAiProviders, saveAiProviderKey, testAiProvider
 import type { AiProviderId, AiProviderStatus, ConfigDiagnostics } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 
-const providerDetails: Record<AiProviderId, string> = {
-  gemini: "Google Gemini API Key",
-  openai: "Responses / Chat Completions",
-  openrouter: "OpenRouter multi-model routing",
-  local: "Ollama / LM Studio endpoint",
-};
-
 export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: ConfigDiagnostics; onChanged: () => Promise<void> }) {
   const { t } = useI18n();
   const [apiKey, setApiKey] = useState("");
@@ -179,7 +172,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
                   {provider.active ? t("aiKey.defaultBadge") : provider.configured ? t("aiKey.configuredBadge") : provider.enabled ? t("aiKey.configurableBadge") : t("aiKey.reservedBadge")}
                 </span>
               </div>
-              <div className="mt-1 truncate text-[11px] text-zinc-500">{provider.id === "openrouter" ? t("aiKey.details.openrouter") : providerDetails[provider.id]}</div>
+              <div className="mt-1 truncate text-[11px] text-zinc-500">{t(`aiKey.details.${provider.id}` as any)}</div>
             </button>
           );
         })}

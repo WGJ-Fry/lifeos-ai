@@ -1719,8 +1719,15 @@ function checkAssets() {
     aiKeyPanelSource.includes("aiKey.enabledHint") &&
     aiKeyPanelSource.includes("aiKey.defaultProviderTitle") &&
     aiKeyPanelSource.includes("aiKey.setDefault") &&
+    aiKeyPanelSource.includes("aiKey.details.${provider.id}") &&
+    !aiKeyPanelSource.includes("Responses / Chat Completions") &&
+    !aiKeyPanelSource.includes("Ollama / LM Studio endpoint") &&
     translationsSource.includes("aiKey.defaultProviderTitle") &&
     translationsSource.includes("aiKey.setDefault") &&
+    translationsSource.includes("aiKey.details.gemini") &&
+    translationsSource.includes("aiKey.details.openai") &&
+    translationsSource.includes("aiKey.details.openrouter") &&
+    translationsSource.includes("aiKey.details.local") &&
     translationsSource.includes("聊天路由已启用") &&
     !translationsSource.includes("聊天路由暂未启用") &&
     adminRoutesSource.includes("ai_provider_default_updated") &&

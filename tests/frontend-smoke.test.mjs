@@ -1014,10 +1014,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(aiKeyPanelSource, /aiKey\.testConfigOk/);
   assert.match(aiKeyPanelSource, /aiKey\.testConfigOnly/);
   assert.match(aiKeyPanelSource, /aiKey\.testLiveOk/);
-  assert.match(aiKeyPanelSource, /Google Gemini API Key/);
-  assert.match(aiKeyPanelSource, /Responses \/ Chat Completions/);
-  assert.match(aiKeyPanelSource, /aiKey\.details\.openrouter/);
-  assert.match(aiKeyPanelSource, /Ollama \/ LM Studio endpoint/);
+  assert.match(aiKeyPanelSource, /aiKey\.details\.\$\{provider\.id\}/);
+  assert.doesNotMatch(aiKeyPanelSource, /Google Gemini API Key/);
+  assert.doesNotMatch(aiKeyPanelSource, /Responses \/ Chat Completions/);
+  assert.doesNotMatch(aiKeyPanelSource, /Ollama \/ LM Studio endpoint/);
+  assert.match(translationsSource, /Google Gemini API 密钥/);
+  assert.match(translationsSource, /OpenAI Responses \/ Chat Completions/);
+  assert.match(translationsSource, /aiKey\.details\.openrouter/);
+  assert.match(translationsSource, /Ollama \/ LM Studio 本地端点/);
   assert.match(aiKeyPanelSource, /aiKey\.systemUnavailable/);
   assert.match(aiKeyPanelSource, /aiKey\.currentLocation/);
   assert.match(aiKeyPanelSource, /aiKey\.priorityStrategy/);
