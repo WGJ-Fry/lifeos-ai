@@ -1540,12 +1540,15 @@ function checkAssets() {
     clientStateSource.includes("SENSITIVE_CLIENT_STATE_KEY") &&
     clientStateSource.includes("redactClientStateString") &&
     clientStateSource.includes("SENSITIVE_CLIENT_QUERY_KEY") &&
+    clientStateSource.includes("Basic\\s+") &&
+    clientStateSource.includes("github_pat_") &&
     stateRoutesSource.includes("publicClientState(state)") &&
     stateRoutesSource.includes("state: publicState") &&
     auditSource.includes("AIzaSy") &&
     auditSource.includes("(?:bind|device)_") &&
     apiAuthTestSource.includes("lifeos_byok_key") &&
-    apiAuthTestSource.includes("state-secret-token")
+    apiAuthTestSource.includes("state-secret-token") &&
+    apiAuthTestSource.includes("github_pat_stateSecret")
   ) pass("client state API responses and realtime broadcasts redact sensitive values");
   else warn("client state API responses or realtime broadcasts may expose sensitive values");
   if (

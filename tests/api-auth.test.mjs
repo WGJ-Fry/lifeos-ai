@@ -1464,7 +1464,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
         scheme: "shortcuts",
         source: "test",
         target: "test",
-        paramsSummary: "apiKey=sk-state-secret-value-should-not-leak",
+        paramsSummary: "apiKey=sk-state-secret-value-should-not-leak Basic Z2l0aHViOnN0YXRl github_pat_stateSecret_1234567890",
         status: "opened",
         risk: "medium",
         createdAt: Date.now(),
@@ -1473,6 +1473,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(JSON.stringify(redactedActionLog).includes("state-secret-token"), false);
   assert.equal(JSON.stringify(redactedActionLog).includes("sk-state-secret-value-should-not-leak"), false);
+  assert.equal(JSON.stringify(redactedActionLog).includes("Z2l0aHViOnN0YXRl"), false);
+  assert.equal(JSON.stringify(redactedActionLog).includes("github_pat_stateSecret"), false);
   assert.equal(redactedActionLog.value[0].url, "shortcuts://run-shortcut?token=%5Bredacted%5D");
 
   const storedSensitiveState = await request(port, "/api/v1/state/lifeos_byok_key", {
@@ -1777,6 +1779,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, "connectivity-secret");
   assertSecretNotLeaked(publicResponses, "state-secret-token");
   assertSecretNotLeaked(publicResponses, "sk-state-secret-value-should-not-leak");
+  assertSecretNotLeaked(publicResponses, "Z2l0aHViOnN0YXRl");
+  assertSecretNotLeaked(publicResponses, "github_pat_stateSecret");
   assertSecretNotLeaked(publicResponses, "AIzaSy-state-secret-value-should-not-leak");
   assertSecretNotLeaked(publicResponses, "test-key");
   assertSecretNotLeaked(publicResponses, "correct horse battery staple");

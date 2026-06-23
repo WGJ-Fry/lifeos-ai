@@ -148,13 +148,15 @@ function redactClientStateUrl(value: string) {
 function redactClientStateString(value: string) {
   const redacted = value
     .replace(/Bearer\s+[A-Za-z0-9._~+/-]+/gi, "Bearer [redacted]")
+    .replace(/Basic\s+[A-Za-z0-9._~+/-]+={0,2}/gi, "Basic [redacted]")
+    .replace(/\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]{20,})\b/g, "[redacted]")
     .replace(/\bAIzaSy[A-Za-z0-9_-]{20,}\b/g, "[redacted]")
     .replace(/\bsk-(?:or-)?[A-Za-z0-9_-]{16,}\b/g, "[redacted]")
     .replace(/\b(?:bind|device)_[A-Za-z0-9_-]{8,}\b/g, "[redacted]")
     .replace(/\/Users\/[^\s,;"]+/g, "[local-path]")
     .replace(/[A-Za-z]:\\[^\s,;"]+/g, "[local-path]")
     .replace(/[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s,;"'<>]+/g, (match) => redactClientStateUrl(match));
-  return redactClientStateUrl(redacted);
+  return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(redacted.trim()) ? redactClientStateUrl(redacted) : redacted;
 }
 
 function redactClientStateValue(value: unknown): unknown {
