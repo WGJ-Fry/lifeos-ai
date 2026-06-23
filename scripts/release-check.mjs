@@ -527,6 +527,7 @@ function checkAssets() {
   const adminOnboardingSource = exists("src/pages/admin/AdminOnboardingPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminOnboardingPage.tsx"), "utf8") : "";
   const onboardingMobileSource = exists("src/pages/admin/OnboardingMobileCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingMobileCard.tsx"), "utf8") : "";
   const onboardingRecoverySource = exists("src/pages/admin/OnboardingRecoveryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingRecoveryCard.tsx"), "utf8") : "";
+  const onboardingHandoffSource = exists("src/pages/admin/OnboardingHandoffCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingHandoffCard.tsx"), "utf8") : "";
   const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
   if (
     adminRoutesSource.includes("/api/v1/admin/onboarding") &&
@@ -551,6 +552,7 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.firstChatVerificationBody") &&
     adminOnboardingSource.includes("OnboardingMobileCard") &&
     adminOnboardingSource.includes("OnboardingRecoveryCard") &&
+    adminOnboardingSource.includes("OnboardingHandoffCard") &&
     adminOnboardingSource.includes("desktop.copyLocalAddress") &&
     onboardingMobileSource.includes("/admin/settings#mobile-connect") &&
     onboardingMobileSource.includes("remoteReadiness") &&
@@ -558,6 +560,8 @@ function checkAssets() {
     onboardingRecoverySource.includes("onboarding.copyLocalAddress") &&
     onboardingRecoverySource.includes("onboarding.openLogsFolder") &&
     onboardingRecoverySource.includes("onboarding.exportDiagnostics") &&
+    onboardingHandoffSource.includes("onboarding.handoffChatTitle") &&
+    onboardingHandoffSource.includes("/admin/settings#mobile-connect") &&
     translationsSource.includes("onboarding.enableDailyBackup") &&
     translationsSource.includes("onboarding.longTermBackupReminderBody") &&
     translationsSource.includes("onboarding.remoteReadinessTitle") &&
@@ -565,6 +569,7 @@ function checkAssets() {
     translationsSource.includes("onboarding.finishBlocked") &&
     translationsSource.includes("onboarding.finishReady") &&
     translationsSource.includes("onboarding.firstChatVerificationBody") &&
+    translationsSource.includes("onboarding.handoffTitle") &&
     translationsSource.includes("Set as Default Chat Provider")
   ) pass("first-launch onboarding has authoritative status, completion, audit, and login routing");
   else warn("first-launch onboarding is missing status, completion, audit, or login routing");

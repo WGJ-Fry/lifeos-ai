@@ -5,6 +5,7 @@ import { completeOnboarding, createBackup, getBackupSchedule, getConfigDiagnosti
 import type { AiProviderId, AiProviderStatus, BackupRecord, BackupSchedule, BoundDevice, ConfigDiagnostics, OnboardingStatus } from "../../services/lifeosApi";
 import LanguageSwitcher from "../../i18n/LanguageSwitcher";
 import { useI18n } from "../../i18n/I18nProvider";
+import OnboardingHandoffCard from "./OnboardingHandoffCard";
 import OnboardingMobileCard from "./OnboardingMobileCard";
 import OnboardingRecoveryCard from "./OnboardingRecoveryCard";
 
@@ -240,6 +241,8 @@ export default function AdminOnboardingPage() {
         </div>
 
         {status ? <div className="mb-5 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 text-sm text-zinc-300">{status}</div> : null}
+
+        {onboarding?.completed ? <OnboardingHandoffCard /> : null}
 
         {onboarding ? (
           <section className="mb-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
