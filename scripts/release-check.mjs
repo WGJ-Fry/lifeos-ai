@@ -1452,6 +1452,9 @@ function checkAssets() {
   const diagnosticBundleTestSource = exists("tests/diagnostic-bundle-redaction.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/diagnostic-bundle-redaction.test.mjs"), "utf8") : "";
   if (
     diagnosticBundleSource.includes("getReleaseDiagnostics") &&
+    diagnosticBundleSource.includes("getDiagnosticBundleVersion") &&
+    diagnosticBundleSource.includes('path.join(process.cwd(), "package.json")') &&
+    !diagnosticBundleSource.includes('version: "0.1.0"') &&
     diagnosticBundleSource.includes("publicReleaseArtifactSummary") &&
     diagnosticBundleSource.includes("release: getReleaseDiagnostics()") &&
     diagnosticBundleSource.includes("remote: {") &&
@@ -1462,6 +1465,8 @@ function checkAssets() {
     diagnosticBundleSource.includes("acceptanceRecords") &&
     diagnosticBundleSource.includes("acceptanceRunbooks") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&
+    diagnosticBundleTestSource.includes("bundle.service.version, packageJson.version") &&
+    diagnosticBundleTestSource.includes("bundle.release.version, packageJson.version") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceSummary.ready") &&
     apiAuthTestSource.includes("diagnosticBundle.remote.recoveryReport") &&

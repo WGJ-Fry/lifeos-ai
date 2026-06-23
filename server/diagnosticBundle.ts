@@ -11,6 +11,8 @@ import { getRemoteValidationReport, summarizeRemoteHealth } from "./remoteValida
 import { getRemoteRecoveryReport } from "./remoteHealthMonitor";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
 
+let cachedPackageVersion: string | null = null;
+
 function countTable(table: string) {
   return (db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as any)?.count || 0;
 }
@@ -45,6 +47,19 @@ function releaseDirCandidates() {
     path.join(process.cwd(), "release"),
     path.join(process.cwd(), "..", "release"),
   ].filter(Boolean)));
+}
+
+export function getDiagnosticBundleVersion() {
+  if (cachedPackageVersion) return cachedPackageVersion;
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+    cachedPackageVersion = typeof packageJson.version === "string" && packageJson.version.trim()
+      ? packageJson.version.trim()
+      : "0.0.0-unknown";
+  } catch {
+    cachedPackageVersion = "0.0.0-unknown";
+  }
+  return cachedPackageVersion;
 }
 
 function publicReleaseArtifactSummary(artifact: any) {
@@ -90,7 +105,7 @@ export function getReleaseDiagnostics() {
   return {
     manifestAvailable: false,
     checksumAvailable: false,
-    version: "0.1.0",
+    version: getDiagnosticBundleVersion(),
     generatedAt: "",
     artifactCount: 0,
     artifacts: [],
@@ -121,7 +136,7 @@ export function createDiagnosticBundle() {
     generatedAt: new Date().toISOString(),
     service: {
       name: "lifeos-local-core",
-      version: "0.1.0",
+      version: getDiagnosticBundleVersion(),
       uptime: process.uptime(),
       node: process.version,
       platform: process.platform,

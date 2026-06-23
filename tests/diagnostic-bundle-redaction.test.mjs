@@ -1,9 +1,12 @@
 // @ts-nocheck
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+
+const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
 test("diagnostic bundle redacts URL credentials, query secrets, and local paths", async (t) => {
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-diagnostic-redaction-"));
@@ -127,6 +130,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   const bundle = createDiagnosticBundle();
   const serialized = JSON.stringify(bundle);
 
+  assert.equal(bundle.service.version, packageJson.version);
   assert.equal(serialized.includes("diagnostic-secret"), false);
   assert.equal(serialized.includes("audit-secret"), false);
   assert.equal(serialized.includes("AIzaSy-diagnostic-provider-secret"), false);
@@ -170,4 +174,30 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
     releaseDate: new Date(0).toISOString(),
   });
   assert.ok(bundle.ai.providers.every((provider) => !("apiKey" in provider)));
+});
+
+test("diagnostic bundle release fallback uses package version", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-diagnostic-version-"));
+  const oldCwd = process.cwd();
+  const oldDataDir = process.env.LIFEOS_DATA_DIR;
+  const oldReleaseDir = process.env.LIFEOS_RELEASE_DIR;
+  await writeFile(path.join(dataDir, "package.json"), JSON.stringify({ version: packageJson.version }, null, 2));
+  process.chdir(dataDir);
+  process.env.LIFEOS_DATA_DIR = dataDir;
+  process.env.LIFEOS_RELEASE_DIR = path.join(dataDir, "missing-release-dir");
+  t.after(async () => {
+    process.chdir(oldCwd);
+    if (oldDataDir === undefined) delete process.env.LIFEOS_DATA_DIR;
+    else process.env.LIFEOS_DATA_DIR = oldDataDir;
+    if (oldReleaseDir === undefined) delete process.env.LIFEOS_RELEASE_DIR;
+    else process.env.LIFEOS_RELEASE_DIR = oldReleaseDir;
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const { getDiagnosticBundleVersion, getReleaseDiagnostics } = await import(`../server/diagnosticBundle.ts?diagnosticVersion=${Date.now()}`);
+  const release = getReleaseDiagnostics();
+  const bundle = { release };
+  assert.equal(getDiagnosticBundleVersion(), packageJson.version);
+  assert.equal(release.manifestAvailable, false);
+  assert.equal(bundle.release.version, packageJson.version);
 });
