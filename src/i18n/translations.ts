@@ -349,6 +349,7 @@ export const translations = {
     "mobileDevice.staleConnectivityReport": "这次连接测试已经超过 6 小时。换网、出门、Tunnel 重启或电脑重启后，请重新测试一次。",
     "mobileDevice.lastConnectivityError": "失败原因：{{message}}",
     "mobileDevice.lastConnectivityFixTitle": "上次失败的修复建议",
+    "mobileDevice.lastConnectivityActionTitle": "下一步动作",
 
     "aiKey.details.gemini": "Google Gemini API 密钥",
     "aiKey.details.openai": "OpenAI Responses / Chat Completions",
@@ -1933,6 +1934,7 @@ export const translations = {
     "mobileDevice.staleConnectivityReport": "This connection test is older than 6 hours. Test again after changing networks, leaving home, restarting the Tunnel, or restarting the desktop.",
     "mobileDevice.lastConnectivityError": "Failure reason: {{message}}",
     "mobileDevice.lastConnectivityFixTitle": "Suggested Fix From Last Failure",
+    "mobileDevice.lastConnectivityActionTitle": "Next actions",
 
     "aiKey.details.gemini": "Google Gemini API Key",
     "aiKey.details.openai": "Responses / Chat Completions",

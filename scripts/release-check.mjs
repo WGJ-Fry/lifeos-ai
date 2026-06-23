@@ -1246,6 +1246,7 @@ function checkAssets() {
   const pwaCapabilitiesSource = exists("src/services/pwaCapabilities.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaCapabilities.ts"), "utf8") : "";
   const pwaCapabilitiesTestSource = exists("tests/pwa-capabilities.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/pwa-capabilities.test.mjs"), "utf8") : "";
   const mobileConnectivityCardSource = exists("src/pages/mobile/MobileConnectivityCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileConnectivityCard.tsx"), "utf8") : "";
+  const mobileLastConnectivityCardSource = exists("src/pages/mobile/MobileLastConnectivityCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileLastConnectivityCard.tsx"), "utf8") : "";
   const deviceConnectivityStatusSource = exists("src/pages/admin/DeviceConnectivityStatus.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/DeviceConnectivityStatus.tsx"), "utf8") : "";
   const frontendSmokeTestSource = exists("tests/frontend-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/frontend-smoke.test.mjs"), "utf8") : "";
   const dbSourceForConnectivity = exists("server/db.ts") ? fs.readFileSync(path.join(rootDir, "server/db.ts"), "utf8") : "";
@@ -1286,10 +1287,22 @@ function checkAssets() {
     mobileDeviceSource.includes("testMobileRemoteConnectivity") &&
     mobileDeviceSource.includes("reportMobileConnectivity") &&
     mobileDeviceSource.includes("connectivityReportStale") &&
-    mobileDeviceSource.includes("mobileDevice.freshConnectivityReport") &&
-    mobileDeviceSource.includes("mobileDevice.staleConnectivityReport") &&
+    mobileDeviceSource.includes("MobileLastConnectivityCard") &&
+    mobileDeviceSource.includes("refreshBusy={serverRefreshBusy}") &&
+    mobileDeviceSource.includes("retryBusy={connectivityBusy}") &&
     mobileDeviceSource.includes("onRetry={handleConnectivityTest}") &&
     mobileDeviceSource.includes("queueSummary={queueSummary}") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.lastConnectivityOk") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.lastConnectivityFailed") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.freshConnectivityReport") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.staleConnectivityReport") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.lastConnectivityActionTitle") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.lastConnectivityFixTitle") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.retryConnectivity") &&
+    mobileLastConnectivityCardSource.includes("mobile.refreshConnection") &&
+    mobileLastConnectivityCardSource.includes("tailscale://") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.openTailscale") &&
+    mobileLastConnectivityCardSource.includes("mobileDevice.rebindRemoteEntry") &&
     mobileConnectivityCardSource.includes("getMobileRecoveryHints") &&
     mobileConnectivityCardSource.includes("getMobileConnectivityIssue") &&
     mobileConnectivityCardSource.includes("primaryIssue") &&
@@ -1310,6 +1323,7 @@ function checkAssets() {
     translationsSource.includes("mobileDevice.connectivityTestedAt") &&
     translationsSource.includes("mobileDevice.copyRepairPacket") &&
     translationsSource.includes("mobileDevice.repairPacketCopied") &&
+    translationsSource.includes("mobileDevice.lastConnectivityActionTitle") &&
     translationsSource.includes("mobileDevice.connectivitySteps") &&
     mobileDeviceSource.includes("pwaCapabilities.recommendations") &&
     mobileDeviceSource.includes("pwaRecommendationKey") &&

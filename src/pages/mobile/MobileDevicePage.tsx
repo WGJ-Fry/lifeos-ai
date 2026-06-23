@@ -9,6 +9,7 @@ import { extractPairingToken, pairingInstallPath } from "../../services/mobilePa
 import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
 import MobileConnectivityCard from "./MobileConnectivityCard";
+import MobileLastConnectivityCard from "./MobileLastConnectivityCard";
 import MobileOfflineQueuePanel from "./MobileOfflineQueuePanel";
 import { CapabilityRow, CredentialStorageCard, Metric, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
 import { useI18n } from "../../i18n/I18nProvider";
@@ -410,51 +411,17 @@ export default function MobileDevicePage() {
             </div>
           </div>
           {lastConnectivityReport ? (
-            <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${lastConnectivityReport.ok ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
-              <div className="font-bold">
-                {lastConnectivityReport.ok ? t("mobileDevice.lastConnectivityOk") : t("mobileDevice.lastConnectivityFailed")}
-              </div>
-              <div className="mt-1 opacity-85">
-                {t("mobileDevice.lastConnectivityBody", {
-                  time: new Date(lastConnectivityReport.createdAt).toLocaleString(),
-                  entry: lastConnectivityReport.currentBaseUrl,
-                  latency: lastConnectivityReport.latencyMs,
-                })}
-              </div>
-              {connectivityReportStale ? (
-                <div className="mt-2 rounded-xl border border-amber-300/20 bg-amber-500/10 p-2 text-amber-50">
-                  {t("mobileDevice.staleConnectivityReport")}
-                </div>
-              ) : (
-                <div className="mt-2 rounded-xl border border-emerald-300/20 bg-emerald-500/10 p-2 text-emerald-50">
-                  {t("mobileDevice.freshConnectivityReport")}
-                </div>
-              )}
-              <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
-                  <div className="font-bold">{lastConnectivityReport.healthOk ? t("mobileDevice.pass") : t("mobileDevice.fail")}</div>
-                  <div className="mt-1 opacity-75">{t("mobileDevice.connectivityHealth")}</div>
-                </div>
-                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
-                  <div className="font-bold">{lastConnectivityReport.mobileShellOk ? t("mobileDevice.pass") : t("mobileDevice.fail")}</div>
-                  <div className="mt-1 opacity-75">{t("mobileDevice.connectivityMobileShell")}</div>
-                </div>
-                <div className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
-                  <div className="font-bold">{lastConnectivityReport.websocketOk ? t("mobileDevice.pass") : t("mobileDevice.fail")}</div>
-                  <div className="mt-1 opacity-75">{t("mobileDevice.connectivityRealtime")}</div>
-                </div>
-              </div>
-              {lastConnectivityReport.error ? <div className="mt-2 opacity-85">{t("mobileDevice.lastConnectivityError", { message: lastConnectivityReport.error })}</div> : null}
-              {lastConnectivityIssue && lastConnectivityIssue !== "mobileDevice.connectivityIssueOk" ? (
-                <div className="mt-3 rounded-xl border border-white/[0.08] bg-black/10 p-2">
-                  <div className="font-bold">{t("mobileDevice.lastConnectivityFixTitle")}</div>
-                  <div className="mt-1 font-bold opacity-90">{t(lastConnectivityIssue as any)}</div>
-                  <div className="mt-2 space-y-1 opacity-80">
-                    {lastConnectivityHints.map((hint) => <div key={hint}>{t(hint as any)}</div>)}
-                  </div>
-                </div>
-              ) : null}
-            </div>
+            <MobileLastConnectivityCard
+              report={lastConnectivityReport}
+              stale={connectivityReportStale}
+              issue={lastConnectivityIssue}
+              hints={lastConnectivityHints}
+              entryKind={currentEntry.kind}
+              refreshBusy={serverRefreshBusy}
+              retryBusy={connectivityBusy}
+              onRefresh={() => refreshServerState({ announce: true })}
+              onRetry={handleConnectivityTest}
+            />
           ) : null}
           <button
             onClick={handleConnectivityTest}
