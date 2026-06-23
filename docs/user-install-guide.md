@@ -4,6 +4,18 @@
 
 LifeOS AI 是电脑端应用 + 手机端 PWA。电脑端负责运行本地核心、保存数据、连接 AI；手机端通过浏览器扫码绑定后使用。
 
+## 先看这里：当前公开版本状态
+
+| 项目 | 当前状态 | 用户应该怎么做 |
+| --- | --- | --- |
+| Docker Compose alpha | 已使用 `ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha` | 推荐第一次体验使用。先确认 GitHub Packages 页面已经公开，并用 `docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha` 验证能拉取。 |
+| macOS 桌面包 | `v0.1.0` 已上传 `LifeOS.AI-0.1.0-arm64-unsigned.zip` | 适合早期桌面测试。它是 unsigned ZIP，不是签名公证 DMG。 |
+| Windows 桌面包 | 当前公开 Release 未上传 EXE | 不要在推广文案里写成可下载；等真实 NSIS 安装包生成、校验、上传后再开放。 |
+| Linux 桌面包 | 当前公开 Release 未上传 AppImage | 不要在推广文案里写成可下载；等真实 AppImage 生成、校验、上传后再开放。 |
+| 自动更新 | 当前未启用 | 先按手动下载、校验 SHA256、覆盖安装的方式更新。 |
+
+发布前必须保证 README、Release 说明、`docker-compose.yml`、`release-manifest.json` 和真实 GitHub Release/GHCR 资产一致。只写已经存在并能被干净机器下载的资产。
+
 ## 下载安装
 
 ### macOS Apple Silicon
@@ -221,6 +233,18 @@ Get-FileHash ".\LifeOS AI Setup 0.1.0.exe" -Algorithm SHA256
 # English
 
 LifeOS AI is a desktop app plus a mobile PWA. The desktop app runs the local core, stores data, and connects to AI providers. The phone connects through a paired browser/PWA.
+
+## Read This First: Current Public Release Status
+
+| Item | Current status | What users should do |
+| --- | --- | --- |
+| Docker Compose alpha | Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha` | Recommended first try. Confirm the GitHub Packages page is public and verify `docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha` works before promoting it. |
+| macOS desktop package | `v0.1.0` uploads `LifeOS.AI-0.1.0-arm64-unsigned.zip` | Good for early desktop testing. It is an unsigned ZIP, not a signed and notarized DMG. |
+| Windows desktop package | The current public Release does not upload an EXE | Do not market it as downloadable until the real NSIS installer is built, verified, and uploaded. |
+| Linux desktop package | The current public Release does not upload an AppImage | Do not market it as downloadable until the real AppImage is built, verified, and uploaded. |
+| Auto-update | Not enabled yet | Update manually by downloading the new build, verifying SHA256, and installing it. |
+
+Before publishing, README, Release notes, `docker-compose.yml`, `release-manifest.json`, and the real GitHub Release/GHCR assets must agree. Only claim assets that already exist and can be downloaded from a clean machine.
 
 ## Download And Install
 

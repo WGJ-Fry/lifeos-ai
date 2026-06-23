@@ -2381,6 +2381,13 @@ function checkReleaseDocs() {
       "Wait until the phone shows the bound chat or device page",
       "Do not add the unbound QR page to the home screen",
       "delete the old home-screen icon",
+      "Read This First: Current Public Release Status",
+      "先看这里：当前公开版本状态",
+      "Only claim assets that already exist and can be downloaded from a clean machine",
+      "只写已经存在并能被干净机器下载的资产",
+      "docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.1-alpha",
+      "Do not market it as downloadable until the real NSIS installer is built, verified, and uploaded",
+      "Do not market it as downloadable until the real AppImage is built, verified, and uploaded",
     ];
     const missingMarkers = requiredUserGuideMarkers.filter((marker) => !userGuide.includes(marker));
     if (missingMarkers.length === 0) {
