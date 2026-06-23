@@ -871,14 +871,19 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /普通备份已排除敏感密钥/);
 
   const configDiagnosticsPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ConfigDiagnosticsPanel.tsx"), "utf8");
+  const adminPasswordPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AdminPasswordPanel.tsx"), "utf8");
   assert.match(configDiagnosticsPanelSource, /diagnostics\.releasePackage/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.manifestAvailable/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.checksumAvailable/);
   assert.match(configDiagnosticsPanelSource, /latestArtifact/);
   assert.match(configDiagnosticsPanelSource, /backupSchedule\.enabled/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.autoBackup/);
+  assert.match(adminPasswordPanelSource, /newPassword\.length >= 12/);
+  assert.match(adminPasswordPanelSource, /newPassword\.length < 12/);
   assert.match(translationsSource, /发布包/);
   assert.match(translationsSource, /自动备份/);
+  assert.match(translationsSource, /至少需要 12 位/);
+  assert.doesNotMatch(translationsSource, /新密码至少需要 8 位/);
 
   const backupRestorePanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupRestorePanel.tsx"), "utf8");
   const backupScheduleCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupScheduleCard.tsx"), "utf8");

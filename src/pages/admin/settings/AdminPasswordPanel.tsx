@@ -19,11 +19,11 @@ export default function AdminPasswordPanel({
   const [status, setStatus] = useState<string | null>(null);
 
   const passwordCheck = diagnostics.securityCheck.items.find((item) => item.id === "password");
-  const canSubmit = currentPassword.length > 0 && newPassword.length >= 8 && newPassword === confirmPassword;
+  const canSubmit = currentPassword.length > 0 && newPassword.length >= 12 && newPassword === confirmPassword;
 
   const handleSubmit = async () => {
     setStatus(null);
-    if (newPassword.length < 8) {
+    if (newPassword.length < 12) {
       setStatus(t("adminPassword.tooShort"));
       return;
     }

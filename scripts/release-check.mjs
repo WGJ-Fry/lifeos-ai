@@ -989,6 +989,7 @@ function checkAssets() {
   else warn("PWA pairing intent malformed-token hardening lacks source or test coverage");
   const coreRoutesSource = exists("server/routes/coreRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/coreRoutes.ts"), "utf8") : "";
   const adminDashboardSource = exists("src/pages/admin/AdminDashboardPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminDashboardPage.tsx"), "utf8") : "";
+  const adminPasswordPanelSource = exists("src/pages/admin/settings/AdminPasswordPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/AdminPasswordPanel.tsx"), "utf8") : "";
   const securityDiagnosticsSource = exists("server/securityDiagnostics.ts") ? fs.readFileSync(path.join(rootDir, "server/securityDiagnostics.ts"), "utf8") : "";
   const publicModeTestSource = exists("tests/public-mode.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/public-mode.test.mjs"), "utf8") : "";
   if (
@@ -1010,7 +1011,11 @@ function checkAssets() {
     adminDashboardSource.includes("dashboard.createBackupNow") &&
     adminDashboardSource.includes("dashboard.enableAutoBackup") &&
     adminDashboardSource.includes("/admin/settings#backup-schedule") &&
+    adminPasswordPanelSource.includes("newPassword.length >= 12") &&
+    adminPasswordPanelSource.includes("newPassword.length < 12") &&
     translationsSource.includes("dashboard.publicRiskTitle") &&
+    translationsSource.includes("至少需要 12 位") &&
+    !translationsSource.includes("新密码至少需要 8 位") &&
     publicModeTestSource.includes("backupSchedule") &&
     publicModeTestSource.includes("health exposes saved desktop remote entry mode for mobile recovery") &&
     publicModeTestSource.includes("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input") &&
