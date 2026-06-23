@@ -526,11 +526,13 @@ function checkAssets() {
     adminOnboardingSource.includes("updateBackupSchedule") &&
     adminOnboardingSource.includes("updateActiveAiProvider") &&
     adminOnboardingSource.includes("onboarding.enableDailyBackup") &&
+    adminOnboardingSource.includes("onboarding.longTermBackupReminderTitle") &&
     adminOnboardingSource.includes("backupSchedule?.nextRunAt") &&
     adminOnboardingSource.includes("onboarding.defaultProvider") &&
     adminOnboardingSource.includes("onboarding.setDefault") &&
     adminOnboardingSource.includes("/admin/settings#mobile-connect") &&
     translationsSource.includes("onboarding.enableDailyBackup") &&
+    translationsSource.includes("onboarding.longTermBackupReminderBody") &&
     translationsSource.includes("Set as Default Chat Provider")
   ) pass("first-launch onboarding has authoritative status, completion, audit, and login routing");
   else warn("first-launch onboarding is missing status, completion, audit, or login routing");

@@ -488,6 +488,12 @@ export default function AdminOnboardingPage() {
               {backupSchedule?.nextRunAt ? <div>{t("onboarding.nextBackup", { time: new Date(backupSchedule.nextRunAt).toLocaleString() })}</div> : null}
               <div className="mt-2 truncate text-emerald-300">{latestBackup?.file || t("onboarding.noInitialBackup")}</div>
             </div>
+            {hasBackup && !backupSchedule?.enabled ? (
+              <div className="mt-3 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
+                <div className="font-bold">{t("onboarding.longTermBackupReminderTitle")}</div>
+                <div className="mt-1 text-amber-100/80">{t("onboarding.longTermBackupReminderBody")}</div>
+              </div>
+            ) : null}
             <div className="mt-5 grid gap-3">
               <button
                 onClick={handleCreateBackup}

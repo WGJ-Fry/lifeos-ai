@@ -299,6 +299,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /updateBackupSchedule/);
   assert.match(onboardingSource, /updateActiveAiProvider/);
   assert.match(onboardingSource, /onboarding\.enableDailyBackup/);
+  assert.match(onboardingSource, /onboarding\.longTermBackupReminderTitle/);
   assert.match(onboardingSource, /backupSchedule\.nextRunAt/);
   assert.match(onboardingSource, /onboarding\.defaultProvider/);
   assert.match(onboardingSource, /onboarding\.setDefault/);
@@ -315,6 +316,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.finish/);
   assert.match(onboardingSource, /completedSteps} \/ 4/);
   assert.match(translationsSource, /开启每日自动备份/);
+  assert.match(translationsSource, /长期使用建议开启自动备份/);
   assert.match(translationsSource, /打开日志文件夹/);
   assert.match(translationsSource, /导出诊断包/);
   assert.match(translationsSource, /必须处理/);
