@@ -951,12 +951,19 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(configDiagnosticsPanelSource, /ai-provider/);
   assert.match(configDiagnosticsPanelSource, /#mobile-connect/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.fixAction/);
+  assert.match(configDiagnosticsPanelSource, /securityItemText/);
+  assert.match(configDiagnosticsPanelSource, /diagnostics\.security\.\$\{field\}/);
+  assert.match(configDiagnosticsPanelSource, /securityItemText\(item, "label"/);
+  assert.match(configDiagnosticsPanelSource, /securityItemText\(item, "action"/);
   assert.match(adminPasswordPanelSource, /id="admin-password-strength"/);
   assert.match(adminPasswordPanelSource, /newPassword\.length >= 12/);
   assert.match(adminPasswordPanelSource, /newPassword\.length < 12/);
   assert.match(translationsSource, /发布包/);
   assert.match(translationsSource, /自动备份/);
   assert.match(translationsSource, /去处理/);
+  assert.match(translationsSource, /公网访问、升级或迁移前先创建一次备份/);
+  assert.match(translationsSource, /Cloudflare Tunnel、Tailscale HTTPS Serve/);
+  assert.match(translationsSource, /LIFEOS_TRUST_PROXY=1/);
   assert.match(translationsSource, /至少需要 12 位/);
   assert.doesNotMatch(translationsSource, /新密码至少需要 8 位/);
 

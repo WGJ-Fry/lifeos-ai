@@ -1615,9 +1615,16 @@ function checkAssets() {
     configDiagnosticsPanelSource.includes("ai-provider") &&
     configDiagnosticsPanelSource.includes("#mobile-connect") &&
     configDiagnosticsPanelSource.includes("diagnostics.fixAction") &&
+    configDiagnosticsPanelSource.includes("securityItemText") &&
+    configDiagnosticsPanelSource.includes("diagnostics.security.${field}") &&
+    configDiagnosticsPanelSource.includes('securityItemText(item, "label"') &&
+    configDiagnosticsPanelSource.includes('securityItemText(item, "action"') &&
     translationsSource.includes("diagnostics.releasePackage") &&
     translationsSource.includes("diagnostics.autoBackup") &&
     translationsSource.includes("diagnostics.fixAction") &&
+    translationsSource.includes("diagnostics.security.action.backup") &&
+    translationsSource.includes("diagnostics.security.action.https") &&
+    translationsSource.includes("diagnostics.security.action.trustedProxy") &&
     frontendSmokeTestSource.includes("diagnostics\\.release\\.manifestAvailable")
   ) pass("admin settings diagnostics surfaces release manifest and checksum status");
   else warn("admin settings diagnostics does not surface release manifest/checksum status");

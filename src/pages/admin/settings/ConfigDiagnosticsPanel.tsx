@@ -18,6 +18,12 @@ function securityFixHref(itemId: string) {
   return "/admin/settings";
 }
 
+function securityItemText(item: { id: string; label: string; action: string }, field: "label" | "action", t: ReturnType<typeof useI18n>["t"]) {
+  const knownIds = new Set(["admin", "password", "https", "publicBaseUrlInput", "publicOptIn", "sessionCookies", "trustedProxy", "ai", "backup", "backupFreshness", "backupSchedule"]);
+  if (!knownIds.has(item.id)) return field === "label" ? item.label : item.action;
+  return t(`diagnostics.security.${field}.${item.id}` as any);
+}
+
 export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: ConfigDiagnostics }) {
   const { t } = useI18n();
   const latestArtifact = diagnostics.release.artifacts[0];
@@ -99,7 +105,7 @@ export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: C
           {diagnostics.securityCheck.items.map((item) => (
             <div key={item.id} className="rounded-xl border border-white/[0.06] bg-[#060a10] p-3 text-xs">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-bold text-zinc-200">{item.label}</span>
+                <span className="font-bold text-zinc-200">{securityItemText(item, "label", t)}</span>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                   item.status === "critical"
                     ? "bg-red-500/10 text-red-200"
@@ -111,7 +117,7 @@ export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: C
                 </span>
               </div>
                   <div className="mt-2 text-zinc-400">{item.message}</div>
-                  <div className="mt-1 text-zinc-500">{item.action}</div>
+                  <div className="mt-1 text-zinc-500">{securityItemText(item, "action", t)}</div>
                   {item.status !== "ok" ? (
                     <a href={securityFixHref(item.id)} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-cyan-300/20 bg-cyan-500/10 px-2.5 py-1.5 text-[11px] font-bold text-cyan-100">
                       {t("diagnostics.fixAction")}
