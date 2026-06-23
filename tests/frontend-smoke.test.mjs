@@ -314,9 +314,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.openLogsFolder/);
   assert.match(onboardingSource, /onboarding\.exportDiagnostics/);
   assert.match(onboardingSource, /onboarding\.finish/);
+  assert.match(onboardingSource, /incompleteStepLabels/);
+  assert.match(onboardingSource, /onboarding\.finishBlocked/);
+  assert.match(onboardingSource, /onboarding\.finishReady/);
   assert.match(onboardingSource, /completedSteps} \/ 4/);
   assert.match(translationsSource, /开启每日自动备份/);
   assert.match(translationsSource, /长期使用建议开启自动备份/);
+  assert.match(translationsSource, /还不能完成向导/);
+  assert.match(translationsSource, /The guide cannot be finished yet/);
   assert.match(translationsSource, /打开日志文件夹/);
   assert.match(translationsSource, /导出诊断包/);
   assert.match(translationsSource, /必须处理/);

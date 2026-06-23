@@ -62,6 +62,12 @@ export default function AdminOnboardingPage() {
         };
     }
   };
+  const incompleteStepLabels = onboarding?.steps
+    .filter((step) => !step.done)
+    .map((step) => localizedStepMeta(step.id, step.done).label) || [];
+  const finishHint = onboarding?.completed
+    ? t("onboarding.finishReady")
+    : t("onboarding.finishBlocked", { steps: incompleteStepLabels.join(t("onboarding.stepSeparator")) || t("onboarding.unknownStep") });
 
   const refresh = async () => {
     const [providerData, diagnosticsData, backupData, scheduleData, deviceData, onboardingData] = await Promise.all([listAiProviders(), getConfigDiagnostics(), listBackups(), getBackupSchedule(), listDevices(), getOnboardingStatus()]);
@@ -547,19 +553,24 @@ export default function AdminOnboardingPage() {
           <a href="/admin/settings" className="text-sm font-bold text-zinc-400 hover:text-cyan-200">
             {t("onboarding.continueSettings")}
           </a>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              onClick={handleCompleteOnboarding}
-              disabled={!onboarding?.completed || busy === "complete"}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#061016] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {busy === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {t("onboarding.finish")}
-            </button>
-            <a href="/admin/dashboard" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-3 text-sm font-bold text-zinc-200">
-              {t("onboarding.enterDashboard")}
-              <ArrowRight className="h-4 w-4" />
-            </a>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <div className={`max-w-xl text-xs leading-relaxed ${onboarding?.completed ? "text-emerald-300" : "text-amber-200"}`}>
+              {finishHint}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                onClick={handleCompleteOnboarding}
+                disabled={!onboarding?.completed || busy === "complete"}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#061016] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {busy === "complete" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {t("onboarding.finish")}
+              </button>
+              <a href="/admin/dashboard" className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-3 text-sm font-bold text-zinc-200">
+                {t("onboarding.enterDashboard")}
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            </div>
           </div>
         </div>
       </main>
