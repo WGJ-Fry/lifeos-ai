@@ -1318,8 +1318,11 @@ function checkAssets() {
     pwaCapabilitiesSource.includes("indexedDbSupported") &&
     mobileDeviceSource.includes("mobileDevice.pwaTitle") &&
     mobileDeviceSource.includes("MobileDeviceHealthSummary") &&
+    mobileDeviceSource.includes("queueStorage={queueStorage}") &&
     mobileDeviceHealthSummarySource.includes("mobileDevice.healthTitle") &&
-    mobileDeviceHealthSummarySource.includes("queueSummary.failed") &&
+    mobileDeviceHealthSummarySource.includes("buildOfflineQueueHealth") &&
+    mobileDeviceHealthSummarySource.includes("queueHealth.titleKey") &&
+    mobileDeviceHealthSummarySource.includes("queueStorage") &&
     mobileDeviceHealthSummarySource.includes("currentEntry.okForRemote") &&
     mobileDeviceHealthSummarySource.includes("lastConnectivityResult?.ok") &&
     mobileDeviceSource.includes("mobileDevice.remoteVerdict") &&

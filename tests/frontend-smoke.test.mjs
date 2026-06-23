@@ -408,7 +408,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /mobileDevice\.pwaRecommendation\.indexedDbUnavailable/);
   assert.match(mobileDeviceSource, /MobileDeviceHealthSummary/);
   assert.match(mobileDeviceHealthSummarySource, /mobileDevice\.healthTitle/);
-  assert.match(mobileDeviceHealthSummarySource, /queueSummary\.failed/);
+  assert.match(mobileDeviceHealthSummarySource, /buildOfflineQueueHealth/);
+  assert.match(mobileDeviceHealthSummarySource, /queueHealth\.titleKey/);
+  assert.match(mobileDeviceHealthSummarySource, /queueStorage/);
+  assert.match(mobileDeviceSource, /queueStorage=\{queueStorage\}/);
   assert.match(mobileDeviceHealthSummarySource, /currentEntry\.okForRemote/);
   assert.match(mobileDeviceHealthSummarySource, /lastConnectivityResult\?\.ok/);
   assert.match(translationsSource, /手机端健康摘要/);

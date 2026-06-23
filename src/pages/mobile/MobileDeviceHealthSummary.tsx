@@ -1,6 +1,8 @@
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import type { DeviceCredentialStorageStatus, StoredDeviceCredential } from "../../services/lifeosApi";
-import type { OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
+import type { OfflineMessageQueueStorageStatus, OfflineMessageQueueSummary } from "../../services/offlineMessageQueue";
+import { buildOfflineQueueHealth } from "../../services/offlineQueueHealth";
+import type { NetworkStatus } from "../../services/networkStatus";
 import type { MobileConnectivityResult, PwaCapabilityStatus, RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
 
@@ -17,6 +19,8 @@ export default function MobileDeviceHealthSummary({
   credentialStorage,
   pwaCapabilities,
   queueSummary,
+  queueStorage,
+  network,
   currentEntry,
   lastConnectivityResult,
 }: {
@@ -24,10 +28,14 @@ export default function MobileDeviceHealthSummary({
   credentialStorage: DeviceCredentialStorageStatus | null;
   pwaCapabilities: PwaCapabilityStatus;
   queueSummary: OfflineMessageQueueSummary;
+  queueStorage: OfflineMessageQueueStorageStatus | null;
+  network: NetworkStatus;
   currentEntry: RemoteEntryStatus;
   lastConnectivityResult: MobileConnectivityResult | null;
 }) {
   const { t } = useI18n();
+  const queueHealth = buildOfflineQueueHealth(queueSummary, queueStorage, network, currentEntry);
+  const queueTone: HealthTone = queueHealth.tone === "danger" ? "risk" : queueHealth.tone === "ok" ? "ok" : "warn";
   const checks = [
     {
       tone: credential ? "ok" : "risk",
@@ -45,13 +53,9 @@ export default function MobileDeviceHealthSummary({
       value: pwaCapabilities.standalone ? t("mobileDevice.startedFromIcon") : t("mobileDevice.browserTab"),
     },
     {
-      tone: queueSummary.failed ? "risk" : queueSummary.count ? "warn" : "ok",
+      tone: queueTone,
       label: t("mobileDevice.healthOfflineQueue"),
-      value: queueSummary.failed
-        ? t("mobileDevice.healthQueueFailed", { count: queueSummary.failed })
-        : queueSummary.count
-          ? t("mobileDevice.healthQueuePending", { count: queueSummary.count })
-          : t("mobileDevice.healthQueueClear"),
+      value: t(queueHealth.titleKey as any),
     },
     {
       tone: currentEntry.okForRemote ? "ok" : currentEntry.kind === "localhost" ? "risk" : "warn",

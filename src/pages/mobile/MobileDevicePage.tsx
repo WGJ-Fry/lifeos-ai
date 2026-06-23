@@ -263,6 +263,8 @@ export default function MobileDevicePage() {
           credentialStorage={credentialStorage}
           pwaCapabilities={pwaCapabilities}
           queueSummary={queueSummary}
+          queueStorage={queueStorage}
+          network={network}
           currentEntry={currentEntry}
           lastConnectivityResult={lastConnectivityResult}
         />
