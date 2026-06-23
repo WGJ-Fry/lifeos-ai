@@ -617,6 +617,7 @@ function checkAssets() {
     adminRoutesSource.includes("/api/v1/admin/tailscale-serve/stop") &&
     networkDiagnosticsSource.includes("tailscale-serve-https") &&
     connectionGuideSource.includes("connection.recommendedAddress") &&
+    connectionGuideSource.includes("connection.temporaryRecommendedDescription") &&
     connectionGuideSource.includes("tailscale.loginCommand") &&
     connectionGuideSource.includes("connection.notDetected") &&
     connectionGuideSource.includes("connection.recommendedEnv") &&
@@ -807,6 +808,7 @@ function checkAssets() {
     desktopRuntimeConfigSource.includes('mode === "configured" || mode === "cloudflare"') &&
     desktopRuntimeConfigSource.includes("Public remote connection modes require an HTTPS baseUrl") &&
     translationsSource.includes("connection.recommendedAddress") &&
+    translationsSource.includes("connection.temporaryRecommendedDescription") &&
     translationsSource.includes("connection.recommendedEnv") &&
     translationsSource.includes("connection.copyRecommendedEnv") &&
     translationsSource.includes("connection.saveDesktopConfig") &&

@@ -204,6 +204,8 @@ export default function ConnectionGuide({ health }: { health: Health | null }) {
               <div className="mt-2 text-xs leading-relaxed text-cyan-100/75">
                 {!recommendedCandidate
                   ? t("connection.noPhoneReachableDescription")
+                  : recommendedCandidate.stability === "temporary"
+                  ? t("connection.temporaryRecommendedDescription")
                   : recommendedCandidate.requiresRestart
                   ? t("connection.restartRequiredDescription")
                   : t("connection.activeDescription")}

@@ -428,6 +428,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /同局域网入口/);
   assert.match(translationsSource, /当前使用临时 Cloudflare 地址/);
   assert.match(translationsSource, /当前入口与电脑端配置不一致/);
+  assert.match(translationsSource, /这是临时入口/);
   assert.match(translationsSource, /添加到手机主屏幕/);
   assert.match(translationsSource, /IndexedDB 不可用/);
   assert.match(translationsSource, /add LifeOS to the home screen/);
@@ -623,6 +624,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const connectionGuideSource = await readFile(path.join(rootDir, "src", "pages", "admin", "ConnectionGuide.tsx"), "utf8");
   assert.match(connectionGuideSource, /id="mobile-connect"/);
   assert.match(connectionGuideSource, /connection\.recommendedAddress/);
+  assert.match(connectionGuideSource, /connection\.temporaryRecommendedDescription/);
   assert.match(connectionGuideSource, /connection\.recommendedEnv/);
   assert.match(connectionGuideSource, /recommended-env/);
   assert.match(connectionGuideSource, /connection\.copyRecommendedEnv/);
