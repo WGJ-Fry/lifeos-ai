@@ -1420,7 +1420,9 @@ function checkAssets() {
     mobileOfflineQueueCardsSource.includes("offlineQueue.status.syncing") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.status.failed") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.readyToRetry") &&
-    mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueStorageLabel") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.storageIndexedDb") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.storageLocalStorage") &&
+    !mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueStorageLabel") &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageQueueUsageLabel") &&
     mobileOfflineQueueCardsSource.includes("storage.nearByteLimit") &&
     mobileOfflineQueueCardsSource.includes("storage.maxBytes") &&
@@ -1433,6 +1435,10 @@ function checkAssets() {
     mobileOfflineQueueCardsSource.includes("offlineQueue.recommendation.browserStorage") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.recommendation.persistentStorage") &&
     translationsSource.includes("offlineQueue.storageTitle") &&
+    translationsSource.includes("offlineQueue.storageIndexedDb") &&
+    translationsSource.includes("offlineQueue.storageLocalStorage") &&
+    translationsSource.includes("offlineQueue.storageMemory") &&
+    translationsSource.includes("offlineQueue.storageUnavailable") &&
     translationsSource.includes("offlineQueue.legacyMirror") &&
     translationsSource.includes("offlineQueue.persistentStorage") &&
     translationsSource.includes("offlineQueue.requestPersistentStorage") &&

@@ -1,7 +1,6 @@
 import {
   formatOfflineMessageQueueBytes,
   getOfflineMessageNextRetryAt,
-  getOfflineMessageQueueStorageLabel,
   getOfflineMessageQueueUsageLabel,
   type OfflineMessageQueueStorageStatus,
   type OfflineQueuedMessage,
@@ -19,12 +18,19 @@ function recommendationKey(recommendation: string) {
   return "";
 }
 
+function storageLabelKey(storage: OfflineMessageQueueStorageStatus["storage"]) {
+  if (storage === "indexeddb") return "offlineQueue.storageIndexedDb";
+  if (storage === "localStorage") return "offlineQueue.storageLocalStorage";
+  if (storage === "memory") return "offlineQueue.storageMemory";
+  return "offlineQueue.storageUnavailable";
+}
+
 export function QueueStorageCard({ storage, onRequestPersistence }: { storage: OfflineMessageQueueStorageStatus; onRequestPersistence?: () => void }) {
   const { t } = useI18n();
   const tone = storage.available && !storage.nearItemLimit && !storage.nearByteLimit && (storage.usageRatio === undefined || storage.usageRatio <= 0.8)
     ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
     : "border-amber-400/20 bg-amber-500/10 text-amber-100";
-  const storageLabel = getOfflineMessageQueueStorageLabel(storage.storage);
+  const storageLabel = t(storageLabelKey(storage.storage) as any);
   return (
     <div className={`mt-4 rounded-2xl border p-4 text-xs ${tone}`}>
       <div className="mb-2 font-bold">{t("offlineQueue.storageTitle", { storage: storageLabel })}</div>

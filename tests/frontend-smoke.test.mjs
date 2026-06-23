@@ -564,7 +564,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.status\.syncing/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.status\.failed/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.readyToRetry/);
-  assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageQueueStorageLabel/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.storageIndexedDb/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.storageLocalStorage/);
+  assert.doesNotMatch(mobileOfflineQueueCardsSource, /getOfflineMessageQueueStorageLabel/);
   assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageQueueUsageLabel/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.storageTitle/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.legacyMirror/);
@@ -599,6 +601,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /可以重试/);
   assert.match(translationsSource, /浏览器存储空间接近上限/);
   assert.match(translationsSource, /离线队列为空/);
+  assert.match(translationsSource, /IndexedDB 主存储/);
+  assert.match(translationsSource, /内存临时队列/);
   assert.match(translationsSource, /localStorage 兼容镜像/);
   assert.match(translationsSource, /持久化存储/);
   assert.match(translationsSource, /失败原因/);
