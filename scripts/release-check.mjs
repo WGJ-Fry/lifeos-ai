@@ -195,6 +195,11 @@ function checkScripts() {
   } else {
     fail("npm test must include tests/connection-setup-packet.test.mjs");
   }
+  if (testScriptForTsRuntime.includes("tests/pwa-service-worker-lifecycle.test.mjs")) {
+    pass("npm test covers PWA service worker lifecycle regressions");
+  } else {
+    fail("npm test must include tests/pwa-service-worker-lifecycle.test.mjs");
+  }
 
   if (exists("scripts/desktop-release-smoke.mjs")) pass("desktop release smoke script exists");
   else fail("missing desktop release smoke script: scripts/desktop-release-smoke.mjs");
@@ -507,6 +512,7 @@ function checkAssets() {
   }
 
   const mainSource = exists("src/main.tsx") ? fs.readFileSync(path.join(rootDir, "src/main.tsx"), "utf8") : "";
+  const pwaServiceWorkerLifecycleSource = exists("src/services/pwaServiceWorkerLifecycle.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaServiceWorkerLifecycle.ts"), "utf8") : "";
   if (
     mainSource.includes("basename={lifeosBasePath || undefined}") &&
     mainSource.includes("navigator.serviceWorker.register(`${lifeosBasePath}/sw.js`")
@@ -514,6 +520,13 @@ function checkAssets() {
   else fail("PWA router or service worker registration does not preserve reverse-proxy base paths");
   if (mainSource.includes("controllerchange") && mainSource.includes("window.location.reload()") && mainSource.includes("registration.update()")) pass("PWA client reloads after service worker updates");
   else warn("PWA client does not reload after service worker updates");
+  if (
+    mainSource.includes("lifeos-service-worker-update") &&
+    pwaServiceWorkerLifecycleSource.includes("getPwaServiceWorkerLifecycleStatus") &&
+    pwaServiceWorkerLifecycleSource.includes("swUpdateReadyTitle") &&
+    pwaServiceWorkerLifecycleSource.includes("subscribePwaServiceWorkerLifecycle")
+  ) pass("PWA client exposes service worker update lifecycle to the mobile UI");
+  else fail("PWA service worker lifecycle is not visible to the mobile UI");
 
   if (
     mobileInstallSource.includes("getConfiguredPublicBasePath") &&

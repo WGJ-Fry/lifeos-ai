@@ -402,6 +402,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /Service Worker/);
   assert.match(mobileDeviceSource, /Background Sync/);
   assert.match(mobileDeviceSource, /IndexedDB/);
+  assert.match(mobileDeviceSource, /getPwaServiceWorkerLifecycleStatus/);
+  assert.match(mobileDeviceSource, /subscribePwaServiceWorkerLifecycle/);
+  assert.match(mobileDeviceSource, /mobileDevice\.swLifecycle/);
   assert.match(mobileDeviceSource, /pwaCapabilities\.recommendations/);
   assert.match(mobileDeviceSource, /pwaRecommendationKey/);
   assert.match(mobileDeviceSource, /mobileDevice\.pwaRecommendation\.addToHome/);
@@ -415,6 +418,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceHealthSummarySource, /currentEntry\.okForRemote/);
   assert.match(mobileDeviceHealthSummarySource, /lastConnectivityResult\?\.ok/);
   assert.match(translationsSource, /手机端健康摘要/);
+  assert.match(translationsSource, /新版离线壳待启用/);
+  assert.match(translationsSource, /New Offline Shell Ready/);
   assert.match(mobileDeviceSource, /getHealth/);
   assert.match(mobileDeviceSource, /mobileDevice\.remoteEntryTitle/);
   assert.match(mobileDeviceSource, /mobileDevice\.remoteVerdict/);

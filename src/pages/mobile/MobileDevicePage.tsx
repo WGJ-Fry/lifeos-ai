@@ -8,6 +8,8 @@ import { getNetworkStatus } from "../../services/networkStatus";
 import { extractPairingToken, pairingInstallPath } from "../../services/mobilePairingIntent";
 import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
 import type { MobileConnectivityResult } from "../../services/pwaCapabilities";
+import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle } from "../../services/pwaServiceWorkerLifecycle";
+import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
 import MobileConnectivityCard from "./MobileConnectivityCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileLastConnectivityCard from "./MobileLastConnectivityCard";
@@ -38,6 +40,7 @@ export default function MobileDevicePage() {
   const [pwaCapabilities, setPwaCapabilities] = useState(() => getPwaCapabilityStatus());
   const [credentialStorage, setCredentialStorage] = useState<DeviceCredentialStorageStatus | null>(null);
   const [queueStorage, setQueueStorage] = useState<OfflineMessageQueueStorageStatus | null>(null);
+  const [swLifecycle, setSwLifecycle] = useState<PwaServiceWorkerLifecycleStatus | null>(null);
   const [health, setHealth] = useState<Awaited<ReturnType<typeof getHealth>> | null>(null);
   const [connectivityTest, setConnectivityTest] = useState<MobileConnectivityResult | null>(null);
   const [lastConnectivityReport, setLastConnectivityReport] = useState<DeviceConnectivityReport | null>(null);
@@ -76,12 +79,17 @@ export default function MobileDevicePage() {
     }
   };
 
+  const refreshServiceWorkerLifecycle = () => {
+    void getPwaServiceWorkerLifecycleStatus().then(setSwLifecycle).catch(() => setSwLifecycle(null));
+  };
+
   useEffect(() => {
     let cancelled = false;
     getStoredDeviceCredentialAsync().then((next) => {
       if (!cancelled) setCredential(next);
       return refreshCredentialStorage();
     });
+    refreshServiceWorkerLifecycle();
     Promise.allSettled([getHealth(), getLatestMobileConnectivityReport()]).then(([healthResult, reportResult]) => {
       if (cancelled) return;
       setHealth(healthResult.status === "fulfilled" ? healthResult.value : null);
@@ -96,6 +104,7 @@ export default function MobileDevicePage() {
     const refreshNetwork = () => {
       setNetwork(getNetworkStatus());
       setPwaCapabilities(getPwaCapabilityStatus());
+      refreshServiceWorkerLifecycle();
     };
     window.addEventListener("online", refreshNetwork);
     window.addEventListener("offline", refreshNetwork);
@@ -110,6 +119,8 @@ export default function MobileDevicePage() {
     };
   }, []);
 
+  useEffect(() => subscribePwaServiceWorkerLifecycle(refreshServiceWorkerLifecycle), []);
+
   const refreshQueue = () => {
     setQueueSummary(getOfflineMessageQueueSummary());
     setQueueItems(getOfflineMessageQueue());
@@ -119,6 +130,7 @@ export default function MobileDevicePage() {
   const refreshRecoverableState = () => {
     setNetwork(getNetworkStatus());
     setPwaCapabilities(getPwaCapabilityStatus());
+    refreshServiceWorkerLifecycle();
     refreshQueue();
     void refreshServerState();
   };
@@ -373,7 +385,16 @@ export default function MobileDevicePage() {
             <CapabilityRow label="Service Worker" ok={pwaCapabilities.serviceWorkerSupported && pwaCapabilities.serviceWorkerControlled} value={pwaCapabilities.serviceWorkerControlled ? t("mobileDevice.offlineShellControlled") : pwaCapabilities.serviceWorkerSupported ? t("mobileDevice.supportedWaiting") : t("mobileDevice.unsupported")} />
             <CapabilityRow label="Background Sync" ok={pwaCapabilities.backgroundSyncSupported} value={pwaCapabilities.backgroundSyncSupported ? t("mobileDevice.backgroundSyncOk") : t("mobileDevice.openChatToSync")} />
             <CapabilityRow label="IndexedDB" ok={pwaCapabilities.indexedDbSupported} value={pwaCapabilities.indexedDbSupported ? t("mobileDevice.indexedDbCredentialOk") : t("mobileDevice.unavailable")} />
+            {swLifecycle ? (
+              <CapabilityRow label={t("mobileDevice.swLifecycle")} ok={swLifecycle.tone === "ok"} value={t(swLifecycle.titleKey as any)} />
+            ) : null}
           </div>
+          {swLifecycle ? (
+            <div className={`mt-4 rounded-2xl border p-3 text-xs leading-relaxed ${swLifecycle.tone === "ok" ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100" : swLifecycle.tone === "warn" ? "border-amber-400/20 bg-amber-500/10 text-amber-100" : "border-red-400/20 bg-red-500/10 text-red-100"}`}>
+              <div className="font-bold">{t(swLifecycle.titleKey as any)}</div>
+              <div className="mt-1 opacity-80">{t(swLifecycle.bodyKey as any)}</div>
+            </div>
+          ) : null}
           {pwaCapabilities.recommendations.length ? (
             <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">
               {pwaCapabilities.recommendations.map((recommendation) => {

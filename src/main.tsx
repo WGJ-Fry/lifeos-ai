@@ -65,7 +65,11 @@ createRoot(document.getElementById('root')!).render(
 
 if ("serviceWorker" in navigator && (import.meta as any).env?.PROD) {
   let reloadedForServiceWorkerUpdate = false;
+  const notifyServiceWorkerUpdate = () => {
+    window.dispatchEvent(new CustomEvent("lifeos-service-worker-update"));
+  };
   navigator.serviceWorker.addEventListener("controllerchange", () => {
+    notifyServiceWorkerUpdate();
     if (reloadedForServiceWorkerUpdate) return;
     reloadedForServiceWorkerUpdate = true;
     window.location.reload();
@@ -75,8 +79,11 @@ if ("serviceWorker" in navigator && (import.meta as any).env?.PROD) {
     navigator.serviceWorker.register(`${lifeosBasePath}/sw.js`, { scope: `${lifeosBasePath || "/"}` })
       .then((registration) => {
         registration.waiting?.postMessage({ type: "LIFEOS_SKIP_WAITING" });
+        if (registration.waiting) notifyServiceWorkerUpdate();
         registration.addEventListener("updatefound", () => {
+          notifyServiceWorkerUpdate();
           registration.installing?.addEventListener("statechange", () => {
+            notifyServiceWorkerUpdate();
             if (registration.waiting) {
               registration.waiting.postMessage({ type: "LIFEOS_SKIP_WAITING" });
             }
