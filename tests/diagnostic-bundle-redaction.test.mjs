@@ -75,7 +75,7 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
 
   const auditModule = await import(`../server/audit.ts?diagnostic=${Date.now()}`);
   auditModule.insertAuditLog("diagnostic_redaction_seed", "network", "https://user:password@example.com/pair?token=audit-secret#frag", {
-    command: `PUBLIC_BASE_URL=${process.env.PUBLIC_BASE_URL} npm run start`,
+    command: `Authorization: Basic Z2l0aHViOmRpYWdub3N0aWM= github_pat_diagnosticSecret_1234567890 PUBLIC_BASE_URL=${process.env.PUBLIC_BASE_URL} npm run start`,
     localPath: path.join(dataDir, "lifeos.db"),
   });
   const remoteValidationModule = await import(`../server/remoteValidationReport.ts?diagnostic=${Date.now()}`);
@@ -138,6 +138,8 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(serialized.includes("sk-or-diagnostic-secret"), false);
   assert.equal(serialized.includes("local-secret"), false);
   assert.equal(serialized.includes("remote-secret"), false);
+  assert.equal(serialized.includes("Z2l0aHViOmRpYWdub3N0aWM"), false);
+  assert.equal(serialized.includes("github_pat_diagnosticSecret"), false);
   assert.equal(bundle.remote.acceptanceRunbooks.total, 1);
   assert.equal(bundle.remote.acceptanceRunbooks.latest[0].entryKind, "stable-https");
   assert.equal(serialized.includes("remote-secret"), false);

@@ -21,7 +21,7 @@ test("audit log metadata is redacted before API-style reads", async (t) => {
     apiKey: "sk-live-secret",
     callbackUrl: "https://example.com/callback?token=query-secret#debug",
     localFile: "/Users/example/private/lifeos.db",
-    command: "PUBLIC_BASE_URL=https://user:password@example.com/lifeos?token=query-secret#debug npm run start",
+    command: "Authorization: Basic Z2l0aHViOmF1ZGl0 github_pat_auditSecret_1234567890 PUBLIC_BASE_URL=https://user:password@example.com/lifeos?token=query-secret#debug npm run start",
     nested: {
       token: "device-token-secret",
       publicLabel: "safe-label",
@@ -40,6 +40,8 @@ test("audit log metadata is redacted before API-style reads", async (t) => {
   assert.equal(rawSerialized.includes("sk-live-secret"), false);
   assert.equal(rawSerialized.includes("query-secret"), false);
   assert.equal(rawSerialized.includes("bind_secret"), false);
+  assert.equal(rawSerialized.includes("Z2l0aHViOmF1ZGl0"), false);
+  assert.equal(rawSerialized.includes("github_pat_auditSecret"), false);
   assert.equal(rawSerialized.includes("user:password"), false);
   assert.equal(rawSerialized.includes("/Users/example"), false);
 
@@ -48,7 +50,7 @@ test("audit log metadata is redacted before API-style reads", async (t) => {
   assert.equal(log.metadataJson.apiKey, "[redacted]");
   assert.equal(log.metadataJson.callbackUrl, "https://example.com/callback?[redacted]#[redacted]");
   assert.equal(log.metadataJson.localFile, "[local-path]");
-  assert.equal(log.metadataJson.command, "PUBLIC_BASE_URL=https://example.com/lifeos?[redacted]#[redacted] npm run start");
+  assert.equal(log.metadataJson.command, "Authorization: Basic [redacted] [redacted] PUBLIC_BASE_URL=https://example.com/lifeos?[redacted]#[redacted] npm run start");
   assert.equal(log.metadataJson.nested.token, "[redacted]");
   assert.equal(log.metadataJson.nested.backupPath, "[redacted]");
   assert.equal(log.metadataJson.nested.publicLabel, "safe-label");
@@ -58,6 +60,8 @@ test("audit log metadata is redacted before API-style reads", async (t) => {
   assert.equal(JSON.stringify(log).includes("sk-live-secret"), false);
   assert.equal(JSON.stringify(log).includes("query-secret"), false);
   assert.equal(JSON.stringify(log).includes("bind_secret"), false);
+  assert.equal(JSON.stringify(log).includes("Z2l0aHViOmF1ZGl0"), false);
+  assert.equal(JSON.stringify(log).includes("github_pat_auditSecret"), false);
   assert.equal(JSON.stringify(log).includes("user:password"), false);
   assert.equal(JSON.stringify(log).includes("/Users/example"), false);
 });

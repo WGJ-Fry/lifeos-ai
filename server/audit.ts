@@ -20,6 +20,8 @@ function redactUrl(value: string) {
 export function redactAuditString(value: string) {
   const redacted = value
     .replace(/Bearer\s+[A-Za-z0-9._~+/-]+/gi, "Bearer [redacted]")
+    .replace(/Basic\s+[A-Za-z0-9._~+/-]+={0,2}/gi, "Basic [redacted]")
+    .replace(/\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]{20,})\b/g, "[redacted]")
     .replace(/\bAIzaSy[A-Za-z0-9_-]{20,}\b/g, "[redacted]")
     .replace(/\bsk-(?:or-)?[A-Za-z0-9_-]{16,}\b/g, "[redacted]")
     .replace(/\b(?:bind|device)_[A-Za-z0-9_-]{8,}\b/g, "[redacted]")
@@ -27,7 +29,7 @@ export function redactAuditString(value: string) {
     .replace(/[A-Za-z]:\\[^\s,;"]+/g, "[local-path]")
     .replace(/https?:\/\/[^\s,;"'<>]+/gi, (match) => redactUrl(match));
 
-  return redactUrl(redacted);
+  return /^https?:\/\//i.test(redacted.trim()) ? redactUrl(redacted) : redacted;
 }
 
 export function redactAuditMetadata(value: unknown): unknown {

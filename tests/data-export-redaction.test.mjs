@@ -28,7 +28,7 @@ test("data export redaction covers secrets, urls, bearer tokens, and local paths
     privateKey: "private-key-secret",
     backupPath: "/Users/example/private/lifeos.db",
     callbackUrl: "https://user:password@example.com/callback?token=query-secret#debug",
-    command: "Authorization: Bearer abc123 PUBLIC_BASE_URL=https://user:password@example.com/lifeos?token=query-secret#debug /Users/example/private/lifeos.db",
+    command: "Authorization: Bearer abc123 Basic Z2l0aHViOnNlY3JldA== github_pat_exportSecret_1234567890 PUBLIC_BASE_URL=https://user:password@example.com/lifeos?token=query-secret#debug /Users/example/private/lifeos.db",
     nested: {
       token: "device-token-secret",
       safeCount: 2,
@@ -55,6 +55,8 @@ test("data export redaction covers secrets, urls, bearer tokens, and local paths
   assert.equal(redacted.backupPath, "[redacted]");
   assert.equal(redacted.callbackUrl, "https://example.com/callback?[redacted]#[redacted]");
   assert.equal(redacted.command.includes("abc123"), false);
+  assert.equal(redacted.command.includes("Z2l0aHViOnNlY3JldA"), false);
+  assert.equal(redacted.command.includes("github_pat_exportSecret"), false);
   assert.equal(redacted.command.includes("query-secret"), false);
   assert.equal(redacted.command.includes("/Users/example"), false);
   assert.equal(redacted.nested.token, "[redacted]");
@@ -81,6 +83,8 @@ test("data export redaction covers secrets, urls, bearer tokens, and local paths
     "refresh-secret",
     "encrypted-secret",
     "query-secret",
+    "Z2l0aHViOnNlY3JldA",
+    "github_pat_exportSecret",
     "/Users/example",
     "C:\\Users\\example",
   ]) {

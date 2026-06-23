@@ -1478,6 +1478,8 @@ function checkAssets() {
     dataLifecycleSource.includes('path.join(process.cwd(), "package.json")') &&
     !dataLifecycleSource.includes('version: "0.1.0"') &&
     dataExportRedactionTestSource.includes("should not leak in data export redaction") &&
+    dataExportRedactionTestSource.includes("Basic Z2l0aHViOnNlY3JldA==") &&
+    dataExportRedactionTestSource.includes("github_pat_exportSecret") &&
     dataExportRedactionTestSource.includes("C:\\\\Users\\\\example") &&
     apiAuthTestSource.includes("dataExport.version, packageJson.version") &&
     apiAuthTestSource.includes("scopedDataExport.version, packageJson.version") &&
@@ -1501,6 +1503,8 @@ function checkAssets() {
     diagnosticBundleSource.includes("acceptanceRecords") &&
     diagnosticBundleSource.includes("acceptanceRunbooks") &&
     diagnosticBundleTestSource.includes("bundle.release.manifestAvailable") &&
+    diagnosticBundleTestSource.includes("Basic Z2l0aHViOmRpYWdub3N0aWM=") &&
+    diagnosticBundleTestSource.includes("github_pat_diagnosticSecret") &&
     diagnosticBundleTestSource.includes("bundle.service.version, packageJson.version") &&
     diagnosticBundleTestSource.includes("bundle.release.version, packageJson.version") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
