@@ -115,6 +115,7 @@ function checkSourceSizeBudgets() {
     { path: "src/pages/admin/settings/BackupList.tsx", maxLines: 120, label: "Backup list" },
     { path: "src/pages/admin/settings/BackupPreviewCard.tsx", maxLines: 120, label: "Backup preview card" },
     { path: "src/pages/mobile/MobileDevicePage.tsx", maxLines: 520, label: "Mobile device page" },
+    { path: "src/pages/mobile/MobileOfflineQueuePanel.tsx", maxLines: 180, label: "Mobile offline queue panel" },
     { path: "src/pages/admin/ConnectionGuide.tsx", maxLines: 480, label: "Connection guide" },
     { path: "src/pages/admin/settings/AiKeyPanel.tsx", maxLines: 340, label: "AI key panel" },
     { path: "src/pages/admin/AdminDashboardPage.tsx", maxLines: 430, label: "Admin dashboard" },
@@ -1209,6 +1210,7 @@ function checkAssets() {
   const offlineQueueSource = exists("src/services/offlineMessageQueue.ts") ? fs.readFileSync(path.join(rootDir, "src/services/offlineMessageQueue.ts"), "utf8") : "";
   const offlineQueueBannerSource = exists("src/components/chat/OfflineQueueBanner.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/chat/OfflineQueueBanner.tsx"), "utf8") : "";
   const mobileOfflineQueueCardsSource = exists("src/pages/mobile/MobileOfflineQueueCards.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueueCards.tsx"), "utf8") : "";
+  const mobileOfflineQueuePanelSource = exists("src/pages/mobile/MobileOfflineQueuePanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueuePanel.tsx"), "utf8") : "";
   const offlineQueueTestSource = exists("tests/offline-queue.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/offline-queue.test.mjs"), "utf8") : "";
   const pwaCapabilitiesSource = exists("src/services/pwaCapabilities.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaCapabilities.ts"), "utf8") : "";
   const pwaCapabilitiesTestSource = exists("tests/pwa-capabilities.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/pwa-capabilities.test.mjs"), "utf8") : "";
@@ -1343,17 +1345,18 @@ function checkAssets() {
     offlineQueueBannerSource.includes("network.labelKey") &&
     !/network\.label(?!Key)/.test(offlineQueueBannerSource) &&
     mobileDeviceSource.includes("getOfflineMessageQueueStorageStatus") &&
-    mobileDeviceSource.includes("MobileOfflineQueueCards") &&
-    mobileDeviceSource.includes("offlineQueue.remoteEntryTitle") &&
-    mobileDeviceSource.includes("offlineQueue.waitingSinceTitle") &&
-    mobileDeviceSource.includes("queueSummary.oldestQueuedAt") &&
-    mobileDeviceSource.includes("showAllQueueItems") &&
-    mobileDeviceSource.includes("offlineQueue.showAll") &&
-    mobileDeviceSource.includes("currentEntryGuidance.map") &&
+    mobileDeviceSource.includes("MobileOfflineQueuePanel") &&
     mobileDeviceSource.includes("requestOfflineMessageQueuePersistentStorage") &&
     mobileDeviceSource.includes("persistentStorageGranted") &&
-    mobileDeviceSource.includes("network.labelKey") &&
-    !/network\.label(?!Key)/.test(mobileDeviceSource) &&
+    mobileOfflineQueuePanelSource.includes("offlineQueue.remoteEntryTitle") &&
+    mobileOfflineQueuePanelSource.includes("offlineQueue.waitingSinceTitle") &&
+    mobileOfflineQueuePanelSource.includes("queueSummary.oldestQueuedAt") &&
+    mobileOfflineQueuePanelSource.includes("showAllQueueItems") &&
+    mobileOfflineQueuePanelSource.includes("offlineQueue.showAll") &&
+    mobileOfflineQueuePanelSource.includes("currentEntryGuidance.map") &&
+    mobileOfflineQueuePanelSource.includes("onRequestPersistentStorage") &&
+    mobileOfflineQueuePanelSource.includes("network.labelKey") &&
+    !/network\.label(?!Key)/.test(mobileOfflineQueuePanelSource) &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageNextRetryAt") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.status.pending") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.status.syncing") &&

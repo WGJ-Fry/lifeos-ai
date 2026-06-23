@@ -506,7 +506,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /pairingInstallPath/);
   assert.doesNotMatch(mobileDeviceSource, /window\.location\.href = `\/mobile\/pair\?token=/);
   assert.match(mobileDeviceSource, /getOfflineMessageQueueStorageStatus/);
-  assert.match(mobileDeviceSource, /MobileOfflineQueueCards/);
+  assert.match(mobileDeviceSource, /MobileOfflineQueuePanel/);
   assert.match(mobileDeviceSource, /clearOfflineMessageQueue/);
 
   assert.match(mobileDeviceSource, /mobileDevice\.confirmRemoveItem/);
@@ -536,6 +536,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.doesNotMatch(mobileDeviceSource, /href="\/mobile\/pair"/);
 
   const mobileOfflineQueueCardsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileOfflineQueueCards.tsx"), "utf8");
+  const mobileOfflineQueuePanelSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileOfflineQueuePanel.tsx"), "utf8");
   assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageNextRetryAt/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.status\.pending/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.status\.syncing/);
@@ -555,14 +556,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /recommendationKey/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.browserStorage/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.persistentStorage/);
-  assert.match(mobileDeviceSource, /offlineQueue\.remoteEntryTitle/);
-  assert.match(mobileDeviceSource, /showAllQueueItems/);
-  assert.match(mobileDeviceSource, /offlineQueue\.showAll/);
+  assert.match(mobileOfflineQueuePanelSource, /offlineQueue\.remoteEntryTitle/);
+  assert.match(mobileOfflineQueuePanelSource, /queueSummary\.oldestQueuedAt/);
+  assert.match(mobileOfflineQueuePanelSource, /showAllQueueItems/);
+  assert.match(mobileOfflineQueuePanelSource, /offlineQueue\.showAll/);
   assert.match(mobileDeviceSource, /requestOfflineMessageQueuePersistentStorage/);
   assert.match(mobileDeviceSource, /persistentStorageGranted/);
-  assert.match(mobileDeviceSource, /currentEntryGuidance\.map/);
-  assert.match(mobileDeviceSource, /network\.labelKey/);
-  assert.doesNotMatch(mobileDeviceSource, /network\.label(?!Key)/);
+  assert.match(mobileOfflineQueuePanelSource, /onRequestPersistentStorage/);
+  assert.match(mobileOfflineQueuePanelSource, /currentEntryGuidance\.map/);
+  assert.match(mobileOfflineQueuePanelSource, /network\.labelKey/);
+  assert.doesNotMatch(mobileOfflineQueuePanelSource, /network\.label(?!Key)/);
   assert.match(translationsSource, /offlineQueue\.remoteEntryTitle/);
   assert.match(translationsSource, /offlineQueue\.requestPersistentStorage/);
   assert.match(translationsSource, /network\.offline/);
