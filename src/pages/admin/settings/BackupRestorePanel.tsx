@@ -508,7 +508,7 @@ export default function BackupRestorePanel({
 
       {preview ? <BackupPreviewCard preview={preview} /> : null}
 
-      <BackupList backups={backups} busy={busy} onPreview={handlePreview} onRestore={handleRestore} />
+      <BackupList backups={backups} busy={busy} onPreview={handlePreview} onRestore={handleRestore} onEncryptedExport={handleEncryptedExport} />
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import { CalendarClock, DatabaseBackup, Download, RotateCcw } from "lucide-react";
+import { CalendarClock, DatabaseBackup, Download, LockKeyhole, RotateCcw } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
 import { backupDownloadUrl, listBackups } from "../../../services/lifeosApi";
 
@@ -9,11 +9,13 @@ export function BackupList({
   busy,
   onPreview,
   onRestore,
+  onEncryptedExport,
 }: {
   backups: BackupItem[];
   busy: string | null;
   onPreview: (backup: BackupItem) => void;
   onRestore: (backup: BackupItem) => void;
+  onEncryptedExport: (backup: BackupItem) => void;
 }) {
   const { t } = useI18n();
 
@@ -59,6 +61,14 @@ export function BackupList({
             >
               <RotateCcw className="h-3.5 w-3.5" />
               {busy === backup.file ? t("backupList.scheduling") : t("backupList.restore")}
+            </button>
+            <button
+              onClick={() => onEncryptedExport(backup)}
+              disabled={Boolean(busy)}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-300 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <LockKeyhole className="h-3.5 w-3.5" />
+              {busy === `encrypt-${backup.file}` ? t("backup.encrypting") : t("backup.exportEncrypted")}
             </button>
           </div>
         </div>

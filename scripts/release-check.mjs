@@ -1906,6 +1906,10 @@ function checkSecurityConfig() {
     backupListSource.includes("backupDownloadUrl(backup.file)") &&
     backupListSource.includes("onPreview(backup)") &&
     backupListSource.includes("onRestore(backup)") &&
+    backupListSource.includes("onEncryptedExport(backup)") &&
+    backupListSource.includes("backup.exportEncrypted") &&
+    backupRestorePanelSource.includes("onEncryptedExport={handleEncryptedExport}") &&
+    translationsSource.includes("backup.exportEncrypted") &&
     adminDashboardSource.includes("previewBackup") &&
     adminDashboardSource.includes("dashboard.preRestorePreview") &&
     adminDashboardSource.includes("dashboard.restoreRisk") &&

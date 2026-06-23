@@ -993,14 +993,18 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(backupRestorePanelSource, /buildCleanupConfirmMessage/);
   assert.match(backupRestorePanelSource, /BackupPreviewCard/);
   assert.match(backupRestorePanelSource, /BackupList/);
+  assert.match(backupRestorePanelSource, /onEncryptedExport=\{handleEncryptedExport\}/);
   assert.match(translationsSource, /预览清理/);
   assert.match(translationsSource, /立即运行一次/);
+  assert.match(translationsSource, /加密导出/);
 
   const backupListSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupList.tsx"), "utf8");
   assert.match(backupListSource, /backupList\.empty/);
   assert.match(backupListSource, /backupDownloadUrl\(backup\.file\)/);
   assert.match(backupListSource, /onPreview\(backup\)/);
   assert.match(backupListSource, /onRestore\(backup\)/);
+  assert.match(backupListSource, /onEncryptedExport\(backup\)/);
+  assert.match(backupListSource, /backup\.exportEncrypted/);
 
   const backupPreviewCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "BackupPreviewCard.tsx"), "utf8");
   assert.match(backupPreviewCardSource, /backupPreview\.title/);
