@@ -932,12 +932,15 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(aiKeyPanelSource, /aiKey\.defaultProviderTitle/);
   assert.match(aiKeyPanelSource, /aiKey\.setDefault/);
   assert.match(aiKeyPanelSource, /aiKey\.migrateHint/);
+  assert.match(aiKeyPanelSource, /aiKey\.enabledHint/);
   assert.match(translationsSource, /多模型聚合路由/);
   assert.match(translationsSource, /系统安全存储不可用/);
   assert.match(translationsSource, /当前保存位置/);
   assert.match(translationsSource, /优先策略/);
   assert.match(translationsSource, /默认聊天 Provider/);
   assert.match(translationsSource, /设为默认聊天 Provider/);
+  assert.match(translationsSource, /聊天路由已启用/);
+  assert.doesNotMatch(translationsSource, /聊天路由暂未启用/);
   assert.match(translationsSource, /重新保存一次可迁移到系统安全存储/);
   assert.match(chatRuntimeSettingsSource, /lifeos_active_ai_provider/);
   assert.match(chatRuntimeSettingsSource, /providerId/);

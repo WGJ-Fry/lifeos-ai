@@ -1536,10 +1536,13 @@ function checkAssets() {
     aiKeyPanelSource.includes("testAiProvider") &&
     aiKeyPanelSource.includes("aiKey.testConfigOk") &&
     aiKeyPanelSource.includes("aiKey.testConfigOnly") &&
+    aiKeyPanelSource.includes("aiKey.enabledHint") &&
     aiKeyPanelSource.includes("aiKey.defaultProviderTitle") &&
     aiKeyPanelSource.includes("aiKey.setDefault") &&
     translationsSource.includes("aiKey.defaultProviderTitle") &&
     translationsSource.includes("aiKey.setDefault") &&
+    translationsSource.includes("聊天路由已启用") &&
+    !translationsSource.includes("聊天路由暂未启用") &&
     adminRoutesSource.includes("ai_provider_default_updated") &&
     adminRoutesSource.includes("Live API call was not run") &&
     adminRoutesSource.includes("liveSupported") &&
@@ -1558,6 +1561,9 @@ function checkAssets() {
     apiAuthTestSource.includes("testedOpenAi.mode") &&
     exists("tests/ai-provider-runtime.test.mjs") &&
     fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("AI provider changes sync legacy Studio runtime state") &&
+    fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("AI runtime routes OpenAI-compatible providers with safe headers and selected models") &&
+    fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("openrouter.providerId") &&
+    fs.readFileSync(path.join(rootDir, "tests/ai-provider-runtime.test.mjs"), "utf8").includes("local.providerId") &&
     packageJson.scripts.test.includes("tests/chat-runtime-settings.test.mjs")
   ) pass("AI multi-provider UI and local endpoint validation are covered");
   else warn("AI multi-provider UI or local endpoint validation lacks release coverage");

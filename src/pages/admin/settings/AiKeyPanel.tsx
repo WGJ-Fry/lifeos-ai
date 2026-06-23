@@ -197,7 +197,7 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
           <p className="mt-2 text-xs leading-relaxed text-zinc-500">
             {t("aiKey.secretHint")}
             {secureStorage ? t("aiKey.currentStrategy", { label: secureStorage.label }) : ""}
-            {!activeProvider.enabled ? t("aiKey.disabledHint") : ""}
+            {activeProvider.enabled ? t("aiKey.enabledHint") : t("aiKey.disabledHint")}
           </p>
         </div>
         <div className="flex items-end gap-2">
