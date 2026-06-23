@@ -1,4 +1,5 @@
 import { getClientState, setClientState } from "./clientState";
+import { redactAuditString } from "./audit";
 
 const REMOTE_VALIDATION_STATE_KEY = "lifeos_remote_validation_report";
 
@@ -71,7 +72,7 @@ function sanitizeUrl(value: string) {
 }
 
 function safeString(value: unknown, fallback: string, maxLength = 120) {
-  const text = String(value || "").replace(/\b(token|key|secret|password)=\S+/gi, "$1=[redacted]").trim();
+  const text = redactAuditString(String(value || "").replace(/\b(token|key|secret|password)=\S+/gi, "$1=[redacted]")).trim();
   return (text || fallback).slice(0, maxLength);
 }
 

@@ -1,5 +1,6 @@
 import { saveRemoteValidationReport, type RemoteHealthSummary, type RemoteValidationReport } from "./remoteValidationReport.ts";
 import { getClientState, setClientState } from "./clientState";
+import { redactAuditString } from "./audit";
 
 const REMOTE_ACCEPTANCE_STATE_KEY = "lifeos_remote_acceptance_records";
 const REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY = "lifeos_remote_acceptance_runbook_reports";
@@ -164,7 +165,7 @@ function safeNumber(value: unknown, fallback = 0) {
 }
 
 function safeNote(value: unknown) {
-  return String(value || "").replace(/\b(token|key|secret|password)=\S+/gi, "$1=[redacted]").trim().slice(0, 240);
+  return redactAuditString(String(value || "").replace(/\b(token|key|secret|password)=\S+/gi, "$1=[redacted]")).trim().slice(0, 240);
 }
 
 function safeRequirements(value: unknown) {

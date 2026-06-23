@@ -699,6 +699,7 @@ function checkAssets() {
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookReport") &&
     remoteAcceptanceSource.includes("saveRemoteAcceptanceRunbookFromConnectionTest") &&
     remoteAcceptanceSource.includes("safeRequirements") &&
+    remoteAcceptanceSource.includes("redactAuditString") &&
     remoteAcceptanceSource.includes("derivedEntryKind = entryKind(baseUrl)") &&
     remoteAcceptanceSource.includes("longTermReason(derivedEntryKind, readinessOk)") &&
     remoteAcceptanceSource.includes("evidence") &&
@@ -727,6 +728,7 @@ function checkAssets() {
     remoteAcceptanceSource.includes("LIFEOS_REMOTE_BASE_URL=https://your-stable-entry npm run remote:smoke") &&
     remoteValidationReportSource.includes("entryKind") &&
     remoteValidationReportSource.includes("classifyEntryKind") &&
+    remoteValidationReportSource.includes("redactAuditString") &&
     networkDiagnosticsSource.includes("httpsStatus") &&
     remoteValidationReportSource.includes("safeHttpsStatus") &&
     remoteValidationReportSource.includes("httpsStatus?.error") &&
@@ -744,6 +746,8 @@ function checkAssets() {
     remoteValidationReportTestSource.includes("remote acceptance checklist expires stale real-world manual evidence") &&
     remoteValidationReportTestSource.includes("freshItem.expiresAt") &&
     remoteValidationReportTestSource.includes("older than 7 days") &&
+    remoteValidationReportTestSource.includes("github_pat_remoteSecret") &&
+    remoteValidationReportTestSource.includes("github_pat_acceptSecret") &&
     remoteHealthMonitorSource.includes("restoredBaseUrl") &&
     remoteHealthMonitorSource.includes("recoveryAction") &&
     remoteHealthMonitorSource.includes("check-tailscale") &&

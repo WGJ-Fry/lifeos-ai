@@ -12,15 +12,23 @@ test("remote validation report persists sanitized remote smoke results", async (
     const output = execFileSync(process.execPath, ["--import", "tsx", "-e", `
       const { saveRemoteValidationReport, getRemoteValidationReport } = await import("./server/remoteValidationReport.ts");
       saveRemoteValidationReport({
-        label: "Cloudflare",
+        label: "Cloudflare Basic Z2l0aHViOnJlbW90ZQ== github_pat_remoteSecret_1234567890",
         baseUrl: "https://user:pass@example.test/lifeos?token=secret#debug",
         result: {
           ok: true,
           status: 200,
           url: "https://user:pass@example.test/lifeos/api/v1/health?token=secret#debug",
           latencyMs: 42,
+          error: "Remote probe failed with Basic Z2l0aHViOnJlbW90ZQ== github_pat_remoteSecret_1234567890 /Users/wangguojun/private.txt",
+          httpsStatus: {
+            ok: false,
+            protocol: "https",
+            requiredForLongTerm: true,
+            trustedByRuntime: false,
+            error: "TLS probe leaked Basic Z2l0aHViOnJlbW90ZQ== and github_pat_remoteSecret_1234567890",
+          },
           steps: [
-            { id: "health", ok: true, status: 200, url: "https://user:pass@example.test/lifeos/api/v1/health?token=secret#debug", latencyMs: 10 },
+            { id: "health", ok: true, status: 200, url: "https://user:pass@example.test/lifeos/api/v1/health?token=secret#debug", latencyMs: 10, error: "Bearer remote-token-value and /Users/wangguojun/.lifeos" },
             { id: "mobile-shell", ok: true, status: 200, url: "https://example.test/lifeos/mobile/chat?token=secret", latencyMs: 12 },
           ],
         },
@@ -39,7 +47,11 @@ test("remote validation report persists sanitized remote smoke results", async (
     assert.equal(report.baseUrl, "https://example.test/lifeos");
     assert.equal(report.url, "https://example.test/lifeos/api/v1/health");
     assert.equal(report.steps[0].url, "https://example.test/lifeos/api/v1/health");
-    assert.doesNotMatch(output, /user:|:pass|token=secret|#debug/);
+    assert.doesNotMatch(output, /user:|:pass|token=secret|#debug|Z2l0aHViOnJlbW90ZQ|github_pat_remoteSecret|remote-token-value|wangguojun/);
+    assert.match(report.label, /Basic \[redacted\]/);
+    assert.match(report.error, /\[local-path\]/);
+    assert.match(report.httpsStatus.error, /\[redacted\]/);
+    assert.match(report.steps[0].error, /Bearer \[redacted\]/);
   } finally {
     await rm(dataDir, { recursive: true, force: true });
   }
@@ -483,13 +495,14 @@ test("remote acceptance checklist separates automated and real-world verificatio
     saveRemoteAcceptanceRecord({
       id: "cellular-mobile-chat",
       baseUrl: "https://lifeos.tailnet.example.ts.net",
-      note: "Phone cellular /mobile/chat verified with token=secret",
+      note: "Phone cellular /mobile/chat verified with token=secret Basic Z2l0aHViOmFjY2VwdA== github_pat_acceptSecret_1234567890",
       evidence: {
-        source: "admin-long-term-remote-checklist",
+        source: "admin-long-term-remote-checklist Basic Z2l0aHViOmFjY2VwdA==",
         requirements: [
           "Saved remote entry: https://lifeos.tailnet.example.ts.net",
           "Phone Wi-Fi disabled and /mobile/chat verified over cellular data.",
           "secret=hidden",
+          "GitHub token github_pat_acceptSecret_1234567890 and /Users/wangguojun/acceptance.log",
         ],
       },
     }, { type: "admin", id: "owner" });
@@ -523,13 +536,15 @@ test("remote acceptance checklist separates automated and real-world verificatio
   const { checklist, records } = JSON.parse(output);
   const cellularRecord = records.find((item) => item.id === "cellular-mobile-chat");
   assert.equal(cellularRecord.evidence.entryKind, "tailscale-https");
-  assert.equal(cellularRecord.evidence.source, "admin-long-term-remote-checklist");
-  assert.equal(cellularRecord.evidence.requirements.some((item) => item.includes("token=secret") || item.includes("secret=hidden")), false);
+  assert.match(cellularRecord.evidence.source, /admin-long-term-remote-checklist Basic \[redacted\]/);
+  assert.equal(cellularRecord.evidence.requirements.some((item) => /token=secret|secret=hidden|github_pat_acceptSecret|wangguojun/.test(item)), false);
+  assert.equal(JSON.stringify(records).includes("Z2l0aHViOmFjY2VwdA"), false);
+  assert.equal(JSON.stringify(records).includes("github_pat_acceptSecret"), false);
   assert.equal(checklist.find((item) => item.id === "tailscale-https-serve").status, "passed");
   assert.equal(checklist.find((item) => item.id === "remote-smoke").status, "passed");
   assert.equal(checklist.find((item) => item.id === "restart-restore").status, "passed");
   assert.match(checklist.find((item) => item.id === "cellular-mobile-chat").evidence, /Phone cellular/);
-  assert.doesNotMatch(checklist.find((item) => item.id === "cellular-mobile-chat").evidence, /secret=hidden/);
+  assert.doesNotMatch(checklist.find((item) => item.id === "cellular-mobile-chat").evidence, /secret=hidden|Z2l0aHViOmFjY2VwdA|github_pat_acceptSecret/);
   assert.equal(checklist.find((item) => item.id === "cloudflare-named-tunnel").status, "needs-action");
   assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").status, "passed");
   assert.equal(checklist.find((item) => item.id === "cellular-mobile-chat").evidence.includes("secret"), false);
