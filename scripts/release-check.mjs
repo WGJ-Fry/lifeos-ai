@@ -2088,9 +2088,17 @@ function checkUpdateFeed() {
   }
 
   for (const artifact of artifacts) {
+    const artifactFileName = String(artifact.fileName || "");
+    const artifactFeedFile = String(artifact.feedFile || "");
     const artifactPath = path.join(feedDir, artifact.fileName || "");
     const rootArtifactPath = path.join(releaseDir, artifact.fileName || "");
     const feedPath = path.join(feedDir, artifact.feedFile || "");
+    if (artifactFileName && path.basename(artifactFileName) !== artifactFileName) {
+      fail(`release manifest artifact fileName must be a top-level downloadable file: ${artifactFileName}`);
+    }
+    if (artifactFeedFile && path.basename(artifactFeedFile) !== artifactFeedFile) {
+      fail(`release manifest feedFile must be a top-level metadata file: ${artifactFeedFile}`);
+    }
     if (artifact.fileName && fs.existsSync(artifactPath)) {
       pass(`release manifest artifact exists: ${artifact.fileName}`);
       const actualSize = fs.statSync(artifactPath).size;
@@ -2116,8 +2124,22 @@ function checkUpdateFeed() {
 
     if (artifact.feedFile && fs.existsSync(feedPath)) {
       const feed = fs.readFileSync(feedPath, "utf8");
-      if (feed.includes(artifact.fileName) && feed.includes(artifact.sha512)) pass(`release feed references manifest artifact: ${artifact.feedFile}`);
-      else fail(`release feed ${artifact.feedFile} does not reference manifest file/hash`);
+      const expectedFeedSnippets = [
+        `version: ${JSON.stringify(packageJson.version)}`,
+        `  - url: ${JSON.stringify(artifact.fileName)}`,
+        `    sha512: ${JSON.stringify(artifact.sha512)}`,
+        `    size: ${artifact.size}`,
+        `path: ${JSON.stringify(artifact.fileName)}`,
+        `sha512: ${JSON.stringify(artifact.sha512)}`,
+      ];
+      const missingFeedSnippets = expectedFeedSnippets.filter((snippet) => !feed.includes(snippet));
+      if (missingFeedSnippets.length === 0) pass(`release feed metadata matches manifest: ${artifact.feedFile}`);
+      else fail(`release feed ${artifact.feedFile} does not match manifest metadata: missing ${missingFeedSnippets.join(", ")}`);
+      if (/\/Users\/|\/private\/|file:\/\/|[A-Za-z]:\\/.test(feed)) {
+        fail(`release feed ${artifact.feedFile} must not contain local absolute paths`);
+      } else {
+        pass(`release feed avoids local absolute paths: ${artifact.feedFile}`);
+      }
     } else {
       fail(`release manifest feed file is missing: ${artifact.feedFile || "(missing feedFile)"}`);
     }

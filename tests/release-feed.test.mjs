@@ -624,6 +624,8 @@ test("release check unsigned strategy passes strict mode without signing or upda
   assert.match(result.stdout, /unsigned macOS zip packaging uses electron-builder ad-hoc signing and verifies before zipping/);
   assert.match(result.stdout, /desktop artifact smoke verifies packaged mobile pairing install manifest/);
   assert.match(result.stdout, new RegExp(`release SHA256SUMS includes artifact: ${currentMacZipName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+  assert.match(result.stdout, /release feed metadata matches manifest: latest-mac\.yml/);
+  assert.match(result.stdout, /release feed avoids local absolute paths: latest-mac\.yml/);
   assert.match(result.stdout, /release manifest\/checksums (?:exclude unpacked build directories|do not reference unpacked build directories)/);
   assert.match(result.stdout, /desktop release smoke workflow covers macOS, Windows, and Linux/);
   assert.match(result.stdout, /desktop release smoke workflow runs the release smoke script/);
@@ -740,6 +742,40 @@ test("release check rejects manifests that reference unpacked app internals", as
   });
   assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stdout, /release manifest or SHA256SUMS references unpacked app internals/);
+});
+
+test("release check rejects update feed metadata that drifts from the manifest", async (t) => {
+  const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-release-check-feed-drift-"));
+  t.after(async () => {
+    await rm(releaseDir, { recursive: true, force: true });
+  });
+
+  await createPackagedMacApp(releaseDir, {
+    "desktop/main.cjs": packagedDesktopMain,
+    "dist/server.cjs": "module.exports = {};",
+    "dist/index.html": "<!doctype html>",
+    "package.json": JSON.stringify({ name: "lifeos-ai", main: "desktop/main.cjs" }),
+  });
+
+  await writeFile(path.join(releaseDir, "update-feed", "latest-mac.yml"), [
+    `version: "${currentVersion}"`,
+    "files:",
+    `  - url: "LifeOS AI-${currentVersion}-stale.zip"`,
+    `    sha512: "stale-hash"`,
+    "    size: 1",
+    `path: "LifeOS AI-${currentVersion}-stale.zip"`,
+    `sha512: "stale-hash"`,
+    `releaseDate: "${new Date(0).toISOString()}"`,
+    "",
+  ].join("\n"));
+
+  const result = runReleaseCheck({
+    LIFEOS_RELEASE_DIR: releaseDir,
+    LIFEOS_DISTRIBUTION: "unsigned",
+    LIFEOS_RELEASE_STRICT: "1",
+  });
+  assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /release feed latest-mac\.yml does not match manifest metadata/);
 });
 
 test("release check signed strategy fails strict mode without signing env", () => {
