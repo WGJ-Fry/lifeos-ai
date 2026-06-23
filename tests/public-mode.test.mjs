@@ -143,6 +143,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(configuredHealth.publicSetupRisk, true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "password" && item.status === "critical"), true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "https" && item.status === "critical"), true);
+  assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "sessionCookies" && item.status === "critical"), true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "backup" && item.status === "critical"), true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "backupFreshness" && item.status === "critical"), true);
   assert.equal(configuredHealth.publicRisk.items.some((item) => item.id === "backupSchedule" && item.status === "critical"), true);
@@ -152,6 +153,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(diagnostics.securityCheck.overall, "critical");
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "password" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "https" && item.status === "critical"), true);
+  assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "sessionCookies" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "backup" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "backupFreshness" && item.status === "critical"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "backupSchedule" && item.status === "critical"), true);
@@ -215,6 +217,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "backupFreshness" && item.status === "ok"), true);
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "backupSchedule" && item.status === "ok"), true);
   assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "https" && item.status === "critical"), true);
+  assert.equal(improvedDiagnostics.securityCheck.items.some((item) => item.id === "sessionCookies" && item.status === "critical"), true);
   assert.equal(improvedDiagnostics.storage.backupSchedule.enabled, true);
   assert.equal(improvedDiagnostics.storage.backupSchedule.intervalHours, 12);
 
@@ -225,6 +228,7 @@ test("public mode diagnostics flag weak password, non-HTTPS, and missing backup"
   assert.equal(improvedHealth.publicRisk.items.some((item) => item.id === "backupFreshness"), false);
   assert.equal(improvedHealth.publicRisk.items.some((item) => item.id === "backupSchedule"), false);
   assert.equal(improvedHealth.publicRisk.items.some((item) => item.id === "https" && item.status === "critical"), true);
+  assert.equal(improvedHealth.publicRisk.items.some((item) => item.id === "sessionCookies" && item.status === "critical"), true);
 });
 
 test("PUBLIC_BASE_URL requires explicit public access opt-in", async (t) => {
@@ -306,6 +310,7 @@ test("public mode flags the quickstart demo password even when it is env-managed
   assert.equal(health.adminConfigured, true);
   assert.equal(health.publicRisk.items.some((item) => item.id === "password" && item.status === "critical"), true);
   assert.equal(health.publicRisk.items.some((item) => item.id === "https"), false);
+  assert.equal(health.publicRisk.items.some((item) => item.id === "sessionCookies"), false);
   assert.equal(JSON.stringify(health).includes("lifeos-local-demo"), false);
 
   const loginResponse = await request(port, "/api/v1/admin/login", {
@@ -315,6 +320,7 @@ test("public mode flags the quickstart demo password even when it is env-managed
   assert.equal(loginResponse.status, 200);
   const diagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: cookieHeader(loginResponse) }).then((res) => res.json());
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "password" && item.status === "critical"), true);
+  assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "sessionCookies" && item.status === "ok"), true);
   assert.equal(JSON.stringify(diagnostics).includes("lifeos-local-demo"), false);
 });
 
@@ -351,7 +357,10 @@ test("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input", a
   const unsafeInput = diagnostics.securityCheck.items.find((item) => item.id === "publicBaseUrlInput");
   const trustedProxy = diagnostics.securityCheck.items.find((item) => item.id === "trustedProxy");
   assert.equal(unsafeInput.status, "critical");
+  const sessionCookies = diagnostics.securityCheck.items.find((item) => item.id === "sessionCookies");
   assert.equal(trustedProxy.status, "warning");
+  assert.equal(sessionCookies.status, "ok");
+  assert.match(sessionCookies.message, /marked Secure/);
   assert.match(trustedProxy.action, /LIFEOS_TRUST_PROXY/);
   assert.match(unsafeInput.action, /PUBLIC_BASE_URL/);
   assert.equal(JSON.stringify(diagnostics).includes("public-secret"), false);
@@ -416,6 +425,7 @@ test("explicit public access opt-in exposes health warning metadata", async (t) 
   assert.equal(health.publicRisk.overall, "critical");
   assert.equal(health.publicRisk.items.some((item) => item.id === "admin"), true);
   assert.equal(health.publicRisk.items.some((item) => item.id === "trustedProxy" && item.status === "warning"), true);
+  assert.equal(health.publicRisk.items.some((item) => item.id === "sessionCookies"), false);
 });
 
 test("health exposes saved desktop remote entry mode for mobile recovery", async (t) => {

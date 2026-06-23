@@ -100,6 +100,7 @@ export function getSecurityDiagnostics() {
   const backupSchedule = getBackupSchedule();
   const publicProxyCandidate = usesLikelyTrustedPublicProxy(publicBaseUrl);
   const trustedProxyHeadersEnabled = process.env.LIFEOS_TRUST_PROXY === "1";
+  const secureSessionCookies = process.env.LIFEOS_COOKIE_SECURE === "true" || publicBaseUrl.startsWith("https://");
 
   const items: SecurityCheckItem[] = [
     {
@@ -150,6 +151,19 @@ export function getSecurityDiagnostics() {
       status: !publicMode || process.env.LIFEOS_ALLOW_PUBLIC === "1" ? "ok" : "critical",
       message: !publicMode ? "Public/LAN exposure is not enabled." : process.env.LIFEOS_ALLOW_PUBLIC === "1" ? "Public/LAN mode is explicitly allowed." : "Missing LIFEOS_ALLOW_PUBLIC=1.",
       action: "Set LIFEOS_ALLOW_PUBLIC=1 only after confirming a trusted network or tunnel.",
+    },
+    {
+      id: "sessionCookies",
+      label: "Secure Session Cookies",
+      status: !publicMode ? "ok" : secureSessionCookies ? "ok" : "critical",
+      message: !publicMode
+        ? "Admin session cookies are only used from the local desktop entry."
+        : secureSessionCookies
+          ? "Admin and CSRF cookies will be marked Secure for the configured HTTPS entry."
+          : "Public/LAN mode is active without Secure session cookies, usually because no HTTPS public entry is configured.",
+      action: secureSessionCookies
+        ? "No action needed."
+        : "Use an HTTPS tunnel or reverse proxy, or set LIFEOS_COOKIE_SECURE=true only when the app is actually served over HTTPS.",
     },
     {
       id: "trustedProxy",

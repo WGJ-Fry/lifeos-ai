@@ -1039,6 +1039,9 @@ function checkAssets() {
     securityDiagnosticsSource.includes("inspectConfiguredPublicBaseUrlInput") &&
     securityDiagnosticsSource.includes('id: "publicBaseUrlInput"') &&
     securityDiagnosticsSource.includes('id: "trustedProxy"') &&
+    securityDiagnosticsSource.includes('id: "sessionCookies"') &&
+    securityDiagnosticsSource.includes("LIFEOS_COOKIE_SECURE") &&
+    securityDiagnosticsSource.includes("secureSessionCookies") &&
     securityDiagnosticsSource.includes("LIFEOS_TRUST_PROXY") &&
     securityDiagnosticsSource.includes("usesLikelyTrustedPublicProxy") &&
     securityDiagnosticsSource.includes("hasLongRepeatedRun") &&
@@ -1060,6 +1063,7 @@ function checkAssets() {
     publicModeTestSource.includes("public mode security diagnostics flag unsafe raw PUBLIC_BASE_URL input") &&
     publicModeTestSource.includes("public mode diagnostics accept trusted proxy headers when explicitly enabled") &&
     publicModeTestSource.includes('item.id === "trustedProxy"') &&
+    publicModeTestSource.includes('item.id === "sessionCookies"') &&
     publicModeTestSource.includes("public-secret") &&
     publicModeTestSource.includes("aaaaaaaaaaaa1!") &&
     publicModeTestSource.includes("abcdef123456!") &&
