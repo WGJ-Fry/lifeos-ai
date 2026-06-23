@@ -907,6 +907,8 @@ export type AiProviderTestResult = {
   reason?: string;
   credentialKind?: "api_key" | "endpoint";
   modelCount?: number;
+  discoveredModelCount?: number;
+  modelCatalogUpdated?: boolean;
   selectedModelAvailable?: boolean;
 };
 

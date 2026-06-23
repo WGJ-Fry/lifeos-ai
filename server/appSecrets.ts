@@ -6,6 +6,7 @@ import { getClientState, setClientState } from "./clientState";
 
 const keyPath = path.join(dataDir, "lifeos-secret.key");
 const aiModelStateKey = "lifeos_ai_provider_models";
+const aiModelCatalogStateKey = "lifeos_ai_provider_model_catalogs";
 const activeAiProviderStateKey = "lifeos_active_ai_provider";
 const legacyByokProviderStateKey = "lifeos_byok_provider";
 const legacyModelEngineStateKey = "lifeos_model_engine";
@@ -142,10 +143,31 @@ function getAiModelState() {
     : {};
 }
 
+function getAiModelCatalogState() {
+  const state = getClientState(aiModelCatalogStateKey)?.value;
+  return state && typeof state === "object" && !Array.isArray(state)
+    ? state as Partial<Record<AiProviderId, string[]>>
+    : {};
+}
+
+function normalizeDiscoveredModels(providerId: AiProviderId, models: string[]) {
+  const provider = getProvider(providerId);
+  if (!provider) throw new Error("Unknown AI provider");
+  const staticModels = new Set(provider.models as readonly string[]);
+  const normalized = models
+    .map((model) => String(model || "").trim())
+    .filter((model) => model.length >= 2 && model.length <= 120)
+    .filter((model) => providerId === "local" ? /^[a-zA-Z0-9._:/@-]+$/.test(model) : !/[\r\n\t]/.test(model));
+  return [...new Set([...provider.models, ...normalized])]
+    .filter((model) => staticModels.has(model) || normalized.includes(model))
+    .slice(0, 50);
+}
+
 export function getAiProviderModelCatalog(providerId: AiProviderId) {
   const provider = getProvider(providerId);
   if (!provider) throw new Error("Unknown AI provider");
-  return [...provider.models];
+  const discovered = getAiModelCatalogState()[providerId] || [];
+  return normalizeDiscoveredModels(providerId, discovered);
 }
 
 export function getDefaultAiModel(providerId: AiProviderId) {
@@ -161,7 +183,7 @@ export function isAllowedAiModel(providerId: AiProviderId, model: string) {
   if (provider.id === "local") {
     return /^[a-zA-Z0-9._:/@-]+$/.test(normalized);
   }
-  return (provider.models as readonly string[]).includes(normalized);
+  return getAiProviderModelCatalog(providerId as AiProviderId).includes(normalized);
 }
 
 export function getSelectedAiModel(providerId: AiProviderId) {
@@ -183,6 +205,14 @@ export function saveSelectedAiModel(providerId: AiProviderId, model: string, act
   if (getActiveAiProviderId() === providerId) {
     syncLegacyAiRuntimeState(providerId, normalized, actor);
   }
+  return getAiProviderStatus(providerId);
+}
+
+export function saveDiscoveredAiModelCatalog(providerId: AiProviderId, models: string[], actor?: { type: string; id: string }) {
+  const provider = getProvider(providerId);
+  if (!provider) throw new Error("Unknown AI provider");
+  const normalized = normalizeDiscoveredModels(providerId, models);
+  setClientState(aiModelCatalogStateKey, { ...getAiModelCatalogState(), [providerId]: normalized }, actor);
   return getAiProviderStatus(providerId);
 }
 

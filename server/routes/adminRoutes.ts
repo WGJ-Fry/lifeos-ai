@@ -1,7 +1,7 @@
 import type express from "express";
 import { db } from "../db";
 import { insertAuditLog, listAuditLogs } from "../audit";
-import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
+import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
@@ -95,6 +95,7 @@ type AiProviderTestSummary = {
   result: "ready" | "not_configured" | "disabled" | "live_ready" | "live_failed";
   reason: string;
   credentialKind: "api_key" | "endpoint";
+  models?: string[];
   modelCount?: number;
   selectedModelAvailable?: boolean;
 };
@@ -114,6 +115,7 @@ async function testLocalModelEndpoint(status: ReturnType<typeof getAiProviderSta
       result: response.ok ? "live_ready" : "live_failed",
       reason: response.ok ? "models_endpoint_ok" : "models_endpoint_http_error",
       credentialKind,
+      models: modelIds,
       modelCount: modelIds.length,
       selectedModelAvailable: modelIds.length ? modelIds.includes(status.selectedModel) : undefined,
     };
@@ -557,11 +559,17 @@ export function registerAdminRoutes(app: express.Express) {
   app.post("/api/v1/admin/ai-providers/:providerId/test", requireAdmin, async (req, res) => {
     const providerId = getProviderId(req.params.providerId);
     if (!providerId) return res.status(404).json({ error: "Unknown AI provider" });
-    const status = getAiProviderStatus(providerId);
+    let status = getAiProviderStatus(providerId);
     const checkedAt = Date.now();
     const mode = req.body?.mode === "live" ? "live" : "configuration";
     const liveSupported = status.id === "local";
     const summary = await getAiProviderTestSummary(status, mode);
+    const discoveredModelCount = summary.models?.length || 0;
+    let modelCatalogUpdated = false;
+    if (summary.ok && mode === "live" && providerId === "local" && discoveredModelCount > 0) {
+      status = saveDiscoveredAiModelCatalog(providerId, summary.models || [], { type: "admin", id: "owner" });
+      modelCatalogUpdated = true;
+    }
     insertAuditLog("ai_provider_tested", "config", providerId, {
       ...aiStatusAuditMetadata(status),
       result: summary.result,
@@ -571,6 +579,8 @@ export function registerAdminRoutes(app: express.Express) {
       liveSupported,
       selectedModel: status.selectedModel,
       modelCount: summary.modelCount,
+      discoveredModelCount,
+      modelCatalogUpdated,
       selectedModelAvailable: summary.selectedModelAvailable,
       checkedAt,
     });
@@ -585,12 +595,14 @@ export function registerAdminRoutes(app: express.Express) {
       reason: summary.reason,
       credentialKind: summary.credentialKind,
       modelCount: summary.modelCount,
+      discoveredModelCount,
+      modelCatalogUpdated,
       selectedModelAvailable: summary.selectedModelAvailable,
       message: status.enabled
         ? status.configured
           ? mode === "live" && status.id === "local"
             ? summary.ok
-              ? `${status.provider} live connection succeeded for ${status.selectedModel}. ${summary.modelCount ?? 0} model(s) reported by the endpoint.`
+              ? `${status.provider} live connection succeeded for ${status.selectedModel}. ${summary.modelCount ?? 0} model(s) reported by the endpoint. Model list refreshed.`
               : `${status.provider} live connection failed. Check that the local endpoint is running and supports /models.`
             : `${status.provider} configuration is ready for ${status.selectedModel}. Live API call was not run.`
           : status.id === "local"

@@ -1307,6 +1307,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
         data: [
           { id: "custom-local-model:latest" },
           { id: "llama3.2" },
+          { id: "phi4:latest" },
         ],
       }));
       return;
@@ -1337,17 +1338,25 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(testedLocalLive.liveSupported, true);
   assert.equal(testedLocalLive.result, "live_ready");
   assert.equal(testedLocalLive.reason, "models_endpoint_ok");
-  assert.equal(testedLocalLive.modelCount, 2);
+  assert.equal(testedLocalLive.modelCount, 3);
+  assert.equal(testedLocalLive.discoveredModelCount, 3);
+  assert.equal(testedLocalLive.modelCatalogUpdated, true);
   assert.equal(testedLocalLive.selectedModelAvailable, true);
+  assert.ok(testedLocalLive.provider.models.includes("phi4:latest"));
   assert.match(testedLocalLive.message, /live connection succeeded/);
+  assert.match(testedLocalLive.message, /Model list refreshed/);
   assert.equal(JSON.stringify(testedLocalLive).includes(localModelEndpoint), false);
+  const localProvidersAfterLive = await request(port, "/api/v1/admin/ai-providers", { headers: adminHeaders }).then((res) => res.json());
+  assert.ok(localProvidersAfterLive.providers.find((provider) => provider.id === "local").models.includes("phi4:latest"));
   const auditAfterLocalLive = await request(port, "/api/v1/audit-logs", { headers: adminHeaders }).then((res) => res.json());
   const localLiveTestAudit = auditAfterLocalLive.logs.find((log) => log.action === "ai_provider_tested" && log.targetType === "config" && log.targetId === "local" && log.metadata.result === "live_ready");
   assert.equal(localLiveTestAudit.metadata.provider, "Local Model");
   assert.equal(localLiveTestAudit.metadata.configured, true);
   assert.equal(localLiveTestAudit.metadata.mode, "live");
   assert.equal(localLiveTestAudit.metadata.reason, "models_endpoint_ok");
-  assert.equal(localLiveTestAudit.metadata.modelCount, 2);
+  assert.equal(localLiveTestAudit.metadata.modelCount, 3);
+  assert.equal(localLiveTestAudit.metadata.discoveredModelCount, 3);
+  assert.equal(localLiveTestAudit.metadata.modelCatalogUpdated, true);
   assert.equal(localLiveTestAudit.metadata.selectedModelAvailable, true);
   assert.equal(JSON.stringify(localLiveTestAudit).includes("127.0.0.1"), false);
 
