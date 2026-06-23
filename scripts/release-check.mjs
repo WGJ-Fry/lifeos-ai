@@ -1407,6 +1407,8 @@ function checkAssets() {
     mobileOfflineQueuePanelSource.includes("offlineQueue.remoteEntryTitle") &&
     mobileOfflineQueuePanelSource.includes("offlineQueue.waitingSinceTitle") &&
     mobileOfflineQueuePanelSource.includes("queueSummary.oldestQueuedAt") &&
+    mobileOfflineQueuePanelSource.includes("offlineQueue.emptyTitle") &&
+    mobileOfflineQueuePanelSource.includes("offlineQueue.emptyBody") &&
     mobileOfflineQueuePanelSource.includes("showAllQueueItems") &&
     mobileOfflineQueuePanelSource.includes("offlineQueue.showAll") &&
     mobileOfflineQueuePanelSource.includes("currentEntryGuidance.map") &&
@@ -1438,6 +1440,8 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.remoteEntryTitle") &&
     translationsSource.includes("offlineQueue.waitingSinceTitle") &&
     translationsSource.includes("offlineQueue.waitingSinceBody") &&
+    translationsSource.includes("offlineQueue.emptyTitle") &&
+    translationsSource.includes("offlineQueue.emptyBody") &&
     translationsSource.includes("offlineQueue.showAll") &&
     translationsSource.includes("offlineQueue.showRecentOnly") &&
     translationsSource.includes("offlineQueue.status.pending") &&
