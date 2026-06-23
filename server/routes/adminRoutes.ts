@@ -51,6 +51,45 @@ function aiStatusAuditMetadata(status: ReturnType<typeof getAiProviderStatus>) {
   };
 }
 
+function credentialLengthBucket(value: string) {
+  if (value.length >= 80) return "80+";
+  if (value.length >= 40) return "40-79";
+  if (value.length >= 16) return "16-39";
+  return "8-15";
+}
+
+function hostKind(hostname: string) {
+  const normalized = hostname.toLowerCase();
+  if (normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1") return "localhost";
+  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(normalized)) return "private";
+  return "public";
+}
+
+function aiCredentialAuditMetadata(providerId: AiProviderId, credential: string) {
+  if (providerId !== "local") {
+    return {
+      credentialKind: "api_key",
+      credentialLengthBucket: credentialLengthBucket(credential),
+    };
+  }
+  try {
+    const parsed = new URL(credential);
+    return {
+      credentialKind: "endpoint",
+      credentialLengthBucket: credentialLengthBucket(credential),
+      endpointProtocol: parsed.protocol.replace(":", ""),
+      endpointHostKind: hostKind(parsed.hostname),
+    };
+  } catch {
+    return {
+      credentialKind: "endpoint",
+      credentialLengthBucket: credentialLengthBucket(credential),
+      endpointProtocol: "invalid",
+      endpointHostKind: "unknown",
+    };
+  }
+}
+
 type AiProviderTestSummary = {
   ok: boolean;
   result: "ready" | "not_configured" | "disabled" | "live_ready" | "live_failed";
@@ -652,6 +691,7 @@ export function registerAdminRoutes(app: express.Express) {
     const status = getAiProviderStatus(provider.id);
     insertAuditLog("ai_key_saved", "config", "google_gemini", {
       ...aiStatusAuditMetadata(status),
+      ...aiCredentialAuditMetadata(provider.id, apiKey),
       compatibilityEndpoint: true,
     });
     res.json({ ai: status });
@@ -672,7 +712,10 @@ export function registerAdminRoutes(app: express.Express) {
     try {
       saveAiApiKey(apiKey, providerId);
       const status = getAiProviderStatus(providerId);
-      insertAuditLog("ai_key_saved", "config", providerId, aiStatusAuditMetadata(status));
+      insertAuditLog("ai_key_saved", "config", providerId, {
+        ...aiStatusAuditMetadata(status),
+        ...aiCredentialAuditMetadata(providerId, apiKey),
+      });
       res.json({ provider: status });
     } catch (error: any) {
       res.status(400).json({ error: error.message || "AI provider configuration is invalid" });

@@ -1723,6 +1723,9 @@ function checkAssets() {
   const backupRoutesSourceForAudit = exists("server/routes/backupRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/backupRoutes.ts"), "utf8") : "";
   if (
     adminRoutesSource.includes("aiStatusAuditMetadata") &&
+    adminRoutesSource.includes("aiCredentialAuditMetadata") &&
+    adminRoutesSource.includes("credentialLengthBucket") &&
+    adminRoutesSource.includes("endpointHostKind") &&
     adminRoutesSource.includes("migrationRecommended") &&
     adminRoutesSource.includes("fallbackActive") &&
     deviceRoutesSource.includes("previousCredentialExpiresAt") &&
@@ -1739,6 +1742,7 @@ function checkAssets() {
     adminRoutesSource.includes("remoteAcceptanceManualRequired") &&
     apiAuthTestSource.includes("previousCredentialExpiresAt") &&
     apiAuthTestSource.includes("secureStorage.label") &&
+    apiAuthTestSource.includes("credentialLengthBucket") &&
     apiAuthTestSource.includes("encryptedExportAudit.metadata.encryption") &&
     apiAuthTestSource.includes("fullExportAudit.metadata.counts.auditLogs") &&
     apiAuthTestSource.includes("scopedExportAudit.metadata.counts.auditLogs") &&

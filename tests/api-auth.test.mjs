@@ -1005,6 +1005,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(geminiKeySavedAudit.metadata.compatibilityEndpoint, true);
   assert.equal(geminiKeySavedAudit.metadata.configured, true);
   assert.equal(geminiKeySavedAudit.metadata.source, "encrypted_store");
+  assert.equal(geminiKeySavedAudit.metadata.credentialKind, "api_key");
+  assert.equal(geminiKeySavedAudit.metadata.credentialLengthBucket, "40-79");
   assert.equal(typeof geminiKeySavedAudit.metadata.secureStorage.label, "string");
   assert.equal(typeof geminiKeySavedAudit.metadata.secureStorage.fallbackActive, "boolean");
   const geminiKeyDeletedAudit = findConfigAudit("ai_key_deleted", "google_gemini");
@@ -1018,6 +1020,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(openAiKeySavedAudit.metadata.configured, true);
   assert.equal(openAiKeySavedAudit.metadata.enabled, true);
   assert.equal(openAiKeySavedAudit.metadata.source, "encrypted_store");
+  assert.equal(openAiKeySavedAudit.metadata.credentialKind, "api_key");
+  assert.equal(openAiKeySavedAudit.metadata.credentialLengthBucket, "16-39");
   assert.equal(typeof openAiKeySavedAudit.metadata.selectedModel, "string");
   assert.equal(typeof openAiKeySavedAudit.metadata.secureStorage.systemAvailable, "boolean");
   const openAiKeyDeletedAudit = findConfigAudit("ai_key_deleted", "openai");
