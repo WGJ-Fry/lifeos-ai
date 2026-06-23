@@ -937,6 +937,10 @@ function checkAssets() {
     devicePairConnectionTestSource.includes("devicePair.testFix.https") &&
     devicePairConnectionTestSource.includes("devicePair.testFix.generic") &&
     devicePairConnectionTestSource.includes("repairHintKey") &&
+    devicePairConnectionTestSource.includes("buildRepairPacket") &&
+    devicePairConnectionTestSource.includes("navigator.clipboard.writeText(buildRepairPacket(result, t))") &&
+    devicePairConnectionTestSource.includes("devicePair.copyRepairPacket") &&
+    devicePairConnectionTestSource.includes("devicePair.repairPacketCopied") &&
     devicePairConnectionTestSource.includes("devicePair.repair.title") &&
     devicePairConnectionTestSource.includes("devicePair.repair.websocketUpgradeBlocked") &&
     devicePairConnectionTestSource.includes("devicePair.repair.localhostPhoneUnreachable") &&
@@ -944,6 +948,8 @@ function checkAssets() {
     translationsSource.includes("connection.secureRecommended") &&
     translationsSource.includes("connection.trustedNetworkOnly") &&
     translationsSource.includes("devicePair.copyEnv") &&
+    translationsSource.includes("devicePair.copyRepairPacket") &&
+    translationsSource.includes("Copy Connection Repair Packet") &&
     translationsSource.includes("devicePair.repair.desktopServiceUnreachable") &&
     translationsSource.includes("devicePair.repair.publicModeRisk")
   ) pass("device pairing QR page exposes recommended URL safety, reachability test, and repair guidance");

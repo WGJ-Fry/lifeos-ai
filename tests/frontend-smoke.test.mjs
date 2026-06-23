@@ -927,6 +927,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(devicePairConnectionTestSource, /devicePair\.testFix\.generic/);
   assert.match(devicePairConnectionTestSource, /repairHintKey/);
   assert.match(devicePairConnectionTestSource, /result\.fixes/);
+  assert.match(devicePairConnectionTestSource, /buildRepairPacket/);
+  assert.match(devicePairConnectionTestSource, /navigator\.clipboard\.writeText\(buildRepairPacket\(result, t\)\)/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.copyRepairPacket/);
+  assert.match(devicePairConnectionTestSource, /devicePair\.repairPacketCopied/);
   assert.match(devicePairConnectionTestSource, /devicePair\.repair\.title/);
   assert.match(devicePairConnectionTestSource, /devicePair\.repair\.websocketUpgradeBlocked/);
   assert.match(devicePairConnectionTestSource, /devicePair\.repair\.localhostPhoneUnreachable/);
@@ -938,6 +942,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /复制当前绑定启动环境/);
   assert.match(translationsSource, /重启后生效/);
   assert.match(translationsSource, /建议按下面顺序修复/);
+  assert.match(translationsSource, /复制连接修复包/);
+  assert.match(translationsSource, /Copy Connection Repair Packet/);
   assert.match(translationsSource, /Fix these in order/);
   assert.match(translationsSource, /这是临时地址/);
   assert.match(translationsSource, /手机聊天页面/);
