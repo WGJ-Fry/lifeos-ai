@@ -1,5 +1,5 @@
 import { ArrowRight, CheckCircle2, Smartphone } from "lucide-react";
-import type { BoundDevice, NetworkDiagnostics } from "../../services/lifeosApi";
+import type { BoundDevice, ConfigDiagnostics, NetworkDiagnostics } from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
 
@@ -25,7 +25,7 @@ const readinessActionKeys: Record<NetworkDiagnostics["remoteReadiness"]["actions
 
 type Props = {
   devices: BoundDevice[];
-  diagnostics: NetworkDiagnostics | null | undefined;
+  diagnostics: (ConfigDiagnostics["network"] & Partial<Pick<NetworkDiagnostics, "connectionCandidates" | "recommendedBaseUrl" | "remoteReadiness">>) | null | undefined;
   done: boolean;
 };
 
@@ -33,9 +33,10 @@ export default function OnboardingMobileCard({ devices, diagnostics, done }: Pro
   const { t } = useI18n();
   const activeDeviceCount = devices.filter((device) => device.status !== "revoked").length;
   const readiness = diagnostics?.remoteReadiness;
+  const connectionCandidates = diagnostics?.connectionCandidates || [];
   const candidate = readiness?.candidateId
-    ? diagnostics?.connectionCandidates.find((item) => item.id === readiness.candidateId)
-    : diagnostics?.connectionCandidates.find((item) => item.mode !== "local");
+    ? connectionCandidates.find((item) => item.id === readiness.candidateId)
+    : connectionCandidates.find((item) => item.mode !== "local");
   const remoteUrl = candidate?.mobileChatUrl || candidate?.baseUrl || readiness?.baseUrl || diagnostics?.recommendedBaseUrl || "";
   const readinessTone = readiness?.severity === "ok" ? "text-emerald-200" : readiness?.severity === "danger" ? "text-red-200" : "text-amber-200";
 

@@ -37,8 +37,9 @@ export default function AdminOnboardingPage() {
   const latestBackup = backups[0];
   const hasBackup = backups.length > 0;
   const hasDevice = devices.some((device) => device.status !== "revoked");
-  const completedSteps = [aiConfigured, hasBackup, hasDevice, onboarding?.steps.find((step) => step.id === "security")?.done].filter(Boolean).length;
-  const nextStep = onboarding?.steps.find((step) => !step.done) || null;
+  const onboardingSteps = Array.isArray(onboarding?.steps) ? onboarding.steps : [];
+  const completedSteps = [aiConfigured, hasBackup, hasDevice, onboardingSteps.find((step) => step.id === "security")?.done].filter(Boolean).length;
+  const nextStep = onboardingSteps.find((step) => !step.done) || null;
   const securityItems = diagnostics?.securityCheck.items || [];
   const securityRiskCount = securityItems.filter((item) => item.status !== "ok").length;
   const localizedStepMeta = (stepId: OnboardingStatus["steps"][number]["id"], done: boolean) => {
@@ -65,7 +66,7 @@ export default function AdminOnboardingPage() {
         };
     }
   };
-  const incompleteStepLabels = onboarding?.steps
+  const incompleteStepLabels = onboardingSteps
     .filter((step) => !step.done)
     .map((step) => localizedStepMeta(step.id, step.done).label) || [];
   const finishHint = onboarding?.completed
@@ -225,7 +226,7 @@ export default function AdminOnboardingPage() {
           <div className="mt-5 max-w-xl rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
             <div className="flex items-center justify-between text-xs font-bold text-zinc-400">
               <span>{t("onboarding.progress")}</span>
-              <span>{completedSteps} / 4</span>
+              <span data-testid="onboarding-progress-count">{completedSteps} / 4</span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
               <div className="h-full rounded-full bg-cyan-400 transition-all" style={{ width: `${(completedSteps / 4) * 100}%` }} />
@@ -279,7 +280,7 @@ export default function AdminOnboardingPage() {
             <div className="rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
               <div className="text-sm font-bold text-zinc-100">{t("onboarding.checklistTitle")}</div>
               <div className="mt-3 grid gap-2">
-                {onboarding.steps.map((step) => {
+                {onboardingSteps.map((step) => {
                   const localized = localizedStepMeta(step.id, step.done);
                   return (
                   <a

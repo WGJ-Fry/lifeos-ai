@@ -42,7 +42,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page).toHaveURL(/\/admin\/onboarding/);
   await expect(page.getByText("把 LifeOS AI 配到可用状态")).toBeVisible();
   await expect(page.getByText("初始化进度")).toBeVisible();
-  await expect(page.getByText("1 / 4")).toBeVisible();
+  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 4");
   await expect(page.getByText("下一步")).toBeVisible();
   await expect(page.getByText("首次启动检查表")).toBeVisible();
   await expect(page.getByText("如果遇到问题")).toBeVisible();
@@ -80,15 +80,17 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByLabel("OpenAI 模型").selectOption("gpt-4o");
   await page.getByPlaceholder("输入 API Key").fill("sk-playwright-onboarding-secret-value");
   await page.getByRole("button", { name: "保存并测试" }).click();
-  await expect(page.getByText("OpenAI 连接测试通过。 已是默认聊天 Provider")).toBeVisible();
+  await expect(page.getByText("OpenAI 配置检查通过，当前模型：gpt-4o。")).toBeVisible();
+  await expect(page.getByText("这一步不会向外部模型发起真实请求；第一次聊天会使用该配置。")).toBeVisible();
+  await expect(page.getByText("已是默认聊天 Provider").first()).toBeVisible();
   await expect(page.getByRole("button", { name: /OpenAI/ }).getByText("当前默认")).toBeVisible();
   await expect(page.getByRole("button", { name: "已是默认聊天 Provider" })).toBeDisabled();
-  await expect(page.getByText("2 / 4")).toBeVisible();
+  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("2 / 4");
   await expect(page.getByText("先创建一份初始备份，再继续绑定手机或开启异地访问。").first()).toBeVisible();
   await page.unroute("**/api/v1/admin/ai-providers/openai/test");
   await page.getByRole("button", { name: "创建备份" }).click();
   await expect(page.getByText(/已创建初始备份：lifeos-.*\.db/)).toBeVisible();
-  await expect(page.getByText("3 / 4")).toBeVisible();
+  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("3 / 4");
   await expect(page.getByText("已有备份：1 份")).toBeVisible();
   await page.getByRole("button", { name: "开启每日自动备份" }).click();
   await expect(page.getByText("已开启每日自动备份。之后 LifeOS AI 会定期创建 SQLite 快照。")).toBeVisible();
@@ -243,7 +245,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect.poll(async () => phone.evaluate(() => localStorage.getItem("lifeos_device_credential"))).toBeNull();
 
   await page.goto("/admin/onboarding");
-  await expect(page.getByText("4 / 4")).toBeVisible();
+  await expect(page.getByTestId("onboarding-progress-count")).toHaveText("4 / 4");
   await expect(page.getByText("已绑定设备：1 台")).toBeVisible();
 
   await phone.goto("/mobile/chat");
@@ -533,7 +535,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.getByRole("button", { name: "测试推荐地址" }).first().click();
   await expect(page.getByText("连接成功：3/3 项通过，24ms，https://amber-lifeos.trycloudflare.com")).toBeVisible();
   await expect(page.getByText("最近审计日志")).toBeVisible();
-  await expect(page.getByText("备份与恢复")).toBeVisible();
+  await expect(page.getByText("备份与恢复", { exact: true })).toBeVisible();
   await expect(page.getByText("AI Key 安全配置")).toBeVisible();
   const aiKeyPanel = page.locator("section", { hasText: "AI Key 安全配置" });
   await expect(aiKeyPanel.getByRole("button", { name: /Gemini/ })).toBeVisible();
@@ -575,7 +577,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(backupPanel.getByRole("link", { name: "导出数据" })).toHaveAttribute("href", /scope=chat%2Cmemories%2Cdevices/);
   await backupPanel.getByRole("button", { name: "全选" }).click();
   await expect(backupPanel.getByRole("link", { name: "导出数据" })).toHaveAttribute("href", "/api/v1/data/export");
-  await expect(backupPanel.getByText("自动备份计划")).toBeVisible();
+  await expect(backupPanel.locator("#backup-schedule").getByText("自动备份计划", { exact: true })).toBeVisible();
   await backupPanel.getByLabel("开启自动备份").check();
   await backupPanel.getByLabel("间隔").fill("12");
   await backupPanel.getByRole("button", { name: "保存计划" }).click();
