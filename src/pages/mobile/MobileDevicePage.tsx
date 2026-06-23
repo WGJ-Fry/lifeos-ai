@@ -31,6 +31,7 @@ export default function MobileDevicePage() {
   const [pairingInputError, setPairingInputError] = useState<string | null>(null);
   const [queueSummary, setQueueSummary] = useState(() => getOfflineMessageQueueSummary());
   const [queueItems, setQueueItems] = useState<OfflineQueuedMessage[]>(() => getOfflineMessageQueue());
+  const [showAllQueueItems, setShowAllQueueItems] = useState(false);
   const [network, setNetwork] = useState(() => getNetworkStatus());
   const [pwaCapabilities, setPwaCapabilities] = useState(() => getPwaCapabilityStatus());
   const [credentialStorage, setCredentialStorage] = useState<DeviceCredentialStorageStatus | null>(null);
@@ -45,6 +46,7 @@ export default function MobileDevicePage() {
   const lastConnectivityResult = useMemo(() => lastConnectivityReport ? mobileConnectivityResultFromReport(lastConnectivityReport) : null, [lastConnectivityReport]);
   const lastConnectivityIssue = useMemo(() => lastConnectivityResult ? getMobileConnectivityIssue(lastConnectivityResult, currentEntry.kind, queueSummary) : null, [currentEntry.kind, lastConnectivityResult, queueSummary]);
   const lastConnectivityHints = useMemo(() => lastConnectivityResult ? getMobileRecoveryHints(lastConnectivityResult, currentEntry.kind, queueSummary) : [], [currentEntry.kind, lastConnectivityResult, queueSummary]);
+  const visibleQueueItems = showAllQueueItems ? queueItems : queueItems.slice(0, 5);
 
   const refreshCredentialStorage = async () => {
     const storage = await getStoredDeviceCredentialStorageStatus().catch(() => null);
@@ -454,9 +456,9 @@ export default function MobileDevicePage() {
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-zinc-200">{t("mobileDevice.queueDetails")}</span>
-                <span className="text-zinc-500">{t("mobileDevice.recentItems", { shown: Math.min(queueItems.length, 5), total: queueItems.length })}</span>
+                <span className="text-zinc-500">{t("mobileDevice.recentItems", { shown: visibleQueueItems.length, total: queueItems.length })}</span>
               </div>
-              {queueItems.slice(0, 5).map((item) => (
+              {visibleQueueItems.map((item) => (
                 <div key={item.id}>
                   <QueueItem
                     item={item}
@@ -466,6 +468,14 @@ export default function MobileDevicePage() {
                   />
                 </div>
               ))}
+              {queueItems.length > 5 ? (
+                <button
+                  onClick={() => setShowAllQueueItems((current) => !current)}
+                  className="inline-flex w-full items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs font-bold text-zinc-200"
+                >
+                  {showAllQueueItems ? t("offlineQueue.showRecentOnly") : t("offlineQueue.showAll", { count: queueItems.length - visibleQueueItems.length })}
+                </button>
+              ) : null}
             </div>
           ) : null}
           <div className="mt-5 grid gap-3">

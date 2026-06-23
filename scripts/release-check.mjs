@@ -1315,6 +1315,8 @@ function checkAssets() {
     mobileDeviceSource.includes("getOfflineMessageQueueStorageStatus") &&
     mobileDeviceSource.includes("MobileOfflineQueueCards") &&
     mobileDeviceSource.includes("offlineQueue.remoteEntryTitle") &&
+    mobileDeviceSource.includes("showAllQueueItems") &&
+    mobileDeviceSource.includes("offlineQueue.showAll") &&
     mobileDeviceSource.includes("currentEntryGuidance.map") &&
     mobileDeviceSource.includes("requestOfflineMessageQueuePersistentStorage") &&
     mobileDeviceSource.includes("persistentStorageGranted") &&
@@ -1343,6 +1345,8 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.requestPersistentStorage") &&
     translationsSource.includes("offlineQueue.failureReason") &&
     translationsSource.includes("offlineQueue.remoteEntryTitle") &&
+    translationsSource.includes("offlineQueue.showAll") &&
+    translationsSource.includes("offlineQueue.showRecentOnly") &&
     translationsSource.includes("offlineQueue.status.pending") &&
     translationsSource.includes("offlineQueue.readyToRetry") &&
     translationsSource.includes("offlineQueue.recommendation.browserStorage") &&
