@@ -587,6 +587,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const mobileOfflineQueueCardsSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileOfflineQueueCards.tsx"), "utf8");
   const mobileOfflineQueuePanelSource = await readFile(path.join(rootDir, "src", "pages", "mobile", "MobileOfflineQueuePanel.tsx"), "utf8");
+  const offlineQueueBackupSource = await readFile(path.join(rootDir, "src", "services", "offlineQueueBackup.ts"), "utf8");
   assert.match(mobileOfflineQueueCardsSource, /getOfflineMessageNextRetryAt/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.status\.pending/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.status\.syncing/);
@@ -609,6 +610,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.browserStorage/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.persistentStorage/);
   assert.match(mobileOfflineQueuePanelSource, /offlineQueue\.remoteEntryTitle/);
+  assert.match(mobileOfflineQueuePanelSource, /buildOfflineQueueBackupText/);
+  assert.match(mobileOfflineQueuePanelSource, /navigator\.clipboard\.writeText\(buildOfflineQueueBackupText\(queueSummary, queueItems\)\)/);
+  assert.match(mobileOfflineQueuePanelSource, /offlineQueue\.copyBackup/);
+  assert.match(mobileOfflineQueuePanelSource, /offlineQueue\.backupCopied/);
   assert.match(mobileOfflineQueuePanelSource, /queueSummary\.oldestQueuedAt/);
   assert.match(mobileOfflineQueuePanelSource, /showAllQueueItems/);
   assert.match(mobileOfflineQueuePanelSource, /offlineQueue\.showAll/);
@@ -625,6 +630,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /network\.offline/);
   assert.match(translationsSource, /当前网络较弱/);
   assert.match(translationsSource, /离线队列存储/);
+  assert.match(translationsSource, /复制队列备份/);
+  assert.match(translationsSource, /Copy Queue Backup/);
   assert.match(translationsSource, /待同步/);
   assert.match(translationsSource, /可以重试/);
   assert.match(translationsSource, /浏览器存储空间接近上限/);
@@ -648,6 +655,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.doesNotMatch(offlineQueueBannerSource, /\{item\.status\}/);
 
   const offlineQueueSource = await readFile(path.join(rootDir, "src", "services", "offlineMessageQueue.ts"), "utf8");
+  assert.match(offlineQueueBackupSource, /LifeOS AI offline queue backup/);
+  assert.match(offlineQueueBackupSource, /Failure reason/);
   assert.match(offlineQueueSource, /getOfflineMessageStatusLabel/);
   assert.match(offlineQueueSource, /getOfflineMessageRetryLabel/);
   assert.match(offlineQueueSource, /getOfflineMessageQueueStorageStatus/);

@@ -416,6 +416,47 @@ test("offline message queue compacts oversized messages and reports byte budget"
   assert.equal(status.bytes, queueModule.getOfflineQueueSerializedBytes(queueModule.getOfflineMessageQueue()));
 });
 
+test("offline queue backup text preserves queued messages before clearing", async () => {
+  const { buildOfflineQueueBackupText } = await import(`../src/services/offlineQueueBackup.ts?case=backup-text-${Date.now()}`);
+  const queuedAt = Date.UTC(2026, 0, 2, 3, 4, 5);
+  const text = buildOfflineQueueBackupText({
+    count: 2,
+    pending: 1,
+    syncing: 0,
+    failed: 1,
+    lastError: "WebSocket offline",
+    nextRetryAt: queuedAt + 30_000,
+  }, [
+    {
+      id: "offline-1",
+      queuedAt,
+      fingerprint: "fp-1",
+      status: "pending",
+      attempts: 0,
+      message: { role: "user", parts: [{ text: "Remember this offline task" }] },
+    },
+    {
+      id: "offline-2",
+      queuedAt: queuedAt + 1,
+      fingerprint: "fp-2",
+      status: "failed",
+      attempts: 3,
+      lastError: "Tunnel failed",
+      message: { role: "user", parts: [{ text: "Retry this failed message" }] },
+    },
+  ], queuedAt);
+
+  assert.match(text, /LifeOS AI offline queue backup/);
+  assert.match(text, /Total: 2/);
+  assert.match(text, /Failed: 1/);
+  assert.match(text, /Last error: WebSocket offline/);
+  assert.match(text, /#1 PENDING/);
+  assert.match(text, /#2 FAILED/);
+  assert.match(text, /Failure reason: Tunnel failed/);
+  assert.match(text, /Remember this offline task/);
+  assert.match(text, /Retry this failed message/);
+});
+
 test("offline message queue trims oldest items when storage budget is exceeded", async () => {
   storage.clear();
   dispatchedEvents = [];

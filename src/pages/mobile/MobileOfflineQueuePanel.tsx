@@ -1,6 +1,8 @@
-import { RefreshCw, Trash2, Wifi } from "lucide-react";
+import { useState } from "react";
+import { Copy, RefreshCw, Trash2, Wifi } from "lucide-react";
 import type { NetworkStatus } from "../../services/networkStatus";
 import type { OfflineMessageQueueStorageStatus, OfflineMessageQueueSummary, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
+import { buildOfflineQueueBackupText } from "../../services/offlineQueueBackup";
 import type { RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
 import { Metric } from "./MobileDeviceStatusCards";
@@ -40,12 +42,18 @@ export default function MobileOfflineQueuePanel({
   onRemoveItem,
 }: MobileOfflineQueuePanelProps) {
   const { t } = useI18n();
+  const [copiedQueueBackup, setCopiedQueueBackup] = useState(false);
   const visibleQueueItems = showAllQueueItems ? queueItems : queueItems.slice(0, 5);
   const networkTone = network.quality === "offline"
     ? "border-red-400/20 bg-red-500/10 text-red-300"
     : network.quality === "poor"
       ? "border-amber-400/20 bg-amber-500/10 text-amber-300"
       : "border-cyan-400/20 bg-cyan-500/10 text-cyan-300";
+  const copyQueueBackup = async () => {
+    await navigator.clipboard.writeText(buildOfflineQueueBackupText(queueSummary, queueItems)).catch(() => null);
+    setCopiedQueueBackup(true);
+    window.setTimeout(() => setCopiedQueueBackup(false), 1400);
+  };
 
   return (
     <section className="mt-4 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
@@ -141,7 +149,11 @@ export default function MobileOfflineQueuePanel({
           <RefreshCw className="h-4 w-4" />
           {t("mobileDevice.openChatSync")}
         </a>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3">
+          <button onClick={copyQueueBackup} disabled={queueSummary.count === 0} className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-bold text-cyan-100 disabled:opacity-45">
+            <Copy className="h-4 w-4" />
+            {copiedQueueBackup ? t("offlineQueue.backupCopied") : t("offlineQueue.copyBackup")}
+          </button>
           <button onClick={onRetryQueue} disabled={queueSummary.failed === 0} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm font-bold text-amber-100 disabled:opacity-45">
             <RefreshCw className="h-4 w-4" />
             {t("mobileDevice.retryFailed")}

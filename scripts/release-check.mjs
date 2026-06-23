@@ -1256,6 +1256,7 @@ function checkAssets() {
   else warn("active chat session cache can still crash when browser storage is unavailable");
 
   const offlineQueueSource = exists("src/services/offlineMessageQueue.ts") ? fs.readFileSync(path.join(rootDir, "src/services/offlineMessageQueue.ts"), "utf8") : "";
+  const offlineQueueBackupSource = exists("src/services/offlineQueueBackup.ts") ? fs.readFileSync(path.join(rootDir, "src/services/offlineQueueBackup.ts"), "utf8") : "";
   const offlineQueueBannerSource = exists("src/components/chat/OfflineQueueBanner.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/chat/OfflineQueueBanner.tsx"), "utf8") : "";
   const mobileOfflineQueueCardsSource = exists("src/pages/mobile/MobileOfflineQueueCards.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueueCards.tsx"), "utf8") : "";
   const mobileOfflineQueuePanelSource = exists("src/pages/mobile/MobileOfflineQueuePanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueuePanel.tsx"), "utf8") : "";
@@ -1443,6 +1444,10 @@ function checkAssets() {
     mobileDeviceSource.includes('window.addEventListener("focus", refreshRecoverableState)') &&
     mobileDeviceSource.includes('document.addEventListener("visibilitychange", handleVisibilityChange)') &&
     mobileOfflineQueuePanelSource.includes("offlineQueue.remoteEntryTitle") &&
+    mobileOfflineQueuePanelSource.includes("buildOfflineQueueBackupText") &&
+    mobileOfflineQueuePanelSource.includes("navigator.clipboard.writeText(buildOfflineQueueBackupText(queueSummary, queueItems))") &&
+    mobileOfflineQueuePanelSource.includes("offlineQueue.copyBackup") &&
+    mobileOfflineQueuePanelSource.includes("offlineQueue.backupCopied") &&
     mobileOfflineQueuePanelSource.includes("offlineQueue.waitingSinceTitle") &&
     mobileOfflineQueuePanelSource.includes("queueSummary.oldestQueuedAt") &&
     mobileOfflineQueuePanelSource.includes("offlineQueue.emptyTitle") &&
@@ -1481,6 +1486,8 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.persistentStorage") &&
     translationsSource.includes("offlineQueue.requestPersistentStorage") &&
     translationsSource.includes("offlineQueue.failureReason") &&
+    translationsSource.includes("offlineQueue.copyBackup") &&
+    translationsSource.includes("Copy Queue Backup") &&
     translationsSource.includes("offlineQueue.remoteEntryTitle") &&
     translationsSource.includes("offlineQueue.waitingSinceTitle") &&
     translationsSource.includes("offlineQueue.waitingSinceBody") &&
@@ -1499,6 +1506,9 @@ function checkAssets() {
     offlineQueueTestSource.includes("formatOfflineMessageQueueBytes") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueUsageLabel") &&
+    offlineQueueBackupSource.includes("LifeOS AI offline queue backup") &&
+    offlineQueueBackupSource.includes("Failure reason") &&
+    offlineQueueTestSource.includes("offline queue backup text preserves queued messages before clearing") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageStatus") &&
     offlineQueueTestSource.includes("summary.oldestQueuedAt") &&
     offlineQueueSource.includes("oldestQueuedAt") &&
