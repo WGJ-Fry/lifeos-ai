@@ -516,6 +516,7 @@ function checkAssets() {
   const adminLoginSource = exists("src/pages/admin/AdminLoginPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminLoginPage.tsx"), "utf8") : "";
   const adminOnboardingSource = exists("src/pages/admin/AdminOnboardingPage.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/AdminOnboardingPage.tsx"), "utf8") : "";
   const onboardingMobileSource = exists("src/pages/admin/OnboardingMobileCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingMobileCard.tsx"), "utf8") : "";
+  const onboardingRecoverySource = exists("src/pages/admin/OnboardingRecoveryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/OnboardingRecoveryCard.tsx"), "utf8") : "";
   const translationsSource = exists("src/i18n/translations.ts") ? fs.readFileSync(path.join(rootDir, "src/i18n/translations.ts"), "utf8") : "";
   if (
     adminRoutesSource.includes("/api/v1/admin/onboarding") &&
@@ -536,12 +537,18 @@ function checkAssets() {
     adminOnboardingSource.includes("onboarding.finishBlocked") &&
     adminOnboardingSource.includes("onboarding.finishReady") &&
     adminOnboardingSource.includes("OnboardingMobileCard") &&
+    adminOnboardingSource.includes("OnboardingRecoveryCard") &&
+    adminOnboardingSource.includes("desktop.copyLocalAddress") &&
     onboardingMobileSource.includes("/admin/settings#mobile-connect") &&
     onboardingMobileSource.includes("remoteReadiness") &&
     onboardingMobileSource.includes("onboarding.remoteReadinessTitle") &&
+    onboardingRecoverySource.includes("onboarding.copyLocalAddress") &&
+    onboardingRecoverySource.includes("onboarding.openLogsFolder") &&
+    onboardingRecoverySource.includes("onboarding.exportDiagnostics") &&
     translationsSource.includes("onboarding.enableDailyBackup") &&
     translationsSource.includes("onboarding.longTermBackupReminderBody") &&
     translationsSource.includes("onboarding.remoteReadinessTitle") &&
+    translationsSource.includes("onboarding.localAddressCopied") &&
     translationsSource.includes("onboarding.finishBlocked") &&
     translationsSource.includes("onboarding.finishReady") &&
     translationsSource.includes("Set as Default Chat Provider")
