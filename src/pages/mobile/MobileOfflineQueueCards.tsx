@@ -19,7 +19,7 @@ function recommendationKey(recommendation: string) {
   return "";
 }
 
-export function QueueStorageCard({ storage }: { storage: OfflineMessageQueueStorageStatus }) {
+export function QueueStorageCard({ storage, onRequestPersistence }: { storage: OfflineMessageQueueStorageStatus; onRequestPersistence?: () => void }) {
   const { t } = useI18n();
   const tone = storage.available && !storage.nearItemLimit && !storage.nearByteLimit && (storage.usageRatio === undefined || storage.usageRatio <= 0.8)
     ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-100"
@@ -43,6 +43,14 @@ export function QueueStorageCard({ storage }: { storage: OfflineMessageQueueStor
             return <div key={recommendation}>{key ? t(key as any) : recommendation}</div>;
           })}
         </div>
+      ) : null}
+      {storage.persistentStorageGranted === false && onRequestPersistence ? (
+        <button
+          onClick={onRequestPersistence}
+          className="mt-3 inline-flex w-full items-center justify-center rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-3 py-2 font-bold text-emerald-100"
+        >
+          {t("offlineQueue.requestPersistentStorage")}
+        </button>
       ) : null}
     </div>
   );

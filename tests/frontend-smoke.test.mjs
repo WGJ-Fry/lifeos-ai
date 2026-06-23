@@ -528,6 +528,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.storageTitle/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.legacyMirror/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.persistentStorage/);
+  assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.requestPersistentStorage/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.failureReason/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.retryOne/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.copyAria/);
@@ -537,10 +538,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.browserStorage/);
   assert.match(mobileOfflineQueueCardsSource, /offlineQueue\.recommendation\.persistentStorage/);
   assert.match(mobileDeviceSource, /offlineQueue\.remoteEntryTitle/);
+  assert.match(mobileDeviceSource, /requestOfflineMessageQueuePersistentStorage/);
+  assert.match(mobileDeviceSource, /persistentStorageGranted/);
   assert.match(mobileDeviceSource, /currentEntryGuidance\.map/);
   assert.match(mobileDeviceSource, /network\.labelKey/);
   assert.doesNotMatch(mobileDeviceSource, /network\.label(?!Key)/);
   assert.match(translationsSource, /offlineQueue\.remoteEntryTitle/);
+  assert.match(translationsSource, /offlineQueue\.requestPersistentStorage/);
   assert.match(translationsSource, /network\.offline/);
   assert.match(translationsSource, /当前网络较弱/);
   assert.match(translationsSource, /离线队列存储/);

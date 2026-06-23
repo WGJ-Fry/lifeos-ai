@@ -392,6 +392,21 @@ export function getOfflineMessageQueueUsageLabel(storage: Pick<OfflineMessageQue
   return `${usage}${storage.quotaBytes ? `, quota ${formatOfflineMessageQueueBytes(storage.quotaBytes)}` : ""}`;
 }
 
+export async function requestOfflineMessageQueuePersistentStorage() {
+  const storageManager = typeof navigator === "undefined" ? null : navigator.storage;
+  if (!storageManager?.persist) {
+    return {
+      supported: false,
+      granted: false,
+    };
+  }
+  const granted = await storageManager.persist().catch(() => false);
+  return {
+    supported: true,
+    granted: Boolean(granted),
+  };
+}
+
 export function getOfflineMessagesReadyToSync(now = Date.now()) {
   return readQueue().filter((item) => {
     if (item.status === "pending") return true;

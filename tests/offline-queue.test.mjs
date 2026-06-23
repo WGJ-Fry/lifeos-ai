@@ -299,6 +299,32 @@ test("offline message queue records successful write-back metadata and clears it
   assert.equal(storage.has("lifeos_offline_message_queue_sync_meta"), false);
 });
 
+test("offline message queue can request persistent browser storage", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const originalStorageManager = globalThis.navigator.storage;
+  globalThis.navigator.storage = {
+    ...originalStorageManager,
+    persist() {
+      return Promise.resolve(true);
+    },
+  };
+
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=persist-request-${Date.now()}`);
+  const granted = await queueModule.requestOfflineMessageQueuePersistentStorage();
+  assert.deepEqual(granted, { supported: true, granted: true });
+
+  globalThis.navigator.storage = {
+    persisted: originalStorageManager.persisted,
+    estimate: originalStorageManager.estimate,
+  };
+  const unsupported = await queueModule.requestOfflineMessageQueuePersistentStorage();
+  assert.deepEqual(unsupported, { supported: false, granted: false });
+  globalThis.navigator.storage = originalStorageManager;
+});
+
 test("offline message queue migrates legacy localStorage into IndexedDB primary storage", async () => {
   storage.clear();
   dispatchedEvents = [];

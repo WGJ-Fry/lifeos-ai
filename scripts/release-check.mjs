@@ -1316,6 +1316,8 @@ function checkAssets() {
     mobileDeviceSource.includes("MobileOfflineQueueCards") &&
     mobileDeviceSource.includes("offlineQueue.remoteEntryTitle") &&
     mobileDeviceSource.includes("currentEntryGuidance.map") &&
+    mobileDeviceSource.includes("requestOfflineMessageQueuePersistentStorage") &&
+    mobileDeviceSource.includes("persistentStorageGranted") &&
     mobileDeviceSource.includes("network.labelKey") &&
     !/network\.label(?!Key)/.test(mobileDeviceSource) &&
     mobileOfflineQueueCardsSource.includes("getOfflineMessageNextRetryAt") &&
@@ -1330,6 +1332,7 @@ function checkAssets() {
     mobileOfflineQueueCardsSource.includes("offlineQueue.storageTitle") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.legacyMirror") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.persistentStorage") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.requestPersistentStorage") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.failureReason") &&
     mobileOfflineQueueCardsSource.includes("recommendationKey") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.recommendation.browserStorage") &&
@@ -1337,6 +1340,7 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.storageTitle") &&
     translationsSource.includes("offlineQueue.legacyMirror") &&
     translationsSource.includes("offlineQueue.persistentStorage") &&
+    translationsSource.includes("offlineQueue.requestPersistentStorage") &&
     translationsSource.includes("offlineQueue.failureReason") &&
     translationsSource.includes("offlineQueue.remoteEntryTitle") &&
     translationsSource.includes("offlineQueue.status.pending") &&
@@ -1351,6 +1355,9 @@ function checkAssets() {
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueUsageLabel") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageStatus") &&
+    offlineQueueTestSource.includes("can request persistent browser storage") &&
+    offlineQueueSource.includes("requestOfflineMessageQueuePersistentStorage") &&
+    offlineQueueSource.includes("storageManager.persist") &&
     offlineQueueSource.includes("clearSyncMeta") &&
     offlineQueueSource.includes("localStorage.removeItem(QUEUE_SYNC_META_KEY)") &&
     offlineQueueTestSource.includes("clears it with the queue") &&

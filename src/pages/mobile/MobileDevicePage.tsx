@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Download, KeyRound, LogOut, RefreshCw, ShieldCheck, Smartphone, Trash2, Wifi } from "lucide-react";
 import { clearStoredDeviceCredential, getHealth, getLatestMobileConnectivityReport, getStoredDeviceCredential, getStoredDeviceCredentialAsync, getStoredDeviceCredentialStorageStatus, reportMobileConnectivity, revokeCurrentDeviceBinding, rotateDeviceToken } from "../../services/lifeosApi";
 import type { DeviceConnectivityReport, DeviceCredentialStorageStatus } from "../../services/lifeosApi";
-import { clearOfflineMessageQueue, getOfflineMessageQueue, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeOfflineMessages, resetFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
+import { clearOfflineMessageQueue, getOfflineMessageQueue, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeOfflineMessages, requestOfflineMessageQueuePersistentStorage, resetFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
 import type { OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { getNetworkStatus } from "../../services/networkStatus";
 import { extractPairingToken, pairingInstallPath } from "../../services/mobilePairingIntent";
@@ -162,6 +162,16 @@ export default function MobileDevicePage() {
     await clearOfflineMessageQueue();
     refreshQueue();
     setStatus(t("mobileDevice.queueCleared"));
+  };
+
+  const handleRequestPersistentStorage = async () => {
+    const result = await requestOfflineMessageQueuePersistentStorage();
+    await getOfflineMessageQueueStorageStatus().then(setQueueStorage).catch(() => null);
+    setStatus(result.supported
+      ? result.granted
+        ? t("mobileDevice.persistentStorageGranted")
+        : t("mobileDevice.persistentStorageDenied")
+      : t("mobileDevice.persistentStorageUnsupported"));
   };
 
   const openPairingInput = async (options: { clearCurrent?: boolean } = {}) => {
@@ -439,7 +449,7 @@ export default function MobileDevicePage() {
               ) : null}
             </div>
           ) : null}
-          {queueStorage ? <QueueStorageCard storage={queueStorage} /> : null}
+          {queueStorage ? <QueueStorageCard storage={queueStorage} onRequestPersistence={handleRequestPersistentStorage} /> : null}
           {queueItems.length ? (
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between text-xs">
