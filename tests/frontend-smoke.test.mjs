@@ -387,10 +387,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /getLatestMobileConnectivityReport/);
   assert.match(mobileDeviceSource, /lastConnectivityReport/);
   assert.match(mobileDeviceSource, /mobileConnectivityResultFromReport/);
+  assert.match(mobileDeviceSource, /connectivityReportStale/);
+  assert.match(mobileDeviceSource, /6 \* 60 \* 60 \* 1000/);
   assert.match(mobileDeviceSource, /lastConnectivityIssue/);
   assert.match(mobileDeviceSource, /lastConnectivityHints/);
   assert.match(mobileDeviceSource, /mobileDevice\.lastConnectivityOk/);
   assert.match(mobileDeviceSource, /mobileDevice\.lastConnectivityFailed/);
+  assert.match(mobileDeviceSource, /mobileDevice\.staleConnectivityReport/);
   assert.match(mobileDeviceSource, /mobileDevice\.lastConnectivityFixTitle/);
   assert.match(mobileDeviceSource, /MobileConnectivityCard/);
   assert.match(mobileDeviceSource, /queueSummary=\{queueSummary\}/);
@@ -411,6 +414,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /当前入口建议/);
   assert.match(translationsSource, /测试当前手机连通性/);
   assert.match(translationsSource, /上次连接测试通过/);
+  assert.match(translationsSource, /这次连接测试已经超过 6 小时/);
   assert.match(translationsSource, /测试时间/);
   assert.match(translationsSource, /打开 Tailscale/);
   assert.match(translationsSource, /重新绑定远程入口/);

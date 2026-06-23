@@ -1241,6 +1241,8 @@ function checkAssets() {
     mobileDeviceSource.includes("mobileDevice.connectivityTest") &&
     mobileDeviceSource.includes("testMobileRemoteConnectivity") &&
     mobileDeviceSource.includes("reportMobileConnectivity") &&
+    mobileDeviceSource.includes("connectivityReportStale") &&
+    mobileDeviceSource.includes("mobileDevice.staleConnectivityReport") &&
     mobileDeviceSource.includes("onRetry={handleConnectivityTest}") &&
     mobileDeviceSource.includes("queueSummary={queueSummary}") &&
     mobileConnectivityCardSource.includes("getMobileRecoveryHints") &&
@@ -1294,6 +1296,7 @@ function checkAssets() {
     frontendSmokeTestSource.includes("getRemoteEntryGuidance") &&
     frontendSmokeTestSource.includes("mobileConnectivityResultFromReport") &&
     frontendSmokeTestSource.includes("lastConnectivityIssue") &&
+    frontendSmokeTestSource.includes("connectivityReportStale") &&
     frontendSmokeTestSource.includes("queueSummary=\\{queueSummary\\}") &&
     frontendSmokeTestSource.includes("getMobileRecoveryHints") &&
     frontendSmokeTestSource.includes("getMobileConnectivityIssue") &&
@@ -1311,6 +1314,7 @@ function checkAssets() {
     translationsSource.includes("connectivityMobileShell") &&
     translationsSource.includes("mobileDevice.pwaTitle") &&
     translationsSource.includes("mobileDevice.lastConnectivityFixTitle") &&
+    translationsSource.includes("mobileDevice.staleConnectivityReport") &&
     translationsSource.includes("mobileDevice.pwaRecommendation.addToHome") &&
     translationsSource.includes("mobileDevice.pwaRecommendation.offlineQueue")
   ) pass("mobile device page surfaces PWA install, background sync, and remote recovery guidance");

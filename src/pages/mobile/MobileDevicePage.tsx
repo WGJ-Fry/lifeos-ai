@@ -46,6 +46,7 @@ export default function MobileDevicePage() {
   const lastConnectivityResult = useMemo(() => lastConnectivityReport ? mobileConnectivityResultFromReport(lastConnectivityReport) : null, [lastConnectivityReport]);
   const lastConnectivityIssue = useMemo(() => lastConnectivityResult ? getMobileConnectivityIssue(lastConnectivityResult, currentEntry.kind, queueSummary) : null, [currentEntry.kind, lastConnectivityResult, queueSummary]);
   const lastConnectivityHints = useMemo(() => lastConnectivityResult ? getMobileRecoveryHints(lastConnectivityResult, currentEntry.kind, queueSummary) : [], [currentEntry.kind, lastConnectivityResult, queueSummary]);
+  const connectivityReportStale = Boolean(lastConnectivityReport && Date.now() - lastConnectivityReport.createdAt > 6 * 60 * 60 * 1000);
   const visibleQueueItems = showAllQueueItems ? queueItems : queueItems.slice(0, 5);
 
   const refreshCredentialStorage = async () => {
@@ -371,6 +372,11 @@ export default function MobileDevicePage() {
                   latency: lastConnectivityReport.latencyMs,
                 })}
               </div>
+              {connectivityReportStale ? (
+                <div className="mt-2 rounded-xl border border-amber-300/20 bg-amber-500/10 p-2 text-amber-50">
+                  {t("mobileDevice.staleConnectivityReport")}
+                </div>
+              ) : null}
               <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
                   <div className="font-bold">{lastConnectivityReport.healthOk ? t("mobileDevice.pass") : t("mobileDevice.fail")}</div>
