@@ -131,9 +131,10 @@ function connectionCandidate(input: {
   const normalizedBaseUrl = input.baseUrl.replace(/\/$/, "");
   const parsedBaseUrl = new URL(normalizedBaseUrl);
   const host = input.mode === "local" || (input.mode === "tailscale" && parsedBaseUrl.protocol === "https:") ? "127.0.0.1" : "0.0.0.0";
+  const trustProxy = secure && input.mode !== "local" && input.mode !== "lan" ? " LIFEOS_TRUST_PROXY=1" : "";
   const envTemplate = input.mode === "local"
     ? `LIFEOS_HOST=127.0.0.1 LIFEOS_PORT=${parsedBaseUrl.port || "3000"} npm run start`
-    : `LIFEOS_HOST=${host} LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=${normalizedBaseUrl} npm run start`;
+    : `LIFEOS_HOST=${host} LIFEOS_ALLOW_PUBLIC=1${trustProxy} PUBLIC_BASE_URL=${normalizedBaseUrl} npm run start`;
   return {
     ...input,
     baseUrl: normalizedBaseUrl,
@@ -354,7 +355,7 @@ function getCloudflareTunnelStatus(port: string) {
     suggestedCommand: `cloudflared tunnel --url http://127.0.0.1:${port}`,
     installCommand: process.platform === "darwin" ? "brew install cloudflared" : "Download and install cloudflared, then confirm the command is available",
     installUrl: "https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/",
-    envTemplate: `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=${detectedUrls[0] || "https://<your-tunnel>.trycloudflare.com"} npm run start`,
+    envTemplate: `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=${detectedUrls[0] || "https://<your-tunnel>.trycloudflare.com"} npm run start`,
     notes: installed
       ? [
         running ? "A running cloudflared process was detected." : "cloudflared is installed. Run the command below to create a temporary HTTPS tunnel.",
@@ -434,7 +435,7 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
     installCommand: process.platform === "darwin" ? "brew install --cask tailscale" : "Install the Tailscale client and sign in to the same Tailnet",
     installUrl: "https://tailscale.com/download",
     envTemplate: mobileUrls[0]
-      ? `${httpsServeUrl ? "LIFEOS_HOST=127.0.0.1" : "LIFEOS_HOST=0.0.0.0"} LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=${mobileUrls[0]} npm run start`
+      ? `${httpsServeUrl ? "LIFEOS_HOST=127.0.0.1" : "LIFEOS_HOST=0.0.0.0"} LIFEOS_ALLOW_PUBLIC=1${httpsServeUrl ? " LIFEOS_TRUST_PROXY=1" : ""} PUBLIC_BASE_URL=${mobileUrls[0]} npm run start`
       : `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start`,
     notes: installed
       ? [

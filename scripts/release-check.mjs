@@ -582,6 +582,8 @@ function checkAssets() {
     networkDiagnosticsSource.includes("desktopRuntimeConfig") &&
     networkDiagnosticsSource.includes("saved-desktop-config") &&
     networkDiagnosticsTestSource.includes("recommends saved desktop remote config before local-only entries") &&
+    networkDiagnosticsTestSource.includes("LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net") &&
+    networkDiagnosticsTestSource.includes('tailscaleHttpCandidate.envTemplate.includes("LIFEOS_TRUST_PROXY=1"), false') &&
     desktopRuntimeConfigSource.includes("desktop-runtime-config.json") &&
     desktopRuntimeConfigSource.includes("normalizeDesktopRuntimeConfig") &&
     desktopRuntimeConfigSource.includes("allowPublic") &&
@@ -595,6 +597,7 @@ function checkAssets() {
     networkDiagnosticsSource.includes("httpsServeUrl") &&
     networkDiagnosticsSource.includes("getTailscaleStatus(portOverride =") &&
     networkDiagnosticsSource.includes("tailscale serve --bg https:443") &&
+    networkDiagnosticsSource.includes("LIFEOS_TRUST_PROXY=1") &&
     networkDiagnosticsSource.includes("startTailscaleHttpsServe") &&
     networkDiagnosticsSource.includes("stopTailscaleHttpsServe") &&
     networkDiagnosticsSource.includes("maybeStartConfiguredTailscaleServe") &&

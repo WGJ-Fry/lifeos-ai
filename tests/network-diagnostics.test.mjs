@@ -81,7 +81,7 @@ exit 1
   assert.deepEqual(diagnostics.cloudflare.detectedUrls, ["https://amber-lifeos.trycloudflare.com"]);
   assert.equal(diagnostics.cloudflare.suggestedCommand, "cloudflared tunnel --url http://127.0.0.1:4567");
   assert.match(diagnostics.cloudflare.installUrl, /^https:\/\/developers\.cloudflare\.com\//);
-  assert.match(diagnostics.cloudflare.envTemplate, /PUBLIC_BASE_URL=https:\/\/amber-lifeos\.trycloudflare\.com/);
+  assert.match(diagnostics.cloudflare.envTemplate, /LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https:\/\/amber-lifeos\.trycloudflare\.com/);
   assert.equal(diagnostics.tailscale.installed, true);
   assert.equal(diagnostics.tailscale.online, true);
   assert.equal(diagnostics.tailscale.deviceName, "lifeos-mac");
@@ -96,7 +96,7 @@ exit 1
   assert.equal(diagnostics.tailscale.serveCommand, "tailscale serve --bg https:443 http://127.0.0.1:4567");
   assert.deepEqual(diagnostics.tailscale.mobileUrls, ["https://lifeos-mac.tailnet.example.ts.net", "http://lifeos-mac.tailnet.example.ts.net:4567", "http://100.64.0.10:4567"]);
   assert.match(diagnostics.tailscale.installUrl, /^https:\/\/tailscale\.com\/download/);
-  assert.equal(diagnostics.tailscale.envTemplate, "LIFEOS_HOST=127.0.0.1 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net npm run start");
+  assert.equal(diagnostics.tailscale.envTemplate, "LIFEOS_HOST=127.0.0.1 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net npm run start");
   assert.equal(diagnostics.lanEnvTemplate, "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start");
   assert.equal(diagnostics.recommendedBaseUrl, "https://lifeos-mac.tailnet.example.ts.net");
   assert.equal(diagnostics.connectionCandidates[0].id, "tailscale-serve-https");
@@ -107,7 +107,7 @@ exit 1
   assert.equal(diagnostics.remoteReadiness.severity, "warning");
   assert.equal(diagnostics.remoteReadiness.baseUrl, "https://lifeos-mac.tailnet.example.ts.net");
   assert.equal(diagnostics.remoteReadiness.actions.some((action) => action.id === "needsRestart"), true);
-  assert.equal(diagnostics.connectionCandidates[0].envTemplate, "LIFEOS_HOST=127.0.0.1 LIFEOS_ALLOW_PUBLIC=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net npm run start");
+  assert.equal(diagnostics.connectionCandidates[0].envTemplate, "LIFEOS_HOST=127.0.0.1 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://lifeos-mac.tailnet.example.ts.net npm run start");
   assert.match(diagnostics.connectionCandidates[0].restartInstruction, /Copy the startup environment/);
   const cloudflareCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "cloudflare-0");
   assert.equal(cloudflareCandidate.stability, "temporary");
@@ -116,10 +116,11 @@ exit 1
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-ip-0" && candidate.baseUrl === "http://100.64.0.10:4567"), true);
   const tailscaleCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-serve-https");
   const tailscaleHttpCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-magicdns-0");
-  assert.match(tailscaleCandidate.envTemplate, /PUBLIC_BASE_URL=https:\/\/lifeos-mac\.tailnet\.example\.ts\.net/);
+  assert.match(tailscaleCandidate.envTemplate, /LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https:\/\/lifeos-mac\.tailnet\.example\.ts\.net/);
   assert.match(tailscaleCandidate.notes[0], /HTTPS Serve is already active/);
   assert.equal(tailscaleHttpCandidate.stability, "temporary");
   assert.match(tailscaleHttpCandidate.notes[0], /not a long-term phone\/PWA entry/);
+  assert.equal(tailscaleHttpCandidate.envTemplate.includes("LIFEOS_TRUST_PROXY=1"), false);
 });
 
 test("network diagnostics normalizes configured public base URLs before UI and pairing use", async (t) => {

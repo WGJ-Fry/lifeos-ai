@@ -120,7 +120,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
             secure: true,
             mobilePairUrl: "https://pair.example.test/mobile/pair",
             mobileChatUrl: "https://pair.example.test/mobile/chat",
-            envTemplate: "PUBLIC_BASE_URL=https://pair.example.test LIFEOS_ALLOW_PUBLIC=1 npm run start",
+            envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://pair.example.test npm run start",
             restartInstruction: "复制环境变量后重启 LifeOS AI。",
             notes: ["适合异地访问。复制启动环境并重启后，绑定二维码会使用这个 HTTPS 地址。"],
           },
@@ -142,7 +142,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
           detectedUrls: ["https://pair.example.test"],
           suggestedCommand: "cloudflared tunnel --url http://127.0.0.1:3333",
           installCommand: "brew install cloudflared",
-          envTemplate: "PUBLIC_BASE_URL=https://pair.example.test LIFEOS_ALLOW_PUBLIC=1 npm run start",
+          envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://pair.example.test npm run start",
           notes: ["Cloudflare Tunnel 已运行。"],
         },
         tailscale: {
@@ -197,7 +197,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText("推荐安全")).toBeVisible();
   await expect(page.getByText("需重启生效")).toBeVisible();
   await expect(page.getByText(/Cloudflare Tunnel · 适合异地访问/)).toBeVisible();
-  await expect(page.getByText("PUBLIC_BASE_URL=https://pair.example.test LIFEOS_ALLOW_PUBLIC=1 npm run start")).toBeVisible();
+  await expect(page.getByText("LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://pair.example.test npm run start")).toBeVisible();
   const currentPairingEnvButton = page.getByRole("button", { name: "复制当前绑定启动环境" });
   await expect(currentPairingEnvButton).toBeVisible();
   await currentPairingEnvButton.click();
@@ -210,12 +210,12 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await page.goto("/admin/settings");
   await expect(page.getByText("管理员密码", { exact: true })).toBeVisible();
   await page.getByLabel("当前密码").fill(password);
-  await page.getByLabel("新密码", { exact: true }).fill("password123");
-  await page.getByLabel("确认新密码").fill("password123");
+  await page.getByLabel("新密码", { exact: true }).fill("aaaaaaaaaaaa1!");
+  await page.getByLabel("确认新密码").fill("aaaaaaaaaaaa1!");
   await page.getByRole("button", { name: "更新管理员密码" }).click();
   await expect(page.getByText("管理员密码已更新，请继续处理安全自检提示。")).toBeVisible();
   await expect(page.getByText(/建议加强|需要处理|强度通过/).first()).toBeVisible();
-  await page.getByLabel("当前密码").fill("password123");
+  await page.getByLabel("当前密码").fill("aaaaaaaaaaaa1!");
   await page.getByLabel("新密码", { exact: true }).fill(password);
   await page.getByLabel("确认新密码").fill(password);
   await page.getByRole("button", { name: "更新管理员密码" }).click();
@@ -409,7 +409,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
             secure: true,
             mobilePairUrl: "https://amber-lifeos.trycloudflare.com/mobile/pair",
             mobileChatUrl: "https://amber-lifeos.trycloudflare.com/mobile/chat",
-            envTemplate: "PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com LIFEOS_ALLOW_PUBLIC=1 npm run start",
+            envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com npm run start",
             restartInstruction: "复制环境变量后重启 LifeOS AI。",
             notes: ["适合异地访问。复制启动环境并重启后，绑定二维码会使用这个 HTTPS 地址。"],
           },
@@ -459,7 +459,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
           detectedUrls: ["https://amber-lifeos.trycloudflare.com"],
           suggestedCommand: "cloudflared tunnel --url http://127.0.0.1:3333",
           installCommand: "brew install cloudflared",
-          envTemplate: "PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com LIFEOS_ALLOW_PUBLIC=1 npm run start",
+          envTemplate: "LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com npm run start",
           notes: ["Cloudflare Tunnel 已运行。"],
         },
         tailscale: {
@@ -522,7 +522,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText("Tailscale MagicDNS", { exact: true })).toBeVisible();
   await expect(page.getByText("需重启生效").first()).toBeVisible();
   await expect(page.getByText("推荐启动环境", { exact: true })).toBeVisible();
-  await expect(page.getByText("PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com LIFEOS_ALLOW_PUBLIC=1 npm run start").first()).toBeVisible();
+  await expect(page.getByText("LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://amber-lifeos.trycloudflare.com npm run start").first()).toBeVisible();
   await expect(page.getByText("手机端入口").locator("..").getByText("https://amber-lifeos.trycloudflare.com/mobile/chat")).toBeVisible();
   await expect(page.getByText("实际地址形如 /mobile/install/<token>")).toBeVisible();
   const recommendedEnvButton = page.getByRole("button", { name: "复制推荐启动环境" });
@@ -584,7 +584,8 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(backupPanel.getByText(/已创建备份：lifeos-.*\.db/)).toBeVisible();
   await expect(backupPanel.getByText("加密备份导出")).toBeVisible();
   await expect(backupPanel.getByText("加密备份导入")).toBeVisible();
-  await backupPanel.getByPlaceholder("加密口令，至少 10 个字符").fill("playwright encrypted backup");
+  await backupPanel.getByPlaceholder("加密口令，至少 12 个字符").fill("Playwright encrypted backup 2026!");
+  await backupPanel.getByPlaceholder("再次输入加密口令").fill("Playwright encrypted backup 2026!");
   const encryptedDownloadPromise = page.waitForEvent("download");
   await backupPanel.getByRole("button", { name: "导出最新" }).click();
   const encryptedDownload = await encryptedDownloadPromise;
@@ -592,7 +593,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(backupPanel.getByText(/已生成加密备份/)).toBeVisible();
   const encryptedBackupPath = await encryptedDownload.path();
   expect(encryptedBackupPath).toBeTruthy();
-  await backupPanel.getByPlaceholder("导入口令").fill("playwright encrypted backup");
+  await backupPanel.getByPlaceholder("导入口令").fill("Playwright encrypted backup 2026!");
   await backupPanel.locator('input[type="file"]').setInputFiles(encryptedBackupPath!);
   await expect(backupPanel.getByText(/已导入加密备份/)).toBeVisible();
   await backupPanel.getByRole("button", { name: "预览" }).first().click();
