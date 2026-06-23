@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "fs";
+import path from "path";
 import { createDatabaseBackup, db, getBackupPath, getPendingRestore, listBackups } from "./db";
 import { getDevices } from "./devices";
 import { getMemories } from "./memories";
@@ -8,6 +9,7 @@ import { listAuditLogs, redactAuditMetadata } from "./audit";
 const previewTables = ["devices", "chat_sessions", "messages", "memories", "audit_logs", "client_state", "app_secrets", "schema_migrations"];
 const exportScopeKeys = ["chat", "memories", "devices", "auditLogs"] as const;
 const sensitiveBackupClientStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
+let cachedPackageVersion: string | null = null;
 
 export type DataExportScope = typeof exportScopeKeys[number];
 
@@ -88,11 +90,24 @@ export function normalizeDataExportScope(input: unknown): DataExportScope[] {
   return Array.from(new Set(values)) as DataExportScope[];
 }
 
+export function getDataExportVersion() {
+  if (cachedPackageVersion) return cachedPackageVersion;
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
+    cachedPackageVersion = typeof packageJson.version === "string" && packageJson.version.trim()
+      ? packageJson.version.trim()
+      : "0.0.0-unknown";
+  } catch {
+    cachedPackageVersion = "0.0.0-unknown";
+  }
+  return cachedPackageVersion;
+}
+
 export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys]) {
   const selectedScopes = new Set(scopes);
   const exportData: Record<string, unknown> = {
     exportedAt: new Date().toISOString(),
-    version: "0.1.0",
+    version: getDataExportVersion(),
     scopes,
   };
 

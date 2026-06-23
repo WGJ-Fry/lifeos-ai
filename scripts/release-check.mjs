@@ -1429,8 +1429,13 @@ function checkAssets() {
     dataLifecycleSource.includes("authorization") &&
     dataLifecycleSource.includes("auth[-_]?tag") &&
     dataLifecycleSource.includes("(^|[-_])iv([-_]|$)") &&
+    dataLifecycleSource.includes("getDataExportVersion") &&
+    dataLifecycleSource.includes('path.join(process.cwd(), "package.json")') &&
+    !dataLifecycleSource.includes('version: "0.1.0"') &&
     dataExportRedactionTestSource.includes("should not leak in data export redaction") &&
     dataExportRedactionTestSource.includes("C:\\\\Users\\\\example") &&
+    apiAuthTestSource.includes("dataExport.version, packageJson.version") &&
+    apiAuthTestSource.includes("scopedDataExport.version, packageJson.version") &&
     String(packageJson.scripts?.test || "").includes("tests/data-export-redaction.test.mjs")
   ) pass("data export redaction covers AI keys, tokens, auth headers, crypto fields, URLs, and local paths");
   else warn("data export redaction does not cover the full sensitive field set");

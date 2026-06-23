@@ -9,8 +9,10 @@ import { createServer } from "node:net";
 import test from "node:test";
 import WebSocket from "ws";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 
 const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const packageJson = JSON.parse(readFileSync(path.join(rootDir, "package.json"), "utf8"));
 
 function request(port, pathname, options = {}) {
   return fetch(`http://127.0.0.1:${port}${pathname}`, {
@@ -745,6 +747,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.match(dataExportResponse.headers.get("content-disposition") || "", /lifeos-data-export-.*\.json/);
   const dataExport = await dataExportResponse.json();
   assert.deepEqual(dataExport.scopes, ["chat", "memories", "devices", "auditLogs"]);
+  assert.equal(dataExport.version, packageJson.version);
   assert.ok(Array.isArray(dataExport.chat.sessions));
   assert.ok(Array.isArray(dataExport.memories));
   assert.ok(Array.isArray(dataExport.devices));
@@ -759,6 +762,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
 
   const scopedDataExport = await request(port, "/api/v1/data/export?scope=chat,devices", { headers: adminHeaders }).then((res) => res.json());
   assert.deepEqual(scopedDataExport.scopes, ["chat", "devices"]);
+  assert.equal(scopedDataExport.version, packageJson.version);
   assert.ok(Array.isArray(scopedDataExport.chat.sessions));
   assert.ok(Array.isArray(scopedDataExport.devices));
   assert.equal(scopedDataExport.memories, undefined);
