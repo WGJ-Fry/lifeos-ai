@@ -412,6 +412,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /lastConnectivityHints/);
   assert.match(mobileDeviceSource, /mobileDevice\.lastConnectivityOk/);
   assert.match(mobileDeviceSource, /mobileDevice\.lastConnectivityFailed/);
+  assert.match(mobileDeviceSource, /mobileDevice\.freshConnectivityReport/);
   assert.match(mobileDeviceSource, /mobileDevice\.staleConnectivityReport/);
   assert.match(mobileDeviceSource, /mobileDevice\.lastConnectivityFixTitle/);
   assert.match(mobileDeviceSource, /MobileConnectivityCard/);

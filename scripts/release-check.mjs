@@ -1277,6 +1277,7 @@ function checkAssets() {
     mobileDeviceSource.includes("testMobileRemoteConnectivity") &&
     mobileDeviceSource.includes("reportMobileConnectivity") &&
     mobileDeviceSource.includes("connectivityReportStale") &&
+    mobileDeviceSource.includes("mobileDevice.freshConnectivityReport") &&
     mobileDeviceSource.includes("mobileDevice.staleConnectivityReport") &&
     mobileDeviceSource.includes("onRetry={handleConnectivityTest}") &&
     mobileDeviceSource.includes("queueSummary={queueSummary}") &&
@@ -1357,6 +1358,7 @@ function checkAssets() {
     translationsSource.includes("connectivityMobileShell") &&
     translationsSource.includes("mobileDevice.pwaTitle") &&
     translationsSource.includes("mobileDevice.lastConnectivityFixTitle") &&
+    translationsSource.includes("mobileDevice.freshConnectivityReport") &&
     translationsSource.includes("mobileDevice.staleConnectivityReport") &&
     translationsSource.includes("mobileDevice.pwaRecommendation.addToHome") &&
     translationsSource.includes("mobileDevice.pwaRecommendation.offlineQueue")

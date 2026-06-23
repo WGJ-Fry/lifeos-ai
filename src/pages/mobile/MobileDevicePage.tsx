@@ -398,7 +398,11 @@ export default function MobileDevicePage() {
                 <div className="mt-2 rounded-xl border border-amber-300/20 bg-amber-500/10 p-2 text-amber-50">
                   {t("mobileDevice.staleConnectivityReport")}
                 </div>
-              ) : null}
+              ) : (
+                <div className="mt-2 rounded-xl border border-emerald-300/20 bg-emerald-500/10 p-2 text-emerald-50">
+                  {t("mobileDevice.freshConnectivityReport")}
+                </div>
+              )}
               <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-xl border border-white/[0.08] bg-black/10 p-2">
                   <div className="font-bold">{lastConnectivityReport.healthOk ? t("mobileDevice.pass") : t("mobileDevice.fail")}</div>
