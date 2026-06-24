@@ -768,6 +768,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.ok(Array.isArray(dataExport.customApps.actionRequests));
   assert.ok(Array.isArray(dataExport.customApps.actionPolicies));
   assert.ok(Array.isArray(dataExport.customApps.capabilityManifests));
+  assert.ok(Array.isArray(dataExport.customApps.capabilityRequests));
   const exportedConnectionAudit = dataExport.auditLogs.find((log) => log.action === "network_connection_tested");
   assert.ok(exportedConnectionAudit);
   assert.equal(exportedConnectionAudit.targetId, `http://127.0.0.1:${port}/?[redacted]`);
@@ -1493,6 +1494,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(unauthCustomAppState.status, 401);
   const unauthCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities");
   assert.equal(unauthCustomAppCapabilities.status, 401);
+  const unauthCustomAppCapabilityRequests = await request(port, "/api/v1/custom-apps/custom-ledger-1/capability-requests");
+  assert.equal(unauthCustomAppCapabilityRequests.status, 401);
   const unauthCustomAppActionPolicy = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-policy");
   assert.equal(unauthCustomAppActionPolicy.status, 401);
   const unauthCustomAppActions = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-requests");
@@ -1579,6 +1582,27 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.deepEqual(noCommunicationCustomAppCapabilities.manifest.allowedCapabilities, ["storage", "openExternal"]);
   assert.equal(noCommunicationCustomAppCapabilities.manifest.riskLevel, "medium");
 
+  const deniedCustomAppCapabilityRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/capability-requests", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      requestedCapabilities: ["communication"],
+      label: "Runtime wants phone access",
+      reason: "Needs to call a vendor with github_pat_runtimeCapabilitySecret_1234567890",
+    }),
+  }).then((res) => res.json());
+  assert.equal(deniedCustomAppCapabilityRequest.request.status, "pending");
+  assert.deepEqual(deniedCustomAppCapabilityRequest.request.missingCapabilities, ["communication"]);
+  assert.equal(JSON.stringify(deniedCustomAppCapabilityRequest).includes("github_pat_runtimeCapabilitySecret"), false);
+
+  const deniedCustomAppCapabilityDecision = await request(port, `/api/v1/custom-apps/custom-ledger-1/capability-requests/${deniedCustomAppCapabilityRequest.request.id}/decision`, {
+    method: "POST",
+    headers: deviceHeaders,
+    body: JSON.stringify({ decision: "denied", note: "Denied from mobile runtime center" }),
+  }).then((res) => res.json());
+  assert.equal(deniedCustomAppCapabilityDecision.request.status, "denied");
+  assert.equal(deniedCustomAppCapabilityDecision.request.decidedByType, "device");
+
   const capabilityBlockedCustomAppAction = await request(port, "/api/v1/custom-apps/custom-ledger-1/action-requests", {
     method: "POST",
     headers: adminHeaders,
@@ -1591,6 +1615,30 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(capabilityBlockedCustomAppAction.request.status, "blocked");
   assert.equal(capabilityBlockedCustomAppAction.request.targetUrl, "tel:[redacted]");
   assert.equal(JSON.stringify(capabilityBlockedCustomAppAction).includes("+15550002222"), false);
+
+  const approvedCustomAppCapabilityRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/capability-requests", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      requestedCapabilities: ["communication"],
+      label: "Runtime wants communication",
+      reason: "User asked this generated tool to prepare a phone call",
+    }),
+  }).then((res) => res.json());
+  assert.equal(approvedCustomAppCapabilityRequest.request.status, "pending");
+
+  const approvedCustomAppCapabilityDecision = await request(port, `/api/v1/custom-apps/custom-ledger-1/capability-requests/${approvedCustomAppCapabilityRequest.request.id}/decision`, {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ decision: "approved", note: "Allowed at runtime" }),
+  }).then((res) => res.json());
+  assert.equal(approvedCustomAppCapabilityDecision.request.status, "approved");
+  assert.deepEqual(approvedCustomAppCapabilityDecision.request.missingCapabilities, []);
+
+  const capabilitiesAfterRuntimeApproval = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(capabilitiesAfterRuntimeApproval.manifest.allowedCapabilities.includes("communication"), true);
 
   const noStorageCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
     method: "PUT",
@@ -2126,6 +2174,11 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const customAppCapabilitiesAudit = finalAudit.logs.find((log) => log.action === "custom_app_capabilities_updated" && log.targetId === "custom-ledger-1");
   assert.equal(customAppCapabilitiesAudit.metadata.allowedCapabilities.includes("openExternal"), true);
   assert.equal(["medium", "high"].includes(customAppCapabilitiesAudit.metadata.riskLevel), true);
+  const deniedCustomAppCapabilityAudit = finalAudit.logs.find((log) => log.action === "custom_app_capability_denied" && log.metadata.requestId === deniedCustomAppCapabilityRequest.request.id);
+  assert.equal(deniedCustomAppCapabilityAudit.actorType, "device");
+  assert.equal(deniedCustomAppCapabilityAudit.metadata.status, "denied");
+  const approvedCustomAppCapabilityAudit = finalAudit.logs.find((log) => log.action === "custom_app_capability_approved" && log.metadata.requestId === approvedCustomAppCapabilityRequest.request.id);
+  assert.equal(approvedCustomAppCapabilityAudit.metadata.status, "approved");
   const mobileCustomAppActionCancelledAudit = finalAudit.logs.find((log) => log.action === "custom_app_action_cancelled" && log.metadata.requestId === mobilePendingCustomAppAction.request.id);
   assert.equal(mobileCustomAppActionCancelledAudit.actorType, "device");
   assert.equal(mobileCustomAppActionCancelledAudit.metadata.targetUrl, "mailto:[redacted]?[redacted]");
@@ -2135,6 +2188,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(finalAuditJson.includes(rotated.accessToken), false);
   assert.equal(finalAuditJson.includes(adminRequestedRotation.accessToken), false);
   assert.equal(finalAuditJson.includes("custom-action-secret"), false);
+  assert.equal(finalAuditJson.includes("github_pat_runtimeCapabilitySecret"), false);
   assert.equal(finalAuditJson.includes("+15550001111"), false);
   assert.equal(finalAuditJson.includes("+15550002222"), false);
   assert.equal(finalAuditJson.includes("+15551234567"), false);
@@ -2168,7 +2222,12 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     { label: "saved custom app state", value: savedCustomAppState },
     { label: "default custom app capabilities", value: defaultCustomAppCapabilities },
     { label: "no communication custom app capabilities", value: noCommunicationCustomAppCapabilities },
+    { label: "denied custom app capability request", value: deniedCustomAppCapabilityRequest },
+    { label: "denied custom app capability decision", value: deniedCustomAppCapabilityDecision },
     { label: "capability blocked custom app action", value: capabilityBlockedCustomAppAction },
+    { label: "approved custom app capability request", value: approvedCustomAppCapabilityRequest },
+    { label: "approved custom app capability decision", value: approvedCustomAppCapabilityDecision },
+    { label: "capabilities after runtime approval", value: capabilitiesAfterRuntimeApproval },
     { label: "no storage custom app capabilities", value: noStorageCustomAppCapabilities },
     { label: "restored custom app capabilities", value: restoredCustomAppCapabilities },
     { label: "default custom app action policy", value: defaultCustomAppActionPolicy },
@@ -2246,6 +2305,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, "github_pat_problemSecret");
   assertSecretNotLeaked(publicResponses, "/Users/wangguojun/private-ledger.csv");
   assertSecretNotLeaked(publicResponses, "github_pat_customAppSecret");
+  assertSecretNotLeaked(publicResponses, "github_pat_runtimeCapabilitySecret");
   assertSecretNotLeaked(publicResponses, "/Users/wangguojun/private-app.html");
   assertSecretNotLeaked(publicResponses, "AIzaSy-state-secret-value-should-not-leak");
   assertSecretNotLeaked(publicResponses, "test-key");

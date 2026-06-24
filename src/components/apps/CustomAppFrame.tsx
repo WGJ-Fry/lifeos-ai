@@ -1,6 +1,14 @@
 import { useEffect, useRef } from "react";
 import { CustomApp } from "../../types";
-import { createCustomAppActionRequest, decideCustomAppActionRequest, getCustomAppState, saveCustomAppState } from "../../services/lifeosApi";
+import {
+  createCustomAppActionRequest,
+  createCustomAppCapabilityRequest,
+  decideCustomAppActionRequest,
+  decideCustomAppCapabilityRequest,
+  getCustomAppState,
+  saveCustomAppState,
+  type CustomAppCapabilityId,
+} from "../../services/lifeosApi";
 import { useI18n } from "../../i18n/I18nProvider";
 import type { TranslationKey } from "../../i18n/translations";
 import { STUDIO_IFRAME_SANDBOX, buildStudioSandboxSrcDoc } from "./studio/sandbox";
@@ -8,6 +16,8 @@ import { STUDIO_IFRAME_SANDBOX, buildStudioSandboxSrcDoc } from "./studio/sandbo
 type CustomAppFrameProps = {
   app: CustomApp;
 };
+
+const customAppCapabilityIds: CustomAppCapabilityId[] = ["storage", "openExternal", "navigation", "communication", "shortcuts", "network", "clipboard", "fileImport", "backgroundSync"];
 
 export default function CustomAppFrame({ app }: CustomAppFrameProps) {
   const { t } = useI18n();
@@ -36,6 +46,34 @@ export default function CustomAppFrame({ app }: CustomAppFrameProps) {
         if (data.type === "set-state") {
           const response = await saveCustomAppState(app.id, data.payload?.state ?? {});
           respondToFrame(data.requestId, { ok: true, state: response.state.state });
+          return;
+        }
+        if (data.type === "request-capability") {
+          const payload = data.payload || {};
+          const requestedCapabilities = Array.isArray(payload.capabilities)
+            ? payload.capabilities.filter((item: unknown): item is CustomAppCapabilityId => customAppCapabilityIds.includes(item as CustomAppCapabilityId))
+            : [];
+          if (requestedCapabilities.length === 0) {
+            respondToFrame(data.requestId, { ok: false, error: t("customApp.capabilityMissing") });
+            return;
+          }
+          const created = await createCustomAppCapabilityRequest(app.id, {
+            requestedCapabilities,
+            label: typeof payload.label === "string" ? payload.label : undefined,
+            reason: typeof payload.reason === "string" ? payload.reason : undefined,
+          });
+          if (created.request.status === "approved") {
+            respondToFrame(data.requestId, { ok: true, result: { status: "approved", request: created.request } });
+            return;
+          }
+          const confirmed = window.confirm(t("customApp.capabilityConfirm", {
+            label: created.request.label,
+            capabilities: created.request.missingCapabilities.join(", "),
+            risk: t(`customApp.actionRisk.${created.request.risk}` as TranslationKey),
+          }));
+          const decision = confirmed ? "approved" : "denied";
+          const decided = await decideCustomAppCapabilityRequest(app.id, created.request.id, decision, confirmed ? t("customApp.capabilityApproveNote") : t("customApp.capabilityDenyNote"));
+          respondToFrame(data.requestId, { ok: confirmed, result: { status: decided.request.status, request: decided.request }, error: confirmed ? undefined : t("customApp.capabilityDenied") });
           return;
         }
         if (data.type === "request-action") {

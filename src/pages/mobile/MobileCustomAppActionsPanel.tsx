@@ -3,8 +3,10 @@ import { Clock3, RefreshCw, ShieldAlert, ShieldCheck, Wrench, XCircle } from "lu
 import { useI18n } from "../../i18n/I18nProvider";
 import {
   decideCustomAppActionRequest,
+  decideCustomAppCapabilityRequest,
   getCustomAppCapabilityManifest,
   getCustomAppActionPolicy,
+  listCustomAppCapabilityRequests,
   listCustomAppActionRequests,
   listCustomApps,
   updateCustomAppCapabilityManifest,
@@ -13,12 +15,17 @@ import {
   type CustomAppCapabilityId,
   type StoredCustomApp,
   type StoredCustomAppCapabilityManifest,
+  type StoredCustomAppCapabilityRequest,
   type StoredCustomAppActionPolicy,
   type StoredCustomAppActionRequest,
 } from "../../services/lifeosApi";
 import type { TranslationKey } from "../../i18n/translations";
 
 type ActionRequestWithApp = StoredCustomAppActionRequest & {
+  appName: string;
+};
+
+type CapabilityRequestWithApp = StoredCustomAppCapabilityRequest & {
   appName: string;
 };
 
@@ -54,10 +61,12 @@ export default function MobileCustomAppActionsPanel() {
   const [apps, setApps] = useState<StoredCustomApp[]>([]);
   const [policies, setPolicies] = useState<Record<string, StoredCustomAppActionPolicy>>({});
   const [capabilityManifests, setCapabilityManifests] = useState<Record<string, StoredCustomAppCapabilityManifest>>({});
+  const [capabilityRequests, setCapabilityRequests] = useState<CapabilityRequestWithApp[]>([]);
   const [requests, setRequests] = useState<ActionRequestWithApp[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [decidingCapabilityId, setDecidingCapabilityId] = useState<string | null>(null);
   const [savingPolicyAppId, setSavingPolicyAppId] = useState<string | null>(null);
   const [savingCapabilityAppId, setSavingCapabilityAppId] = useState<string | null>(null);
 
@@ -83,6 +92,14 @@ export default function MobileCustomAppActionsPanel() {
           return [];
         }
       }));
+      const capabilityRequestGroups = await Promise.all(appData.apps.map(async (app) => {
+        try {
+          const data = await listCustomAppCapabilityRequests(app.id, 6);
+          return data.requests.map((request) => ({ ...request, appName: app.name }));
+        } catch {
+          return [];
+        }
+      }));
       const policyEntries = await Promise.all(appData.apps.map(async (app) => {
         try {
           const data = await getCustomAppActionPolicy(app.id);
@@ -101,6 +118,7 @@ export default function MobileCustomAppActionsPanel() {
       }));
       setPolicies(Object.fromEntries(policyEntries.filter((entry): entry is readonly [string, StoredCustomAppActionPolicy] => Boolean(entry))));
       setCapabilityManifests(Object.fromEntries(capabilityEntries.filter((entry): entry is readonly [string, StoredCustomAppCapabilityManifest] => Boolean(entry))));
+      setCapabilityRequests(capabilityRequestGroups.flat().sort((a, b) => b.createdAt - a.createdAt).slice(0, 12));
       setRequests(requestGroups.flat().sort((a, b) => b.createdAt - a.createdAt).slice(0, 24));
     } catch (loadError: any) {
       setError(loadError?.message || t("customAppActions.loadFailed"));
@@ -150,6 +168,25 @@ export default function MobileCustomAppActionsPanel() {
       await loadRequests(true);
     } finally {
       setCancellingId(null);
+    }
+  };
+
+  const decideCapabilityRequest = async (request: CapabilityRequestWithApp, decision: "approved" | "denied") => {
+    setDecidingCapabilityId(request.id);
+    try {
+      const data = await decideCustomAppCapabilityRequest(
+        request.appId,
+        request.id,
+        decision,
+        decision === "approved" ? t("customAppActions.capabilityApproveNote") : t("customAppActions.capabilityDenyNote"),
+      );
+      setCapabilityRequests((items) => items.map((item) => item.id === request.id ? { ...item, ...data.request } : item));
+      if (decision === "approved") await loadRequests(true);
+    } catch (decisionError: any) {
+      alert(decisionError?.message || t("customAppActions.capabilityDecisionFailed"));
+      await loadRequests(true);
+    } finally {
+      setDecidingCapabilityId(null);
     }
   };
 
@@ -282,6 +319,53 @@ export default function MobileCustomAppActionsPanel() {
 
       {error ? (
         <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-100">{error}</div>
+      ) : null}
+
+      {!error && capabilityRequests.length > 0 ? (
+        <div className="mb-3 space-y-2">
+          <div className="text-xs font-black text-zinc-100">{t("customAppActions.capabilityRequestsTitle")}</div>
+          {capabilityRequests.slice(0, 4).map((request) => (
+            <article key={request.id} className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-bold text-zinc-100">{request.appName}</div>
+                  <div className="mt-1 line-clamp-2 text-xs text-zinc-400">{request.label}</div>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusClass(request.status === "denied" ? "cancelled" : request.status)}`}>
+                  {t(`customAppActions.capabilityStatus.${request.status}` as TranslationKey)}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {request.requestedCapabilities.map((capability) => (
+                  <span key={capability} className="rounded-full border border-amber-300/15 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-100">
+                    {capabilityLabel(capability, t)}
+                  </span>
+                ))}
+              </div>
+              {request.reason ? <div className="mt-2 line-clamp-2 text-[10px] leading-relaxed text-zinc-500">{t("customAppActions.reasonLine", { reason: request.reason })}</div> : null}
+              {request.status === "pending" ? (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={decidingCapabilityId === request.id}
+                    onClick={() => void decideCapabilityRequest(request, "denied")}
+                    className="rounded-xl border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-100 disabled:opacity-50"
+                  >
+                    {t("customAppActions.capabilityDeny")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={decidingCapabilityId === request.id}
+                    onClick={() => void decideCapabilityRequest(request, "approved")}
+                    className="rounded-xl border border-emerald-300/20 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-100 disabled:opacity-50"
+                  >
+                    {t("customAppActions.capabilityApprove")}
+                  </button>
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
       ) : null}
 
       {!error && requests.length === 0 ? (

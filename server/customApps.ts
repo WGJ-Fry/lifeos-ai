@@ -41,6 +41,7 @@ export type CustomAppActionStatus = "pending" | "approved" | "cancelled" | "bloc
 export type CustomAppActionPolicyTemplate = "global" | keyof typeof CUSTOM_APP_ACTION_POLICY_SCHEMES;
 export type CustomAppCapabilityId = typeof CUSTOM_APP_CAPABILITY_IDS[number];
 export type CustomAppCapabilityRisk = "low" | "medium" | "high";
+export type CustomAppCapabilityRequestStatus = "pending" | "approved" | "denied";
 
 export type StoredCustomApp = {
   id: string;
@@ -115,6 +116,24 @@ export type StoredCustomAppCapabilityManifest = {
   updatedByType?: string | null;
   updatedById?: string | null;
   updatedAt: number;
+};
+
+export type StoredCustomAppCapabilityRequest = {
+  id: string;
+  appId: string;
+  requestedCapabilities: CustomAppCapabilityId[];
+  missingCapabilities: CustomAppCapabilityId[];
+  label: string;
+  reason?: string | null;
+  risk: CustomAppCapabilityRisk;
+  status: CustomAppCapabilityRequestStatus;
+  createdByType?: string | null;
+  createdById?: string | null;
+  createdAt: number;
+  decidedByType?: string | null;
+  decidedById?: string | null;
+  decidedAt?: number | null;
+  decisionNote?: string | null;
 };
 
 function statusError(message: string, statusCode = 400) {
@@ -408,6 +427,38 @@ function rowToCustomAppCapabilityManifest(row: any): StoredCustomAppCapabilityMa
     updatedByType: row.updatedByType,
     updatedById: row.updatedById,
     updatedAt: row.updatedAt,
+  };
+}
+
+function rowToCustomAppCapabilityRequest(row: any): StoredCustomAppCapabilityRequest {
+  let requestedCapabilities: CustomAppCapabilityId[] = [];
+  let missingCapabilities: CustomAppCapabilityId[] = [];
+  try {
+    requestedCapabilities = normalizeCustomAppCapabilities(JSON.parse(row.requestedCapabilitiesJson || "[]"), []);
+  } catch {
+    requestedCapabilities = [];
+  }
+  try {
+    missingCapabilities = normalizeCustomAppCapabilities(JSON.parse(row.missingCapabilitiesJson || "[]"), []);
+  } catch {
+    missingCapabilities = [];
+  }
+  return {
+    id: row.id,
+    appId: row.appId,
+    requestedCapabilities,
+    missingCapabilities,
+    label: row.label,
+    reason: row.reason,
+    risk: row.risk === "high" || row.risk === "low" ? row.risk : "medium",
+    status: row.status === "approved" || row.status === "denied" ? row.status : "pending",
+    createdByType: row.createdByType,
+    createdById: row.createdById,
+    createdAt: row.createdAt,
+    decidedByType: row.decidedByType,
+    decidedById: row.decidedById,
+    decidedAt: row.decidedAt,
+    decisionNote: row.decisionNote,
   };
 }
 
@@ -738,6 +789,117 @@ export function customAppHasCapabilities(appId: string, requiredCapabilities: Cu
     ok: missingCapabilities.length === 0,
     missingCapabilities,
   };
+}
+
+function selectCustomAppCapabilityRequest(appId: string, requestId: string) {
+  return db.prepare(`
+    SELECT id, app_id as appId, requested_capabilities_json as requestedCapabilitiesJson,
+           missing_capabilities_json as missingCapabilitiesJson, label, reason, risk, status,
+           created_by_type as createdByType, created_by_id as createdById, created_at as createdAt,
+           decided_by_type as decidedByType, decided_by_id as decidedById, decided_at as decidedAt,
+           decision_note as decisionNote
+    FROM custom_app_capability_requests
+    WHERE app_id = ? AND id = ?
+  `).get(appId, requestId) as any;
+}
+
+export function getCustomAppCapabilityRequest(appId: string, requestId: string) {
+  const row = selectCustomAppCapabilityRequest(appId, requestId);
+  return row ? rowToCustomAppCapabilityRequest(row) : null;
+}
+
+export function listCustomAppCapabilityRequests(appId: string, limitInput?: unknown) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const limit = normalizeLimit(limitInput);
+  return db.prepare(`
+    SELECT id, app_id as appId, requested_capabilities_json as requestedCapabilitiesJson,
+           missing_capabilities_json as missingCapabilitiesJson, label, reason, risk, status,
+           created_by_type as createdByType, created_by_id as createdById, created_at as createdAt,
+           decided_by_type as decidedByType, decided_by_id as decidedById, decided_at as decidedAt,
+           decision_note as decisionNote
+    FROM custom_app_capability_requests
+    WHERE app_id = ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(appId, limit).map(rowToCustomAppCapabilityRequest);
+}
+
+export function createCustomAppCapabilityRequest(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const requestedCapabilities = normalizeCustomAppCapabilities(input.requestedCapabilities ?? input.capabilities, []);
+  if (!requestedCapabilities.length) throw statusError("At least one capability is required");
+  const capabilityCheck = customAppHasCapabilities(appId, requestedCapabilities);
+  if (!capabilityCheck) return null;
+  const missingCapabilities = capabilityCheck.missingCapabilities;
+  const status: CustomAppCapabilityRequestStatus = missingCapabilities.length ? "pending" : "approved";
+  const risk = riskForCustomAppCapabilities(requestedCapabilities);
+  const now = Date.now();
+  const id = `app-capability-${crypto.randomUUID()}`;
+  const label = sanitizeActionText(input.label, 120, "Request capability") || "Request capability";
+  const reason = sanitizeActionText(input.reason, 400) || null;
+
+  db.prepare(`
+    INSERT INTO custom_app_capability_requests (
+      id, app_id, requested_capabilities_json, missing_capabilities_json, label, reason, risk, status,
+      created_by_type, created_by_id, created_at, decided_by_type, decided_by_id, decided_at, decision_note
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    appId,
+    JSON.stringify(requestedCapabilities),
+    JSON.stringify(missingCapabilities),
+    label,
+    reason,
+    risk,
+    status,
+    actor?.type || null,
+    actor?.id || null,
+    now,
+    status === "approved" ? actor?.type || null : null,
+    status === "approved" ? actor?.id || null : null,
+    status === "approved" ? now : null,
+    status === "approved" ? "Capability already allowed" : null,
+  );
+  return getCustomAppCapabilityRequest(appId, id)!;
+}
+
+export function decideCustomAppCapabilityRequest(
+  appId: string,
+  requestId: string,
+  decision: "approved" | "denied",
+  actor?: { type: string; id: string },
+  note?: unknown,
+) {
+  const request = getCustomAppCapabilityRequest(appId, requestId);
+  if (!request) return null;
+  if (request.status !== "pending") throw statusError(`Custom app capability request is already ${request.status}`, 409);
+  if (decision === "approved") {
+    const manifest = getCustomAppCapabilityManifest(appId) || defaultCustomAppCapabilityManifest(appId);
+    updateCustomAppCapabilityManifest(appId, {
+      allowedCapabilities: Array.from(new Set([...manifest.allowedCapabilities, ...request.requestedCapabilities])),
+      declaredCapabilities: Array.from(new Set([...manifest.declaredCapabilities, ...request.requestedCapabilities])),
+    }, actor);
+  }
+  const decidedAt = Date.now();
+  const decisionNote = sanitizeActionText(note, 240) || null;
+  db.prepare(`
+    UPDATE custom_app_capability_requests
+    SET status = ?, missing_capabilities_json = ?, decided_by_type = ?, decided_by_id = ?, decided_at = ?, decision_note = ?
+    WHERE app_id = ? AND id = ? AND status = 'pending'
+  `).run(
+    decision,
+    decision === "approved" ? "[]" : JSON.stringify(request.missingCapabilities),
+    actor?.type || null,
+    actor?.id || null,
+    decidedAt,
+    decisionNote,
+    appId,
+    requestId,
+  );
+  return getCustomAppCapabilityRequest(appId, requestId)!;
 }
 
 function selectCustomAppActionRequest(appId: string, requestId: string) {

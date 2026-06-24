@@ -618,6 +618,24 @@ export type StoredCustomAppCapabilityManifest = {
   updatedAt: number;
 };
 
+export type StoredCustomAppCapabilityRequest = {
+  id: string;
+  appId: string;
+  requestedCapabilities: CustomAppCapabilityId[];
+  missingCapabilities: CustomAppCapabilityId[];
+  label: string;
+  reason?: string | null;
+  risk: "low" | "medium" | "high";
+  status: "pending" | "approved" | "denied";
+  createdByType?: string | null;
+  createdById?: string | null;
+  createdAt: number;
+  decidedByType?: string | null;
+  decidedById?: string | null;
+  decidedAt?: number | null;
+  decisionNote?: string | null;
+};
+
 export function getLifeOSBasePath(pathname = typeof window === "undefined" ? "/" : window.location?.pathname || "/") {
   const match = String(pathname || "/").match(/^(.*?)(?:\/(?:admin|mobile|chat)(?:\/|$)|\/?$)/);
   const basePath = (match?.[1] || "").replace(/\/+$/, "");
@@ -1394,6 +1412,27 @@ export function updateCustomAppCapabilityManifest(
   return requestJson<{ manifest: StoredCustomAppCapabilityManifest }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/capabilities`, {
     method: "PUT",
     body: JSON.stringify(input),
+  });
+}
+
+export function listCustomAppCapabilityRequests(appId: string, limit = 20) {
+  return requestJson<{ requests: StoredCustomAppCapabilityRequest[] }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/capability-requests?limit=${encodeURIComponent(String(limit))}`);
+}
+
+export function createCustomAppCapabilityRequest(
+  appId: string,
+  input: { requestedCapabilities?: CustomAppCapabilityId[]; capabilities?: CustomAppCapabilityId[]; label?: string; reason?: string },
+) {
+  return requestJson<{ request: StoredCustomAppCapabilityRequest }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/capability-requests`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function decideCustomAppCapabilityRequest(appId: string, requestId: string, decision: "approved" | "denied", note?: string) {
+  return requestJson<{ request: StoredCustomAppCapabilityRequest }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/capability-requests/${encodeURIComponent(requestId)}/decision`, {
+    method: "POST",
+    body: JSON.stringify({ decision, note }),
   });
 }
 

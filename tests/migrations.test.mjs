@@ -116,6 +116,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const customAppActionRequestsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 10").get();
   const customAppActionPoliciesMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 11").get();
   const customAppCapabilitiesMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 12").get();
+  const customAppCapabilityRequestsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 13").get();
   const connectivityColumns = db.prepare("PRAGMA table_info(device_connectivity_reports)").all().map((column) => column.name);
   const bindingSessionColumns = db.prepare("PRAGMA table_info(binding_sessions)").all().map((column) => column.name);
   const problemBlueprintColumns = db.prepare("PRAGMA table_info(problem_blueprints)").all().map((column) => column.name);
@@ -125,6 +126,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const customAppActionRequestColumns = db.prepare("PRAGMA table_info(custom_app_action_requests)").all().map((column) => column.name);
   const customAppActionPolicyColumns = db.prepare("PRAGMA table_info(custom_app_action_policies)").all().map((column) => column.name);
   const customAppCapabilityColumns = db.prepare("PRAGMA table_info(custom_app_capability_manifests)").all().map((column) => column.name);
+  const customAppCapabilityRequestColumns = db.prepare("PRAGMA table_info(custom_app_capability_requests)").all().map((column) => column.name);
   const legacyDevice = db.prepare("SELECT id, access_token_expires_at as accessTokenExpiresAt FROM devices WHERE id = 'legacy-device'").get();
   const legacyCustomApp = db.prepare("SELECT id, name, description, code FROM custom_apps WHERE id = 'legacy-app-1'").get();
   const legacyCustomAppVersion = db.prepare("SELECT app_id as appId, version, code, note FROM custom_app_versions WHERE app_id = 'legacy-app-1'").get();
@@ -141,6 +143,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(customAppActionRequestsMigration.name, "custom_app_action_requests");
   assert.equal(customAppActionPoliciesMigration.name, "custom_app_action_policies");
   assert.equal(customAppCapabilitiesMigration.name, "custom_app_capability_manifests");
+  assert.equal(customAppCapabilityRequestsMigration.name, "custom_app_capability_requests");
   assert.ok(connectivityColumns.includes("current_base_url"));
   assert.ok(connectivityColumns.includes("mobile_shell_ok"));
   assert.ok(connectivityColumns.includes("websocket_ok"));
@@ -161,6 +164,8 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.ok(customAppActionPolicyColumns.includes("require_confirmation"));
   assert.ok(customAppCapabilityColumns.includes("allowed_capabilities_json"));
   assert.ok(customAppCapabilityColumns.includes("risk_level"));
+  assert.ok(customAppCapabilityRequestColumns.includes("requested_capabilities_json"));
+  assert.ok(customAppCapabilityRequestColumns.includes("missing_capabilities_json"));
   assert.equal(legacyCustomApp.name, "Legacy Ledger");
   assert.equal(legacyCustomApp.description.includes("/Users/wangguojun/private.csv"), false);
   assert.equal(legacyCustomApp.code.includes("github_pat_legacyCustomAppSecret"), false);

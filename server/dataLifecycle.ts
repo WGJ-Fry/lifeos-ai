@@ -210,6 +210,12 @@ export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys
              updated_at as updatedAt
       FROM custom_app_capability_manifests ORDER BY updated_at DESC
     `).all();
+    const capabilityRequests = db.prepare(`
+      SELECT id, app_id as appId, requested_capabilities_json as requestedCapabilitiesJson,
+             missing_capabilities_json as missingCapabilitiesJson, label, reason, risk, status,
+             created_at as createdAt, decided_at as decidedAt, decision_note as decisionNote
+      FROM custom_app_capability_requests ORDER BY created_at DESC
+    `).all();
     exportData.customApps = {
       apps: redactDataExportValue(apps),
       versions: redactDataExportValue(versions),
@@ -217,6 +223,7 @@ export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys
       actionRequests: redactDataExportValue(actionRequests),
       actionPolicies: redactDataExportValue(actionPolicies),
       capabilityManifests: redactDataExportValue(capabilityManifests),
+      capabilityRequests: redactDataExportValue(capabilityRequests),
     };
   }
 
@@ -235,6 +242,7 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
     actionRequests?: unknown[];
     actionPolicies?: unknown[];
     capabilityManifests?: unknown[];
+    capabilityRequests?: unknown[];
   } | undefined;
   const scopes = Array.isArray(exportData.scopes) ? exportData.scopes.map((scope) => String(scope)) : [];
   return {
@@ -255,6 +263,7 @@ export function summarizeDataExport(exportData: Record<string, unknown>) {
       customAppActionRequests: Array.isArray(customApps?.actionRequests) ? customApps.actionRequests.length : 0,
       customAppActionPolicies: Array.isArray(customApps?.actionPolicies) ? customApps.actionPolicies.length : 0,
       customAppCapabilityManifests: Array.isArray(customApps?.capabilityManifests) ? customApps.capabilityManifests.length : 0,
+      customAppCapabilityRequests: Array.isArray(customApps?.capabilityRequests) ? customApps.capabilityRequests.length : 0,
     },
   };
 }
