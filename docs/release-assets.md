@@ -4,37 +4,38 @@
 
 ## 当前版本
 
-版本：`0.1.0`
+版本：`0.1.2-alpha.0`
 
 推荐 GitHub Release tag：
 
 ```text
-v0.1.0
+v0.1.2-alpha
 ```
 
 ## 当前已上传的公开文件
 
-`v0.1.0` 当前 GitHub Release 已上传：
+`v0.1.2-alpha` 当前 GitHub Release 已上传：
 
 ```text
-LifeOS.AI-0.1.0-arm64-unsigned.zip
+LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
+LifeOS AI Setup 0.1.2-alpha.0.exe
+LifeOS AI-0.1.2-alpha.0.AppImage
 SHA256SUMS
 INSTALL-unsigned-mac.md
 USER-INSTALL.md
 latest-mac.yml
+latest.yml
+latest-linux.yml
 release-manifest.json
 ```
 
-## 待真实打包验证后再上传
+## 仍待正式签名后再上传
 
-下面这些是发布链路目标，不是当前公开下载资产。只有在真实生成、校验、签名策略确认后才能上传：
+下面这些是正式分发目标，不是当前公开 alpha 资产。只有在签名、公证或签名策略确认后再作为正式下载入口：
 
 ```text
-LifeOS AI-0.1.0-arm64.dmg
-LifeOS AI Setup 0.1.0.exe
-LifeOS AI-0.1.0.AppImage
-latest.yml
-latest-linux.yml
+LifeOS AI-0.1.2-alpha.0-arm64.dmg
+signed LifeOS AI Setup 0.1.2-alpha.0.exe
 ```
 
 如果未来启用自动更新，安装包会读取这些 feed 文件。当前没有配置 `LIFEOS_UPDATE_URL`，所以 update feed 主要用于诊断和后续准备。
@@ -42,14 +43,16 @@ latest-linux.yml
 ## 当前 SHA256
 
 ```text
-50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e  LifeOS AI-0.1.0-arm64-unsigned.zip
+af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e  LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
+b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57  LifeOS AI Setup 0.1.2-alpha.0.exe
+bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc  LifeOS AI-0.1.2-alpha.0.AppImage
 ```
 
 ## 平台说明
 
 - macOS：当前公开资产是 unsigned ZIP。正式路径仍支持 Developer ID Application 签名 + Apple notarization + DMG stapled，但需要重新生成并上传真实 DMG。
-- Windows：NSIS 安装包路线已接入构建脚本和 CI smoke；当前 Release 未上传 EXE。
-- Linux：AppImage 路线已接入构建脚本和 CI smoke；当前 Release 未上传 AppImage。
+- Windows：当前公开资产是 unsigned NSIS EXE。尚未 Authenticode 签名，SmartScreen 可能提示未知发布者。
+- Linux：当前公开资产是 AppImage。运行前需要 `chmod +x`，并建议先校验 SHA256。
 
 ## 不要上传
 
@@ -68,11 +71,11 @@ release/*-unpacked/
 
 ## 上传后检查
 
-1. GitHub Release 页面能看到 macOS unsigned ZIP、`SHA256SUMS`、安装说明和 `release-manifest.json`。
+1. GitHub Release 页面能看到 macOS unsigned ZIP、Windows EXE、Linux AppImage、`SHA256SUMS`、安装说明和 `release-manifest.json`。
 2. 下载 macOS ZIP 后可以解压出 `LifeOS AI.app`。
 3. `SHA256SUMS` 与下载文件校验一致。
 4. `release-manifest.json` 里的文件名、大小和 sha256 与 Release 资产一致。
-5. Windows/Linux 下载说明没有指向尚未上传的资产。
+5. Windows/Linux 下载说明指向真实存在的 `v0.1.2-alpha` 资产。
 
 ---
 
@@ -80,37 +83,38 @@ release/*-unpacked/
 
 ## Current Version
 
-Version: `0.1.0`
+Version: `0.1.2-alpha.0`
 
 Recommended GitHub Release tag:
 
 ```text
-v0.1.0
+v0.1.2-alpha
 ```
 
 ## Currently Uploaded Public Assets
 
-The current `v0.1.0` GitHub Release uploads:
+The current `v0.1.2-alpha` GitHub Release uploads:
 
 ```text
-LifeOS.AI-0.1.0-arm64-unsigned.zip
+LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
+LifeOS AI Setup 0.1.2-alpha.0.exe
+LifeOS AI-0.1.2-alpha.0.AppImage
 SHA256SUMS
 INSTALL-unsigned-mac.md
 USER-INSTALL.md
 latest-mac.yml
+latest.yml
+latest-linux.yml
 release-manifest.json
 ```
 
-## Upload Later After Real Package Verification
+## Upload Later After Formal Signing
 
-These are release-chain targets, not current public download assets. Upload them only after real generation, verification, and signing-policy review:
+These are formal distribution targets, not the current public alpha assets. Upload them only after signing, notarization, or signing-policy review:
 
 ```text
-LifeOS AI-0.1.0-arm64.dmg
-LifeOS AI Setup 0.1.0.exe
-LifeOS AI-0.1.0.AppImage
-latest.yml
-latest-linux.yml
+LifeOS AI-0.1.2-alpha.0-arm64.dmg
+signed LifeOS AI Setup 0.1.2-alpha.0.exe
 ```
 
 These feed files are required for future auto-update support. Because `LIFEOS_UPDATE_URL` is not configured yet, the current feed files are mostly for diagnostics and future preparation.
@@ -118,14 +122,16 @@ These feed files are required for future auto-update support. Because `LIFEOS_UP
 ## Current SHA256
 
 ```text
-50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e  LifeOS AI-0.1.0-arm64-unsigned.zip
+af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e  LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
+b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57  LifeOS AI Setup 0.1.2-alpha.0.exe
+bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc  LifeOS AI-0.1.2-alpha.0.AppImage
 ```
 
 ## Platform Notes
 
 - macOS: the current public asset is an unsigned ZIP. The formal path still supports Developer ID signing, Apple notarization, and a stapled DMG, but a real DMG must be regenerated and uploaded first.
-- Windows: the NSIS packaging path is wired into scripts and CI smoke checks; the current Release does not upload an EXE.
-- Linux: the AppImage packaging path is wired into scripts and CI smoke checks; the current Release does not upload an AppImage.
+- Windows: the current public asset is an unsigned NSIS EXE. It is not Authenticode signed yet, so SmartScreen may warn about an unknown publisher.
+- Linux: the current public asset is an AppImage. Mark it executable with `chmod +x` and verify SHA256 before running it.
 
 ## Do Not Upload
 
@@ -144,8 +150,8 @@ release/*-unpacked/
 
 ## Post-Upload Check
 
-1. The GitHub Release shows the macOS unsigned ZIP, `SHA256SUMS`, install guides, and `release-manifest.json`.
+1. The GitHub Release shows the macOS unsigned ZIP, Windows EXE, Linux AppImage, `SHA256SUMS`, install guides, and `release-manifest.json`.
 2. The macOS ZIP downloads and extracts to `LifeOS AI.app`.
 3. `SHA256SUMS` verifies the downloaded file.
 4. `release-manifest.json` file names, sizes, and sha256 values match the uploaded assets.
-5. Windows/Linux download instructions do not link to assets that have not been uploaded yet.
+5. Windows/Linux download instructions point to real `v0.1.2-alpha` assets.

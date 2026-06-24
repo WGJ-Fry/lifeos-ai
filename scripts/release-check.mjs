@@ -19,8 +19,10 @@ const userInstallStatusMarkers = [
   "Only claim assets that already exist and can be downloaded from a clean machine",
   "只写已经存在并能被干净机器下载的资产",
   "docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha",
-  "Do not market it as downloadable until the real NSIS installer is built, verified, and uploaded",
-  "Do not market it as downloadable until the real AppImage is built, verified, and uploaded",
+  "LifeOS AI Setup 0.1.2-alpha.0.exe",
+  "LifeOS AI-0.1.2-alpha.0.AppImage",
+  "SmartScreen may warn about an unknown publisher",
+  "Mark it executable and verify it with `SHA256SUMS`",
 ];
 
 function pass(message) {
@@ -2476,28 +2478,32 @@ function checkReleaseDocs() {
     readmeEn.includes("## Choose Your Path") &&
     readmeEn.includes("Docker Compose alpha") &&
     readmeEn.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
-    readmeEn.includes("LifeOS.AI-0.1.0-arm64-unsigned.zip") &&
-    readmeEn.includes("public EXE/AppImage downloads are not uploaded yet") &&
+    readmeEn.includes("LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip") &&
+    readmeEn.includes("LifeOS AI Setup 0.1.2-alpha.0.exe") &&
+    readmeEn.includes("LifeOS AI-0.1.2-alpha.0.AppImage") &&
     readmeZh.includes("## 选择你的体验路径") &&
     readmeZh.includes("Docker Compose alpha") &&
     readmeZh.includes("ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha") &&
-    readmeZh.includes("LifeOS.AI-0.1.0-arm64-unsigned.zip") &&
-    readmeZh.includes("公开 EXE/AppImage 还没有上传")
+    readmeZh.includes("LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip") &&
+    readmeZh.includes("LifeOS AI Setup 0.1.2-alpha.0.exe") &&
+    readmeZh.includes("LifeOS AI-0.1.2-alpha.0.AppImage")
   ) {
-    pass("bilingual README clearly separates Docker alpha, macOS ZIP, and unavailable Windows/Linux downloads");
+    pass("bilingual README exposes the current Docker alpha and all uploaded desktop packages");
   } else {
-    fail("bilingual README must clearly separate Docker alpha, macOS ZIP, and unavailable Windows/Linux downloads");
+    fail("bilingual README must expose the current Docker alpha plus macOS, Windows, and Linux v0.1.2-alpha package assets");
   }
 
   if (exists("docs/promotion-kit.md")) {
     const promotionKit = fs.readFileSync(path.join(rootDir, "docs/promotion-kit.md"), "utf8");
     if (
       promotionKit.includes("Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha`")
-      && promotionKit.includes("Desktop unsigned ZIP release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0`")
+      && promotionKit.includes("Desktop package release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha`")
+      && promotionKit.includes("Windows x64 NSIS installer")
+      && promotionKit.includes("Linux x64 AppImage")
     ) {
-      pass("promotion kit separates the v0.1.2-alpha cold launch from the v0.1.0 desktop ZIP release");
+      pass("promotion kit points to the v0.1.2-alpha cold launch and desktop package release");
     } else {
-      fail("promotion kit must link the v0.1.2-alpha cold launch separately from the v0.1.0 desktop ZIP release");
+      fail("promotion kit must link the v0.1.2-alpha release and mention uploaded Windows/Linux packages");
     }
   } else {
     fail("promotion kit is missing: docs/promotion-kit.md");
@@ -2566,6 +2572,10 @@ function checkReleaseDocs() {
     "a935ab398d8b88a1e47de9645bdf7f46372b3da14fd7b8ab09fbc00f83904b7a",
     "ebacb858194ae884c0770820536450e72514b8fee7fdd329933610d70c769022",
     "12b2c32148cff4a3bc3cd2247d4c4b17b1709624b77ea2853785b39a3cf0f279",
+    "public EXE/AppImage downloads are not uploaded yet",
+    "公开 EXE/AppImage 还没有上传",
+    "Windows and Linux installers are still being prepared",
+    "Windows 和 Linux 安装包仍在准备上传",
   ];
   const staleFindings = [];
   for (const [relativePath, source] of publicReleaseDocs) {
@@ -2581,19 +2591,21 @@ function checkReleaseDocs() {
 
   const publicReleaseCombined = publicReleaseDocs.map(([, source]) => source).join("\n");
   const requiredPublicReleaseMarkers = [
-    "LifeOS.AI-0.1.0-arm64-unsigned.zip",
-    "50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e",
+    "LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip",
+    "LifeOS AI Setup 0.1.2-alpha.0.exe",
+    "LifeOS AI-0.1.2-alpha.0.AppImage",
+    "af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e",
+    "b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57",
+    "bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc",
     "INSTALL-unsigned-mac.md",
-    "Windows x64：准备中",
-    "Linux x64：准备中",
-    "Windows x64: preparing",
-    "Linux x64: preparing",
+    "SmartScreen",
+    "AppImage",
   ];
   const missingPublicReleaseMarkers = requiredPublicReleaseMarkers.filter((marker) => !publicReleaseCombined.includes(marker));
   if (missingPublicReleaseMarkers.length === 0) {
-    pass("public release docs describe the real v0.1.0 uploaded assets and platform gaps");
+    pass("public release docs describe the real v0.1.2-alpha uploaded assets and signing limits");
   } else {
-    fail(`public release docs are missing current v0.1.0 asset markers: ${missingPublicReleaseMarkers.join(", ")}`);
+    fail(`public release docs are missing current v0.1.2-alpha asset markers: ${missingPublicReleaseMarkers.join(", ")}`);
   }
 
   if (exists("docs/user-install-guide.md")) {

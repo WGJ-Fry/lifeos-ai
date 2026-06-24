@@ -41,10 +41,11 @@ Current alpha promise: put Markdown notes in a folder, run LifeOS locally, and a
 | Path | Use this when | Current public status |
 | --- | --- | --- |
 | **Docker Compose alpha** | You want the fastest local demo with Ollama and Markdown notes. | Recommended first try. Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`. |
-| **macOS desktop ZIP** | You want to try the early desktop shell. | Available in the [`v0.1.0` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0): `LifeOS.AI-0.1.0-arm64-unsigned.zip`. |
-| **Windows / Linux desktop packages** | You want native installers for those systems. | Packaging and CI smoke checks exist, but public EXE/AppImage downloads are not uploaded yet. |
+| **macOS desktop ZIP** | You want to try the early desktop shell on Apple Silicon. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip`. |
+| **Windows desktop installer** | You want a native Windows x64 installer. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS AI Setup 0.1.2-alpha.0.exe`. |
+| **Linux AppImage** | You want a portable Linux x64 desktop package. | Available in the [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha): `LifeOS AI-0.1.2-alpha.0.AppImage`. |
 
-If you are new, start with Docker Compose below. If you specifically want the desktop app, use the macOS ZIP release and read `INSTALL-unsigned-mac.md` before first launch.
+If you are new, start with Docker Compose below. If you specifically want the desktop app, use the `v0.1.2-alpha` Release and verify downloads with `SHA256SUMS` before first launch.
 
 ## Real Product Screens
 

@@ -41,10 +41,11 @@ LifeOS 先从一个很小但有用的工作流开始：
 | 路径 | 适合你在什么时候用 | 当前公开状态 |
 | --- | --- | --- |
 | **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha`。 |
-| **macOS 桌面 ZIP** | 想试用早期桌面端壳。 | 已在 [`v0.1.0` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0) 提供：`LifeOS.AI-0.1.0-arm64-unsigned.zip`。 |
-| **Windows / Linux 桌面包** | 想要 Windows 或 Linux 原生安装包。 | 打包脚本和 CI smoke 已接入，但公开 EXE/AppImage 还没有上传。 |
+| **macOS 桌面 ZIP** | 想在 Apple Silicon Mac 上试用早期桌面端壳。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip`。 |
+| **Windows 桌面安装包** | 想要 Windows x64 原生安装器。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS AI Setup 0.1.2-alpha.0.exe`。 |
+| **Linux AppImage** | 想要 Linux x64 便携桌面包。 | 已在 [`v0.1.2-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha) 提供：`LifeOS AI-0.1.2-alpha.0.AppImage`。 |
 
-如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 macOS ZIP Release，并在首次启动前阅读 `INSTALL-unsigned-mac.md`。
+如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 `v0.1.2-alpha` Release，并在首次启动前用 `SHA256SUMS` 校验下载文件。
 
 ## 真实产品界面
 

@@ -53,25 +53,28 @@ generated-apps
 ## Release 标题
 
 ```text
-LifeOS AI 0.1.0 - Desktop core + mobile personal AI assistant
+LifeOS AI v0.1.2-alpha - Desktop core + mobile personal AI assistant
 ```
 
 ## Release 描述
 
 ```markdown
-LifeOS AI 0.1.0 is the first public desktop release.
+LifeOS AI v0.1.2-alpha is the first public desktop alpha with Docker quickstart plus macOS, Windows, and Linux desktop packages.
 
 LifeOS AI turns your desktop into a private AI core and your phone into an always-available personal AI assistant. The desktop app manages AI providers, local SQLite data, device pairing, VPN/tunnel access, generated solution apps, backups, diagnostics, and safer local actions. The phone connects as a paired PWA for chat, offline queue, device status, and action permissions.
 
 Downloads:
 
 - macOS Apple Silicon unsigned ZIP
+- Windows x64 NSIS installer
+- Linux x64 AppImage
 - SHA256SUMS
 
 Notes:
 
 - The current public macOS build is unsigned; follow the release Gatekeeper guide if macOS blocks first launch.
-- Windows NSIS and Linux AppImage packaging are wired into the build/check pipeline but are not uploaded in the current public release yet.
+- The current Windows installer is not Authenticode signed yet, so SmartScreen may warn about an unknown publisher.
+- Verify downloads with `SHA256SUMS` before first launch.
 - Auto-update is not enabled yet; update manually from GitHub Releases.
 - On first launch, set an admin password, configure an AI provider, create a backup, and pair your phone.
 ```
@@ -83,7 +86,7 @@ Notes:
 
 它的思路是：电脑端运行私有核心，负责连接 AI、网络、本地数据、备份和安全设置；手机端作为随身入口，用 PWA 的方式扫码绑定后使用。
 
-当前公开版本提供 macOS Apple Silicon unsigned ZIP；Windows NSIS 和 Linux AppImage 已接入构建/校验路线，等真实资产验证后再上传。
+当前公开版本提供 macOS Apple Silicon unsigned ZIP、Windows x64 NSIS 安装包和 Linux x64 AppImage。
 
 目前支持：
 - 电脑端管理核心
@@ -126,7 +129,7 @@ https://github.com/WGJ-Fry/lifeos-ai
 
 另外还有 Studio 工坊：当你遇到具体问题时，AI 可以自动生成一个可运行的离线程序来辅助解决，然后继续调试 HTML/CSS/JS。
 
-当前公开版本提供 macOS Apple Silicon unsigned ZIP；Windows NSIS 和 Linux AppImage 已接入构建/校验路线，等真实资产验证后再上传。macOS 当前包不是正式签名公证版，首次打开可能需要按 Release 里的 Gatekeeper 说明操作。
+当前公开版本提供 macOS Apple Silicon unsigned ZIP、Windows x64 NSIS 安装包和 Linux x64 AppImage。macOS 当前包不是正式签名公证版，首次打开可能需要按 Release 里的 Gatekeeper 说明操作。
 
 项目地址：
 https://github.com/WGJ-Fry/lifeos-ai
@@ -141,6 +144,8 @@ The desktop app runs the private core: AI providers, local SQLite data, device p
 
 Current release includes:
 - macOS Apple Silicon unsigned ZIP
+- Windows x64 NSIS installer
+- Linux x64 AppImage
 - Mobile PWA pairing and chat
 - SQLite local storage
 - Multi-provider AI configuration
@@ -151,7 +156,7 @@ Current release includes:
 - URL Scheme allowlist for navigation, web, phone, SMS, mail, shortcuts, and dangerous-action confirmation
 - Redacted diagnostics and audit logs
 
-Windows NSIS and Linux AppImage packaging are wired into the build/check pipeline, but those public assets are not uploaded in the current release yet.
+Windows is not Authenticode signed yet, and macOS is not notarized yet, so users should download only from GitHub Releases and verify `SHA256SUMS`.
 
 Repo:
 https://github.com/WGJ-Fry/lifeos-ai
@@ -182,7 +187,7 @@ The phone handles:
 
 There is also a Studio workshop for generated solution apps: explain the current problem, generate a runnable offline program that helps solve it, then refine its HTML/CSS/JS.
 
-The current public release provides a macOS Apple Silicon unsigned ZIP. Windows NSIS and Linux AppImage packaging are wired into the build/check pipeline, but those public assets are not uploaded yet. The current macOS package is not the signed/notarized build, so users may need the release Gatekeeper guide on first launch.
+The current public release provides a macOS Apple Silicon unsigned ZIP, a Windows x64 NSIS installer, and a Linux x64 AppImage. The macOS package is not signed/notarized yet, and the Windows installer is not Authenticode signed yet, so users should verify `SHA256SUMS` and may see Gatekeeper or SmartScreen warnings.
 
 Repo:
 https://github.com/WGJ-Fry/lifeos-ai
@@ -237,18 +242,18 @@ Your private AI core on desktop. Your personal AI assistant on phone.
 ## 发布前检查
 
 - README 顶部有安装包下载入口。
-- Release 页面只写真实已上传资产；当前公开版本是 macOS Apple Silicon unsigned ZIP、SHA256SUMS 和 update feed 文件。
-- DMG、EXE、AppImage 只有在真实生成、校验并上传后才能写成可下载资产。
+- Release 页面只写真实已上传资产；当前公开版本是 macOS Apple Silicon unsigned ZIP、Windows x64 NSIS installer、Linux x64 AppImage、SHA256SUMS 和 update feed 文件。
+- DMG 和 signed Windows installer 只有在真实签名、校验并上传后才能写成正式可下载资产。
 - 截图使用 `public/screenshots/real-*.jpg`，不要使用概念图。
 - GitHub Topics 已包含 `personal-ai`、`local-first`、`pwa`、`electron`、`sqlite`、`tailscale`、`cloudflare-tunnel`。
 - Issues 已开启，建议同时开启 Discussions 收集使用反馈。
-- Windows/Linux 安装包暂未上传、自动更新未启用、仓库使用 MIT License，这三点要主动说明。
+- macOS 未签名公证、Windows 未 Authenticode 签名、自动更新未启用、仓库使用 MIT License，这几点要主动说明。
 
 ## 注意事项
 
-- 不要承诺“官方商店级安装体验已经完成”；当前仓库使用 MIT License，但桌面签名、公证、Windows/Linux 公开安装包仍在完善。
+- 不要承诺“官方商店级安装体验已经完成”；当前仓库使用 MIT License，但桌面签名、公证和 Windows Authenticode 签名仍在完善。
 - 不要宣传“自动更新已可用”，当前版本是手动下载更新。
-- Windows/Linux 安装包暂未上传；后续 Windows 版本若未 Authenticode 签名，要主动说明 SmartScreen 可能提示。
+- Windows 安装包已上传但未 Authenticode 签名，要主动说明 SmartScreen 可能提示。
 - 异地连接建议 Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理，不建议直接暴露公网 IP。
 
 ---
@@ -277,5 +282,5 @@ LifeOS AI turns your desktop into a private AI core for providers, local SQLite 
 
 - Repository: `https://github.com/WGJ-Fry/lifeos-ai`
 - Cold launch release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha`
-- Desktop unsigned ZIP release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.0`
+- Desktop package release: `https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.2-alpha`
 - Install guide: `docs/user-install-guide.md`
