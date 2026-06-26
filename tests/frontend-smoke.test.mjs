@@ -294,6 +294,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatStateChangesSource, /OPEN_APP/);
   assert.match(chatStateChangesSource, /REQUEST_APP_GENERATION/);
   assert.match(chatStateChangesSource, /widgetArgKeys/);
+  const translationsSource = await readFile(path.join(rootDir, "src", "i18n", "translations.ts"), "utf8");
   const problemBlueprintSource = await readFile(path.join(rootDir, "src", "services", "problemBlueprint.ts"), "utf8");
   const problemStudioAppSource = await readFile(path.join(rootDir, "src", "components", "apps", "StudioApp.tsx"), "utf8");
   const studioProblemBlueprintHookSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "useStudioProblemBlueprintHistory.ts"), "utf8");
@@ -304,7 +305,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(problemBlueprintSource, /permissionNotes/);
   assert.match(problemBlueprintSource, /failureRecovery/);
   assert.match(problemBlueprintSource, /templateFit/);
+  assert.match(problemBlueprintSource, /templateChecklist/);
   assert.match(problemBlueprintSource, /versioningPlan/);
+  assert.match(problemBlueprintSource, /versionDiffChecklist/);
   assert.match(problemBlueprintSource, /repairPrompts/);
   assert.match(studioWorkshopSource, /StudioProblemSolverCard/);
   const studioProblemSolverCardSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioProblemSolverCard.tsx"), "utf8");
@@ -312,8 +315,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioProblemSolverCardSource, /blueprint\.permissionNotes/);
   assert.match(studioProblemSolverCardSource, /blueprint\.failureRecovery/);
   assert.match(studioProblemSolverCardSource, /blueprint\.templateFit/);
+  assert.match(studioProblemSolverCardSource, /blueprint\.templateChecklist/);
   assert.match(studioProblemSolverCardSource, /blueprint\.versioningPlan/);
+  assert.match(studioProblemSolverCardSource, /blueprint\.versionDiffChecklist/);
   assert.match(studioProblemSolverCardSource, /blueprint\.repairPrompts/);
+  assert.match(translationsSource, /模板上线检查/);
+  assert.match(translationsSource, /Version diff checks/);
   assert.match(problemStudioAppSource, /deriveProblemBlueprint\(problemInput\)/);
   assert.match(problemStudioAppSource, /useStudioProblemBlueprintHistory/);
   assert.match(studioProblemBlueprintHookSource, /listProblemBlueprints\(12\)/);
@@ -353,7 +360,6 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /admin\|mobile\|chat/);
 
   const onboardingSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminOnboardingPage.tsx"), "utf8");
-  const translationsSource = await readFile(path.join(rootDir, "src", "i18n", "translations.ts"), "utf8");
   assert.match(onboardingSource, /getOnboardingStatus/);
   assert.match(onboardingSource, /completeOnboarding/);
   assert.match(onboardingSource, /getBackupSchedule/);

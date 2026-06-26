@@ -25,6 +25,7 @@ export type ProblemBlueprint = {
   templateId: string;
   templateName: string;
   templateFit: string[];
+  templateChecklist: string[];
   categoryLabel: string;
   suggestedAppName: string;
   summary: string;
@@ -32,6 +33,7 @@ export type ProblemBlueprint = {
   steps: ProblemBlueprintStep[];
   suggestedModules: string[];
   versioningPlan: string[];
+  versionDiffChecklist: string[];
   confirmationChecklist: string[];
   permissionNotes: string[];
   failureRecovery: string[];
@@ -324,6 +326,22 @@ function buildConfirmationChecklist(language: ProblemBlueprint["language"], prof
   ];
 }
 
+function buildTemplateChecklist(language: ProblemBlueprint["language"], profile: CategoryProfile) {
+  if (language === "en-US") {
+    return [
+      `Start from ${profile.templateNameEn}, then remove anything that does not serve the current problem.`,
+      "Keep editable sample data local-only and visibly separate from real work data.",
+      "Cover empty, import, export, reset, and undo states before calling the generated app ready.",
+    ];
+  }
+
+  return [
+    `先使用「${profile.templateNameZh}」，再删掉和当前问题无关的模块。`,
+    "示例数据必须可编辑、只保存在本地，并和真实数据明显区分。",
+    "正式使用前补齐空状态、导入、导出、重置和撤销状态。",
+  ];
+}
+
 function buildFailureRecovery(language: ProblemBlueprint["language"]) {
   if (language === "en-US") {
     return [
@@ -337,6 +355,22 @@ function buildFailureRecovery(language: ProblemBlueprint["language"]) {
     "如果生成结果跑偏，保留当前版本，并用已保存蓝图重新生成。",
     "如果校验失败，让 Studio 只修坏掉的字段、公式或状态流转。",
     "如果任务变成高风险动作，先停止外部调用，把程序留在本地草稿模式。",
+  ];
+}
+
+function buildVersionDiffChecklist(language: ProblemBlueprint["language"]) {
+  if (language === "en-US") {
+    return [
+      "Compare changed inputs, stored state shape, formulas, and validation rules.",
+      "Compare permissions, export fields, and any requestAction/requestCapability usage.",
+      "Keep the previous runnable version until the new version passes a real sample task.",
+    ];
+  }
+
+  return [
+    "对比输入字段、存储结构、公式和校验规则的变化。",
+    "对比权限、导出字段，以及 requestAction/requestCapability 调用变化。",
+    "新版本通过真实样例前，保留上一个可运行版本。",
   ];
 }
 
@@ -385,7 +419,9 @@ function buildAppPrompt(language: ProblemBlueprint["language"], profile: Categor
       `Permission boundary: ${profile.permissionEn.join(" ")}`,
       `Failure recovery: ${buildFailureRecovery(language).join(" ")}`,
       `Template fit: ${profile.templateFitEn.join(" ")}`,
+      `Template checklist: ${buildTemplateChecklist(language, profile).join(" ")}`,
       `Versioning plan: ${buildVersioningPlan(language, profile).join(" ")}`,
+      `Version diff checklist: ${buildVersionDiffChecklist(language).join(" ")}`,
       `Repair prompts: ${profile.repairEn.join(" ")}`,
       `Safety note: ${profile.risksEn.join(" ")}`,
     ].join("\n");
@@ -402,7 +438,9 @@ function buildAppPrompt(language: ProblemBlueprint["language"], profile: Categor
     `权限边界：${profile.permissionZh.join(" ")}`,
     `失败修复：${buildFailureRecovery(language).join(" ")}`,
     `模板适配：${profile.templateFitZh.join(" ")}`,
+    `模板检查：${buildTemplateChecklist(language, profile).join(" ")}`,
     `版本计划：${buildVersioningPlan(language, profile).join(" ")}`,
+    `版本差异检查：${buildVersionDiffChecklist(language).join(" ")}`,
     `修复提示：${profile.repairZh.join(" ")}`,
     `安全提醒：${profile.risksZh.join(" ")}`,
   ].join("\n");
@@ -421,6 +459,7 @@ export function deriveProblemBlueprint(input: string): ProblemBlueprint {
     templateId: `problem-${category}`,
     templateName: language === "en-US" ? profile.templateNameEn : profile.templateNameZh,
     templateFit: language === "en-US" ? profile.templateFitEn : profile.templateFitZh,
+    templateChecklist: buildTemplateChecklist(language, profile),
     categoryLabel: language === "en-US" ? profile.labelEn : profile.labelZh,
     suggestedAppName: language === "en-US" ? profile.appNameEn : profile.appNameZh,
     summary: buildSummary(language, profile, normalizedProblem),
@@ -428,6 +467,7 @@ export function deriveProblemBlueprint(input: string): ProblemBlueprint {
     steps: buildSteps(language, profile),
     suggestedModules: language === "en-US" ? profile.modulesEn : profile.modulesZh,
     versioningPlan: buildVersioningPlan(language, profile),
+    versionDiffChecklist: buildVersionDiffChecklist(language),
     confirmationChecklist: buildConfirmationChecklist(language, profile, normalizedProblem),
     permissionNotes: language === "en-US" ? profile.permissionEn : profile.permissionZh,
     failureRecovery: buildFailureRecovery(language),

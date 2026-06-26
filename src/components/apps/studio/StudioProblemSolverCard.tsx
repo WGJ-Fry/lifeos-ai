@@ -122,6 +122,18 @@ export default function StudioProblemSolverCard({
                 </li>
               ))}
             </ul>
+            <div className="mt-3 border-t border-cyan-500/10 pt-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200/70 mb-2">
+                {t("studio.problemSolver.templateChecklist")}
+              </p>
+              <ul className="space-y-1.5">
+                {blueprint.templateChecklist.map((item) => (
+                  <li key={item} className="text-xs text-cyan-50/70 leading-relaxed font-medium">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           <div className="rounded-2xl bg-emerald-500/[0.035] border border-emerald-500/15 p-4">
@@ -148,6 +160,16 @@ export default function StudioProblemSolverCard({
                 {item}
               </p>
             ))}
+            <div className="mt-3 border-t border-white/[0.06] pt-3">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-500 mb-2">
+                {t("studio.problemSolver.versionDiffChecklist")}
+              </p>
+              {blueprint.versionDiffChecklist.map((item) => (
+                <p key={item} className="text-xs text-zinc-400 leading-relaxed font-medium">
+                  {item}
+                </p>
+              ))}
+            </div>
           </div>
 
           <div className="rounded-2xl bg-amber-500/[0.04] border border-amber-500/15 p-4">
