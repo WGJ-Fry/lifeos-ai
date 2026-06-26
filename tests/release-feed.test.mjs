@@ -16,6 +16,8 @@ const currentVersionPattern = currentVersion.replace(/[.*+?^${}()|[\]\\]/g, "\\$
 const currentMacZipName = `LifeOS AI-${currentVersion}-arm64-unsigned.zip`;
 const currentWinInstallerName = `LifeOS AI Setup ${currentVersion}.exe`;
 const currentLinuxAppImageName = `LifeOS AI-${currentVersion}.AppImage`;
+const publicWinInstallerName = `LifeOS.AI.Setup.${currentVersion}.exe`;
+const publicLinuxAppImageName = `LifeOS.AI-${currentVersion}.AppImage`;
 const packagedDesktopMain = [
   "function fetchLocalJson() {}",
   "const bundle = {",
@@ -81,8 +83,8 @@ async function createPackagedMacApp(releaseDir, entries) {
     "Docker Compose alpha uses ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha.",
     "Verify with docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha before promotion.",
     "Only claim assets that already exist and can be downloaded from a clean machine.",
-    `Windows desktop package uploads ${currentWinInstallerName}.`,
-    `Linux desktop package uploads ${currentLinuxAppImageName}.`,
+    `Windows desktop package uploads ${publicWinInstallerName}.`,
+    `Linux desktop package uploads ${publicLinuxAppImageName}.`,
     "## macOS Unsigned Zip",
     "Use Open Anyway if macOS blocks the unsigned app.",
     "## Windows NSIS Installer",
@@ -102,7 +104,8 @@ async function createPackagedMacApp(releaseDir, entries) {
     "Create a backup before updating, and keep daily automatic backups enabled.",
     "## Updates",
     "Verify SHA256SUMS before opening the download.",
-    "Run shasum -a 256 -c SHA256SUMS on macOS or Linux.",
+    `Run shasum -a 256 "${currentMacZipName}" or shasum -a 256 "${publicLinuxAppImageName}" on macOS or Linux.`,
+    "If SHA256SUMS uses a different builder filename, compare the SHA256 value directly.",
     "Run Get-FileHash on Windows and compare it with SHA256SUMS.",
     "## Troubleshooting",
     "Open Local Console In Browser from the desktop failure page if the local core is already running.",

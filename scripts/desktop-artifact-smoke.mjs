@@ -188,7 +188,7 @@ function checkInstallGuide() {
     console.log("[SKIP] release user install guide is not present in this platform-specific smoke output");
   } else {
     const userGuide = fs.readFileSync(userGuidePath, "utf8");
-    for (const pattern of [/macOS Unsigned Zip/i, /Windows NSIS Installer/i, /Linux AppImage/i, /First Launch/i, /Bind The Phone PWA/i, /Use It Away From Home/i, /Backups/i, /Troubleshooting/i, /SmartScreen/i, /chmod \+x/i, /shasum -a 256 -c SHA256SUMS/i, /Get-FileHash/i, /Open Local Console In Browser/i, /Copy Local Address/i, /Do not add the unbound QR page to the home screen/i, /delete the old home-screen icon/i]) {
+    for (const pattern of [/macOS Unsigned Zip/i, /Windows NSIS Installer/i, /Linux AppImage/i, /First Launch/i, /Bind The Phone PWA/i, /Use It Away From Home/i, /Backups/i, /Troubleshooting/i, /SmartScreen/i, /chmod \+x/i, /shasum -a 256 "LifeOS\.AI-/i, /filename mismatch/i, /Get-FileHash/i, /Open Local Console In Browser/i, /Copy Local Address/i, /Do not add the unbound QR page to the home screen/i, /delete the old home-screen icon/i]) {
       if (!pattern.test(userGuide)) fail(`release user install guide is missing expected guidance: ${pattern}`);
     }
     pass("release directory includes user install guide for non-developer setup");
