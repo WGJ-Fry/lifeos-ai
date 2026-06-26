@@ -8,9 +8,11 @@ type StudioRuntimeEventsPanelProps = {
   error: string | null;
   issue: string;
   isRequestingDebug: boolean;
+  isApplyingRepair: boolean;
   onIssueChange: (value: string) => void;
   onRefresh: () => void;
   onRequestDebug: () => void;
+  onApplyRepair: () => void;
 };
 
 function eventClass(severity: StoredCustomAppRuntimeEvent["severity"]) {
@@ -30,9 +32,11 @@ export default function StudioRuntimeEventsPanel({
   error,
   issue,
   isRequestingDebug,
+  isApplyingRepair,
   onIssueChange,
   onRefresh,
   onRequestDebug,
+  onApplyRepair,
 }: StudioRuntimeEventsPanelProps) {
   const { t } = useI18n();
 
@@ -88,24 +92,44 @@ export default function StudioRuntimeEventsPanel({
           placeholder={t("studio.runtime.issuePlaceholder")}
           className="w-full bg-[#141416] border border-white/[0.06] focus:border-amber-500/50 rounded-xl px-3 py-2 text-[11px] text-zinc-200 outline-none placeholder-zinc-600 resize-none"
         />
-        <button
-          type="button"
-          onClick={onRequestDebug}
-          disabled={isRequestingDebug}
-          className="w-full bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 disabled:text-zinc-600 disabled:border-white/[0.04] disabled:bg-white/[0.02] py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5"
-        >
-          {isRequestingDebug ? (
-            <>
-              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              {t("studio.runtime.requesting")}
-            </>
-          ) : (
-            <>
-              <WandSparkles className="w-3.5 h-3.5" />
-              {t("studio.runtime.requestRepair")}
-            </>
-          )}
-        </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onRequestDebug}
+            disabled={isRequestingDebug || isApplyingRepair}
+            className="bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/20 text-amber-300 disabled:text-zinc-600 disabled:border-white/[0.04] disabled:bg-white/[0.02] py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5"
+          >
+            {isRequestingDebug ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                {t("studio.runtime.requesting")}
+              </>
+            ) : (
+              <>
+                <WandSparkles className="w-3.5 h-3.5" />
+                {t("studio.runtime.requestRepair")}
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onApplyRepair}
+            disabled={isRequestingDebug || isApplyingRepair}
+            className="bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-300 disabled:text-zinc-600 disabled:border-white/[0.04] disabled:bg-white/[0.02] py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5"
+          >
+            {isApplyingRepair ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                {t("studio.runtime.applyingRepair")}
+              </>
+            ) : (
+              <>
+                <WandSparkles className="w-3.5 h-3.5" />
+                {t("studio.runtime.applyRepair")}
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

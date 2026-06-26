@@ -11,8 +11,7 @@ import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAc
 import { getRemoteValidationReport, summarizeRemoteHealth } from "./remoteValidationReport";
 import { getRemoteRecoveryReport } from "./remoteHealthMonitor";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
-
-let cachedPackageVersion: string | null = null;
+import { getPackageVersion } from "./version";
 
 function countTable(table: string) {
   return (db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as any)?.count || 0;
@@ -51,16 +50,7 @@ function releaseDirCandidates() {
 }
 
 export function getDiagnosticBundleVersion() {
-  if (cachedPackageVersion) return cachedPackageVersion;
-  try {
-    const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
-    cachedPackageVersion = typeof packageJson.version === "string" && packageJson.version.trim()
-      ? packageJson.version.trim()
-      : "0.0.0-unknown";
-  } catch {
-    cachedPackageVersion = "0.0.0-unknown";
-  }
-  return cachedPackageVersion;
+  return getPackageVersion();
 }
 
 function publicReleaseArtifactSummary(artifact: any) {

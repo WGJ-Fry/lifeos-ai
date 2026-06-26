@@ -21,12 +21,14 @@ type StudioRefinePanelProps = {
   runtimeEventsError: string | null;
   runtimeDebugIssue: string;
   isRequestingRuntimeDebug: boolean;
+  isApplyingRuntimeRepair: boolean;
   onInstructionChange: (value: string) => void;
   onRefine: () => void;
   onRollback: (version: StudioRefineHistoryItem) => void;
   onRuntimeDebugIssueChange: (value: string) => void;
   onRefreshRuntimeEvents: () => void;
   onRequestRuntimeDebug: () => void;
+  onApplyRuntimeRepair: () => void;
 };
 
 export default function StudioRefinePanel({
@@ -39,12 +41,14 @@ export default function StudioRefinePanel({
   runtimeEventsError,
   runtimeDebugIssue,
   isRequestingRuntimeDebug,
+  isApplyingRuntimeRepair,
   onInstructionChange,
   onRefine,
   onRollback,
   onRuntimeDebugIssueChange,
   onRefreshRuntimeEvents,
   onRequestRuntimeDebug,
+  onApplyRuntimeRepair,
 }: StudioRefinePanelProps) {
   const { t } = useI18n();
   const presetInstructions = [
@@ -175,9 +179,11 @@ export default function StudioRefinePanel({
         error={runtimeEventsError}
         issue={runtimeDebugIssue}
         isRequestingDebug={isRequestingRuntimeDebug}
+        isApplyingRepair={isApplyingRuntimeRepair}
         onIssueChange={onRuntimeDebugIssueChange}
         onRefresh={onRefreshRuntimeEvents}
         onRequestDebug={onRequestRuntimeDebug}
+        onApplyRepair={onApplyRuntimeRepair}
       />
 
       <div className="mt-auto pt-4 border-t border-white/[0.04] text-[10px] text-zinc-500 flex items-center gap-1.5 justify-center">

@@ -5,6 +5,7 @@ import { createDatabaseBackup, db, getBackupPath, getPendingRestore, listBackups
 import { getDevices } from "./devices";
 import { getMemories } from "./memories";
 import { listAuditLogs, redactAuditMetadata } from "./audit";
+import { getPackageVersion } from "./version";
 
 const previewTables = [
   "devices",
@@ -23,7 +24,6 @@ const previewTables = [
 ];
 const exportScopeKeys = ["chat", "memories", "devices", "auditLogs", "customApps"] as const;
 const sensitiveBackupClientStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
-let cachedPackageVersion: string | null = null;
 
 export type DataExportScope = typeof exportScopeKeys[number];
 
@@ -105,16 +105,7 @@ export function normalizeDataExportScope(input: unknown): DataExportScope[] {
 }
 
 export function getDataExportVersion() {
-  if (cachedPackageVersion) return cachedPackageVersion;
-  try {
-    const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8"));
-    cachedPackageVersion = typeof packageJson.version === "string" && packageJson.version.trim()
-      ? packageJson.version.trim()
-      : "0.0.0-unknown";
-  } catch {
-    cachedPackageVersion = "0.0.0-unknown";
-  }
-  return cachedPackageVersion;
+  return getPackageVersion();
 }
 
 export function createDataExport(scopes: DataExportScope[] = [...exportScopeKeys]) {

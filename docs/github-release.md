@@ -47,13 +47,13 @@ LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
 5. Tag 填：
 
    ```text
-   v0.1.0
+   v0.1.2-alpha
    ```
 
 6. Title 填：
 
    ```text
-   LifeOS AI 0.1.0
+   LifeOS AI 0.1.2 Alpha
    ```
 
 7. 上传 [release-assets.md](release-assets.md) 里列出的文件。
@@ -62,36 +62,42 @@ LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
 ## Release 正文模板
 
 ```markdown
-## LifeOS AI 0.1.0
+## LifeOS AI 0.1.2 Alpha
 
 LifeOS AI is a desktop local core plus mobile PWA personal AI system.
 
 ### Downloads
 
-- macOS Apple Silicon test build: `LifeOS.AI-0.1.0-arm64-unsigned.zip`
+- macOS Apple Silicon unsigned ZIP: `LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip`
+- Windows x64 NSIS installer: `LifeOS AI Setup 0.1.2-alpha.0.exe`
+- Linux x64 AppImage: `LifeOS AI-0.1.2-alpha.0.AppImage`
 - Checksum: `SHA256SUMS`
-- Install guide: `INSTALL-unsigned-mac.md`
-- Windows x64: preparing; no EXE is uploaded in this release.
-- Linux x64: preparing; no AppImage is uploaded in this release.
+- Install guide: `USER-INSTALL.md`
+- macOS unsigned fallback guide: `INSTALL-unsigned-mac.md`
 
 ### Install
 
 macOS: download the unsigned ZIP, unzip it, drag `LifeOS AI.app` to Applications, then follow `INSTALL-unsigned-mac.md` if Gatekeeper blocks the first launch.
 
-Windows/Linux: packaging paths are wired into the project, but public binaries are not uploaded in `v0.1.0` yet.
+Windows: download the NSIS `.exe` and follow the SmartScreen warning guidance in `USER-INSTALL.md`.
+
+Linux: download the AppImage, run `chmod +x "LifeOS AI-0.1.2-alpha.0.AppImage"`, then launch it.
 
 ### Verification
 
 SHA256:
 
 ```text
-50570710de1732273d62233a44aa4441e76ec6200657a7f5a1c778274eae8f0e  LifeOS AI-0.1.0-arm64-unsigned.zip
+af53111d6689f0cc2ad67b118f3d7bb274fc9742141cc760fdf9f3d9f82c909e  LifeOS AI-0.1.2-alpha.0-arm64-unsigned.zip
+b1502f090764909ea8be708474e7f5800d202ced2c48cfcded0a13c4c4f03f57  LifeOS AI Setup 0.1.2-alpha.0.exe
+bd83e1c702f24586a81925a6db34deb74b2f68175416c85235e8750b6bf7c5fc  LifeOS AI-0.1.2-alpha.0.AppImage
 ```
 
 ### Notes
 
 - macOS build is unsigned and may require the macOS Open Anyway flow.
-- Windows and Linux public binaries are intentionally withheld until real package verification is complete.
+- Windows is not Authenticode signed yet, so SmartScreen may warn about an unknown publisher.
+- Linux AppImage is unsigned; verify `SHA256SUMS` before first launch.
 - Auto-update is not enabled until `LIFEOS_UPDATE_URL` is configured in a future release.
 - On first launch, set an admin password, configure an AI provider, then bind the phone PWA.
 ```
@@ -133,7 +139,7 @@ node_modules/
 3. 构建桌面包时设置：
 
    ```bash
-   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.0"
+   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.2-alpha"
    ```
 
 4. 重新打包并发布。
@@ -143,7 +149,7 @@ node_modules/
 ## 我还没有考虑到但发布前很重要的事
 
 - Windows 未签名会影响普通用户信任度，正式对外建议购买 Authenticode 证书。
-- 版本号已升级为 `0.1.0`；后续更稳定后可再考虑 `1.0.0-beta.1` 或 `1.0.0`。
+- 版本号已升级为 `0.1.2-alpha.0`；后续更稳定后可再考虑 `0.2.0-beta.1`、`1.0.0-beta.1` 或 `1.0.0`。
 - GitHub Release 的资产名包含空格，用户可正常下载，但命令行说明要加引号。
 - macOS 当前包是 Apple Silicon arm64；Intel Mac 需要额外构建 x64 或 universal。
 - 不要公开你的 AI Key、Apple App 专用密码、证书密码、`.p12` 文件。
@@ -198,13 +204,13 @@ Manual workflow runs still produce Actions artifacts only; GitHub Release drafts
 5. Tag:
 
    ```text
-   v0.1.0
+   v0.1.2-alpha
    ```
 
 6. Title:
 
    ```text
-   LifeOS AI 0.1.0
+   LifeOS AI 0.1.2 Alpha
    ```
 
 7. Upload the files listed in [release-assets.md](release-assets.md).
@@ -243,7 +249,7 @@ node_modules/
 3. Build with:
 
    ```bash
-   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.0"
+   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.2-alpha"
    ```
 
 4. Repackage and publish.
@@ -253,7 +259,7 @@ node_modules/
 ## Important Gaps Before Wider Public Distribution
 
 - Windows is not Authenticode signed yet, so SmartScreen may warn users.
-- Version is now `0.1.0`; consider `1.0.0-beta.1` or `1.0.0` once the project is ready for a broader stable launch.
+- Version is now `0.1.2-alpha.0`; consider `0.2.0-beta.1`, `1.0.0-beta.1`, or `1.0.0` once the project is ready for a broader stable launch.
 - Asset names contain spaces; command-line examples must quote file names.
 - macOS artifact is Apple Silicon arm64 only; Intel Macs need x64 or universal builds.
 - Never publish AI keys, Apple app-specific passwords, certificate passwords, or `.p12` files.

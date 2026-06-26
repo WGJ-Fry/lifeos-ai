@@ -43,13 +43,10 @@ export default function StudioApp({
   const { t } = useI18n();
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<StudioTab>("overview");
-
-  // Local buffered states for code editor & preview sandbox
   const [localCode, setLocalCode] = useState("");
   const [runningCode, setRunningCode] = useState("");
   const [editorActiveTab, setEditorActiveTab] = useState<"code" | "guide">("code");
 
-  // States for the external application integration wizard (AI Conversational App Builder)
   const [isImportWizardOpen, setIsImportWizardOpen] = useState(false);
   const [wizardAppName, setWizardAppName] = useState("");
   const [promptInput, setPromptInput] = useState("");
@@ -58,12 +55,10 @@ export default function StudioApp({
   const [generationError, setGenerationError] = useState<string | null>(null);
   const problemBlueprint = useMemo(() => deriveProblemBlueprint(problemInput), [problemInput]);
 
-  // States for dragging files & AI analysis
   const [isDragging, setIsDragging] = useState(false);
-
-  // States for prompt-based quick AI refinement (No-code conversational editing)
   const [refineInstruction, setRefineInstruction] = useState("");
   const [isRefining, setIsRefining] = useState(false);
+  const [isApplyingRuntimeRepair, setIsApplyingRuntimeRepair] = useState(false);
   const [refineError, setRefineError] = useState<string | null>(null);
   const [showRawEditor, setShowRawEditor] = useState<boolean>(false);
   const {
@@ -185,7 +180,6 @@ export default function StudioApp({
         };
         reader.readAsDataURL(file);
       } else {
-        // Text/HTML
         reader.onload = async (event) => {
           try {
             const textContent = event.target?.result as string;
@@ -255,25 +249,25 @@ export default function StudioApp({
     }
   };
 
-  const handleRefineCode = async () => {
-    if (!refineInstruction.trim()) return;
+  const handleRefineCode = async (overrideInstruction = "", persist = false) => {
+    const instruction = (overrideInstruction || refineInstruction).trim();
+    if (!instruction) return;
     setIsRefining(true);
     setRefineError(null);
     try {
       const data = await refineCode({
         currentCode: localCode,
-        instruction: refineInstruction,
+        instruction,
       });
       if (data.refinedCode) {
-        captureRefineVersion(refineInstruction, localCode);
-
-        // Inject system console initialization log for sandbox
-        appendSimulatorLog({ time: "COMPILER", text: t("studio.app.logCompileSuccess", { instruction: `${refineInstruction.trim().substring(0, 20)}${refineInstruction.length > 20 ? "..." : ""}` }), type: "info" });
-        recordRuntimeDebugApplied(refineInstruction);
+        captureRefineVersion(instruction, localCode);
+        appendSimulatorLog({ time: "COMPILER", text: t("studio.app.logCompileSuccess", { instruction: `${instruction.substring(0, 20)}${instruction.length > 20 ? "..." : ""}` }), type: "info" });
+        recordRuntimeDebugApplied(instruction);
 
         setLocalCode(data.refinedCode);
-        setRunningCode(data.refinedCode); // Immediately refresh iframe simulation
-        setRefineInstruction("");
+        setRunningCode(data.refinedCode);
+        if (persist && editingAppId) onUpdateCode(editingAppId, data.refinedCode);
+        if (!overrideInstruction) setRefineInstruction("");
       } else {
         throw new Error(t("studio.app.emptyRefinedCode"));
       }
@@ -285,7 +279,21 @@ export default function StudioApp({
     }
   };
 
-  // Sync edit app change automatically to the local buffer and clear temporary history
+  const handleApplyRuntimeRepair = async (appId: string) => {
+    setIsApplyingRuntimeRepair(true);
+    try {
+      const instruction = await requestRuntimeDebug(appId);
+      if (instruction) {
+        await handleRefineCode(instruction, true);
+        appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.debugAppliedAndSaved"), type: "info" });
+      }
+    } catch (err: any) {
+      setRefineError(err.message || t("studio.runtime.applyFailed"));
+    } finally {
+      setIsApplyingRuntimeRepair(false);
+    }
+  };
+
   useEffect(() => {
     if (editingAppId) {
       const targetApp = customApps.find(a => a.id === editingAppId);
@@ -620,7 +628,6 @@ export default function StudioApp({
               }}
             />
 
-            {/* Main Sandbox Workspace Area */}
             <div className="flex-1 flex overflow-hidden min-h-0 bg-[#0a0a0c]">
                {!showRawEditor ? (
                  <>
@@ -634,6 +641,7 @@ export default function StudioApp({
                       runtimeEventsError={runtimeEventsError}
                       runtimeDebugIssue={runtimeDebugIssue}
                       isRequestingRuntimeDebug={isRequestingRuntimeDebug}
+                      isApplyingRuntimeRepair={isApplyingRuntimeRepair}
                       onInstructionChange={setRefineInstruction}
                       onRefine={handleRefineCode}
                       onRollback={(version) => {
@@ -644,6 +652,7 @@ export default function StudioApp({
                       onRuntimeDebugIssueChange={setRuntimeDebugIssue}
                       onRefreshRuntimeEvents={() => void loadRuntimeEvents(activeAppToEdit.id)}
                       onRequestRuntimeDebug={() => void requestRuntimeDebug(activeAppToEdit.id)}
+                      onApplyRuntimeRepair={() => void handleApplyRuntimeRepair(activeAppToEdit.id)}
                     />
 
                     <StudioResponsivePreview

@@ -1721,7 +1721,7 @@ function checkAssets() {
     dataLifecycleSource.includes("auth[-_]?tag") &&
     dataLifecycleSource.includes("(^|[-_])iv([-_]|$)") &&
     dataLifecycleSource.includes("getDataExportVersion") &&
-    dataLifecycleSource.includes('path.join(process.cwd(), "package.json")') &&
+    dataLifecycleSource.includes("getPackageVersion") &&
     !dataLifecycleSource.includes('version: "0.1.0"') &&
     dataExportRedactionTestSource.includes("should not leak in data export redaction") &&
     dataExportRedactionTestSource.includes("Basic Z2l0aHViOnNlY3JldA==") &&
@@ -1737,7 +1737,7 @@ function checkAssets() {
   if (
     diagnosticBundleSource.includes("getReleaseDiagnostics") &&
     diagnosticBundleSource.includes("getDiagnosticBundleVersion") &&
-    diagnosticBundleSource.includes('path.join(process.cwd(), "package.json")') &&
+    diagnosticBundleSource.includes("getPackageVersion") &&
     !diagnosticBundleSource.includes('version: "0.1.0"') &&
     diagnosticBundleSource.includes("publicReleaseArtifactSummary") &&
     diagnosticBundleSource.includes("release: getReleaseDiagnostics()") &&
@@ -1767,6 +1767,16 @@ function checkAssets() {
     adminRoutesSource.includes("remoteAcceptanceReady")
   ) pass("admin diagnostic bundle includes redacted release, remote health, and acceptance evidence");
   else warn("admin diagnostic bundle lacks release/remote acceptance metadata or coverage");
+
+  const coreRoutesHealthSource = exists("server/routes/coreRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/coreRoutes.ts"), "utf8") : "";
+  if (
+    coreRoutesHealthSource.includes("getPackageVersion") &&
+    coreRoutesHealthSource.includes("version: getPackageVersion()") &&
+    apiAuthTestSource.includes("health.version, packageJson.version") &&
+    !coreRoutesHealthSource.includes('version: "0.1.0"')
+  ) pass("health API exposes the package version used by the admin UI");
+  else fail("health API must expose package.json version instead of a hard-coded display version");
+
   const configDiagnosticsPanelSource = exists("src/pages/admin/settings/ConfigDiagnosticsPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/ConfigDiagnosticsPanel.tsx"), "utf8") : "";
   const releaseReadinessSummarySource = exists("src/pages/admin/settings/ReleaseReadinessSummary.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/ReleaseReadinessSummary.tsx"), "utf8") : "";
   if (

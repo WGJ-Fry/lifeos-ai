@@ -637,13 +637,19 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioRuntimeDebugHookSource, /listCustomAppRuntimeEvents/);
   assert.match(studioRuntimeDebugHookSource, /createCustomAppDebugRequest/);
   assert.match(studioRuntimeDebugHookSource, /createCustomAppRuntimeEvent/);
+  assert.match(studioRuntimeDebugHookSource, /return response\.suggestedInstruction/);
 
   const studioRefinePanelSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioRefinePanel.tsx"), "utf8");
   const studioRuntimeEventsPanelSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioRuntimeEventsPanel.tsx"), "utf8");
   assert.match(studioRefinePanelSource, /StudioRuntimeEventsPanel/);
+  assert.match(studioRefinePanelSource, /onApplyRuntimeRepair/);
   assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.title/);
   assert.match(studioRuntimeEventsPanelSource, /onRequestDebug/);
+  assert.match(studioRuntimeEventsPanelSource, /onApplyRepair/);
+  assert.match(studioAppSource, /handleApplyRuntimeRepair/);
+  assert.match(studioAppSource, /onUpdateCode\(editingAppId, data\.refinedCode\)/);
   assert.match(translationsSource, /studio\.runtime\.requestRepair/);
+  assert.match(translationsSource, /studio\.runtime\.applyRepair/);
 
   const studioSimulatorSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "useStudioSimulatorState.ts"), "utf8");
   assert.match(studioSimulatorSource, /jarvis-sandbox-frame-log/);

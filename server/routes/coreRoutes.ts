@@ -8,6 +8,7 @@ import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getOnlineDeviceCount } from "../realtime";
 import { getSecurityDiagnostics } from "../securityDiagnostics";
+import { getPackageVersion } from "../version";
 
 export function registerCoreRoutes(app: express.Express, host: string) {
   const traceHealth = process.env.LIFEOS_TRACE_HEALTH === "1";
@@ -56,7 +57,7 @@ export function registerCoreRoutes(app: express.Express, host: string) {
     res.json({
       ok: true,
       service: "lifeos-local-core",
-      version: "0.1.0",
+      version: getPackageVersion(),
       uptime: process.uptime(),
       deviceCount,
       onlineDeviceCount,

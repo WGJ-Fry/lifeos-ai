@@ -209,7 +209,7 @@ For signed DMG/NSIS/AppImage publishing, use the relevant `desktop:dist:*` comma
 Upload the complete contents of `release/update-feed/` to the HTTPS directory used by `LIFEOS_UPDATE_URL`; keep each artifact, its matching `latest*.yml`, and `release-manifest.json` together. For GitHub Releases, use the release download directory, for example:
 
 ```bash
-LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.0"
+LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.2-alpha"
 ```
 
 Without this value, the packaged desktop app starts normally and skips update checks.

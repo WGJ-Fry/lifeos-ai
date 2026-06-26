@@ -199,6 +199,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
 
   const health = await request(port, "/api/v1/health").then((res) => res.json());
   assert.equal(health.host, "127.0.0.1");
+  assert.equal(health.version, packageJson.version);
   assert.equal(health.networkMode, "local");
   assert.equal(health.publicAccessWarning, false);
   const healthHeaders = await request(port, "/api/v1/health");

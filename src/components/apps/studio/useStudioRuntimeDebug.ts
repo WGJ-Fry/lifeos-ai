@@ -62,8 +62,10 @@ export function useStudioRuntimeDebug({
       setRuntimeDebugIssue("");
       appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.debugInstructionReady"), type: "info" });
       await loadRuntimeEvents(appId);
+      return response.suggestedInstruction;
     } catch (error: any) {
       setRuntimeEventsError(error?.message || t("studio.runtime.requestFailed"));
+      return "";
     } finally {
       setIsRequestingRuntimeDebug(false);
     }

@@ -4,7 +4,7 @@
 >
 > Your computer runs the private AI core. Your phone becomes the everyday companion.
 
-[中文说明](README.zh-CN.md) | [Quick Start](#2-minute-quick-start) | [Generated Programs](#generated-problem-solving-programs) | [Remote Access](#remote--vpn-access) | [Current Limits](#current-alpha-limits)
+[中文说明](README.zh-CN.md) | [Current Version](#current-version) | [Quick Start](#2-minute-quick-start) | [Generated Programs](#generated-problem-solving-programs) | [Remote Access](#remote--vpn-access) | [Current Limits](#current-alpha-limits)
 
 [![Quality Gate](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/quality.yml)
 [![Docker Image](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml/badge.svg)](https://github.com/WGJ-Fry/lifeos-ai/actions/workflows/docker.yml)
@@ -23,18 +23,29 @@ What am I forgetting?
 
 It reads local Markdown notes, runs with local Ollama in the alpha demo, and surfaces commitments, deadlines, renewals, and unfinished work that might otherwise slip through the cracks.
 
-It is not just a hosted chatbot. The larger direction is a private personal AI layer: memory recall, desktop admin, paired phone access, safe local actions, VPN/tunnel remote use, and small programs generated for the problem you are solving now.
-
 ## 10-Second Summary
 
-- **Personal AI assistant:** helps you remember, plan, connect, and act.
-- **Local-first alpha:** reads `.md` files from a folder you control.
+- **Local Markdown memory:** reads `.md` files from a folder you control.
 - **Fastest demo path:** Docker Compose + Ollama `llama3.2`.
-- **Phone direction:** desktop core + mobile PWA companion.
-- **Remote direction:** LAN, Tailscale/VPN, and Cloudflare Tunnel setup guidance.
-- **Studio direction:** generate runnable tools for budgeting, planning, lookup, sorting, forms, calculation, and workflow panels.
+- **Desktop admin:** setup, AI provider settings, backup/restore, diagnostics, and device pairing.
+- **Mobile PWA:** paired phone chat, offline queue, device status, and action permission center.
+- **Connection guide:** LAN, Tailscale, and Cloudflare Tunnel diagnostics with safety checks.
+- **Studio tools:** generate and refine runnable problem-solving programs with state storage, runtime logs, and rollback.
 
 Current alpha promise: put Markdown notes in a folder, run LifeOS locally, and ask what you may have missed.
+
+## Current Version
+
+Current public release: `v0.1.2-alpha`<br>
+Package version: `0.1.2-alpha.0`
+
+Only completed, test-covered capabilities are listed here.
+
+| Version | Completed capabilities |
+| --- | --- |
+| `0.1.2-alpha.0` | Docker Compose local Markdown demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue, SQLite migrations, backup/restore, diagnostics, release checks, connection diagnostics, and Studio generated-program runtime logs/debug instruction/one-click repair save. |
+| `0.1.1-alpha.0` | Docker quickstart with Ollama, local Markdown vault ingestion, quickstart login, GHCR workflow, and local model defaults. |
+| `0.1.0` | Initial desktop/PWA foundation: admin security, device binding, SQLite data, backup/restore, AI provider configuration, URL Scheme safety, and desktop packaging scripts. |
 
 ## Choose Your Path
 
@@ -64,13 +75,11 @@ These are real screens from the current project, not concept art.
 
 Most AI tools wait for you to remember the right prompt. LifeOS starts from the mess you already have: scattered notes, dates, promises, renewals, ideas, and unfinished work.
 
-LifeOS is interesting because it combines three directions:
+LifeOS is interesting because the current alpha already combines three working pieces:
 
 1. **Memory discovery:** find forgotten commitments and deadlines from your own data.
-2. **Local-first AI:** keep the first useful workflow on your machine without requiring a cloud API key.
-3. **Generated tools:** move from “the AI told me something” to “the AI made a small tool that helps me handle it.”
-
-The public alpha proves the first slice. The project direction is larger: a private personal AI operating layer.
+2. **Local-first AI:** keep the first useful workflow on your machine with a local Ollama model.
+3. **Generated tools:** create, refine, save, and roll back small runnable tools inside Studio.
 
 ## Feature Map
 
@@ -84,12 +93,10 @@ The public alpha proves the first slice. The project direction is larger: a priv
 | Ollama local model | Works through Docker Compose |
 | “What am I forgetting?” chat | Works for mounted Markdown notes |
 | Admin login and security diagnostics | Included in the desktop/server path |
-| Desktop app shell | Early distribution path |
-| Mobile companion | In progress / early path |
-| Remote access guidance | LAN, Tailscale/VPN, Cloudflare Tunnel diagnostics are being built out |
-| Generated programs | Experimental Studio path |
-
-The alpha is best understood as a working local memory demo, not a finished personal operating system.
+| Desktop app shell | Available as current alpha packages |
+| Mobile companion | Pairing, chat, offline queue, device status, and action permissions are implemented |
+| Remote access guidance | LAN, Tailscale, Cloudflare Tunnel diagnostics and safety checks are implemented |
+| Generated programs | Studio generation, refinement, runtime logs, debug instruction, one-click repair save, state storage, and rollback are implemented |
 
 ## Generated Problem-Solving Programs
 
@@ -97,7 +104,7 @@ The alpha is best understood as a working local memory demo, not a finished pers
   <img src="docs/assets/readme/lifeos-generated-programs-en.svg" alt="LifeOS generates runnable programs for concrete problems" width="100%">
 </p>
 
-LifeOS Studio is the experimental path for turning a concrete need into a small runnable program.
+LifeOS Studio turns a concrete need into a small runnable program.
 
 This is not just “generate an app from a prompt.” The goal is more practical:
 
@@ -111,7 +118,7 @@ Examples:
 - A follow-up board for people you promised to contact.
 - A tiny workflow panel for repeated local actions.
 
-Status: experimental desktop Studio path. It is not part of the minimal Docker Markdown demo yet.
+Status in `0.1.2-alpha.0`: generation, manual refinement, durable state, runtime logs, debug instruction generation, one-click repair save, action permission checks, and version rollback are implemented. Fully automatic unattended self-repair is not advertised here until it is shipped.
 
 ## 2-Minute Quick Start
 
@@ -250,19 +257,6 @@ LifeOS is alpha software.
 - Reads a limited number of files for speed and context size.
 - Desktop, mobile, remote access, and Studio-generated programs are earlier than the Docker demo path.
 
-## Platform Vision
-
-The long-term vision is a private personal AI operating layer:
-
-- remembers what matters from your own data,
-- notices what may need attention,
-- connects safely from desktop to phone,
-- runs local or user-chosen AI providers,
-- generates focused tools for concrete problems,
-- and eventually bridges reminders into safe local actions.
-
-The alpha starts with memory because memory is the root problem: before an AI can act for you, it should help you notice what matters.
-
 ## Troubleshooting
 
 Check containers:
@@ -312,24 +306,6 @@ ghcr.io/wgj-fry/lifeos-ai:v0.1.2-alpha
 ```
 
 Note: the release tag is `v0.1.2-alpha`; the package version is `0.1.2-alpha.0`.
-
-## Roadmap
-
-Near-term:
-
-- Better Markdown memory extraction and source references.
-- Weekly and monthly “what am I forgetting?” summaries.
-- Reminder status: handled, snoozed, ignored.
-- Calendar read-only ingestion.
-- Stronger desktop distribution for macOS, Windows, and Linux.
-- Safer remote phone setup through Tailscale/VPN and Cloudflare Tunnel.
-
-Later:
-
-- Calendar/task write-back.
-- More local action integrations.
-- Studio-generated tools as a bridge from reminder to action.
-- Plugin-style memory sources and action outputs.
 
 ## License
 
