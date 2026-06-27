@@ -10,6 +10,29 @@ export type ReleaseUpdateAsset = {
   downloadUrl: string;
 };
 
+export type ReleaseUpdatePlatform = "macos" | "windows" | "linux" | "unknown";
+
+export type ReleaseManualUpdateStep = {
+  id: "backup" | "download" | "checksum" | "install" | "restart";
+  label: string;
+  required: boolean;
+  command?: string;
+  url?: string;
+};
+
+export type ReleaseManualUpdatePlan = {
+  platform: ReleaseUpdatePlatform;
+  assetName: string | null;
+  assetUrl: string | null;
+  checksumUrl: string | null;
+  checksumCommand: string;
+  installCommand: string;
+  backupRequired: true;
+  sha256Required: true;
+  autoUpdateBlockedReason: string;
+  steps: ReleaseManualUpdateStep[];
+};
+
 export type ReleaseUpdateCheck = {
   checkedAt: string;
   status: "up-to-date" | "update-available" | "unavailable" | "error";
@@ -31,6 +54,7 @@ export type ReleaseUpdateCheck = {
   updateAvailable: boolean;
   manualUpdateRequired: true;
   autoUpdateEnabled: false;
+  manualUpdatePlan: ReleaseManualUpdatePlan | null;
   reason: string;
   recommendations: string[];
 };
@@ -123,6 +147,72 @@ function normalizeRelease(record: ReleaseApiRecord) {
   };
 }
 
+function platformFromNodePlatform(platform = process.platform): ReleaseUpdatePlatform {
+  if (platform === "darwin") return "macos";
+  if (platform === "win32") return "windows";
+  if (platform === "linux") return "linux";
+  return "unknown";
+}
+
+function chooseAssetForPlatform(assets: ReleaseUpdateAsset[], platform: ReleaseUpdatePlatform) {
+  const downloadableAssets = assets.filter((asset) => asset.name !== "SHA256SUMS" && asset.downloadUrl);
+  const byName = (patterns: RegExp[]) => downloadableAssets.find((asset) => patterns.some((pattern) => pattern.test(asset.name)));
+  if (platform === "macos") {
+    return byName([/\.zip$/i, /\.dmg$/i, /mac|darwin/i]) || downloadableAssets[0] || null;
+  }
+  if (platform === "windows") {
+    return byName([/setup.*\.exe$/i, /\.exe$/i, /win/i]) || downloadableAssets[0] || null;
+  }
+  if (platform === "linux") {
+    return byName([/\.appimage$/i, /linux/i]) || downloadableAssets[0] || null;
+  }
+  return downloadableAssets[0] || null;
+}
+
+function checksumCommandForPlatform(platform: ReleaseUpdatePlatform, assetName: string | null) {
+  const name = assetName || "downloaded-file";
+  if (platform === "windows") return `Get-FileHash ".\\${name}" -Algorithm SHA256`;
+  if (platform === "macos" || platform === "linux") return `shasum -a 256 "${name}"`;
+  return `Compare the SHA256 hash of "${name}" with SHA256SUMS before opening it.`;
+}
+
+function installCommandForPlatform(platform: ReleaseUpdatePlatform, assetName: string | null) {
+  const name = assetName || "downloaded package";
+  if (platform === "macos") {
+    return `Unzip "${name}", move LifeOS AI.app to /Applications, then open it after SHA256 verification.`;
+  }
+  if (platform === "windows") {
+    return `Run "${name}" only after SHA256 verification. SmartScreen may warn because this alpha is unsigned.`;
+  }
+  if (platform === "linux") return `chmod +x "${name}" && ./"${name}"`;
+  return `Open the verified package for your platform only after comparing it with SHA256SUMS.`;
+}
+
+function buildManualUpdatePlan(latest: NonNullable<ReleaseUpdateCheck["latest"]>, platform: ReleaseUpdatePlatform): ReleaseManualUpdatePlan {
+  const asset = chooseAssetForPlatform(latest.assets, platform);
+  const assetName = asset?.name || null;
+  const checksumCommand = checksumCommandForPlatform(platform, assetName);
+  const installCommand = installCommandForPlatform(platform, assetName);
+  return {
+    platform,
+    assetName,
+    assetUrl: asset?.downloadUrl || latest.url || null,
+    checksumUrl: latest.checksumAsset?.downloadUrl || null,
+    checksumCommand,
+    installCommand,
+    backupRequired: true,
+    sha256Required: true,
+    autoUpdateBlockedReason: "Unsigned alpha builds intentionally keep manual download and SHA256 verification until a trusted update feed is enabled.",
+    steps: [
+      { id: "backup", label: "Create a SQLite backup in the admin console.", required: true },
+      { id: "download", label: assetName ? `Download ${assetName} from GitHub Releases.` : "Download the matching package from GitHub Releases.", required: true, url: asset?.downloadUrl || latest.url },
+      { id: "checksum", label: "Verify the package against SHA256SUMS before opening it.", required: true, command: checksumCommand, url: latest.checksumAsset?.downloadUrl },
+      { id: "install", label: "Install the verified package for this computer.", required: true, command: installCommand },
+      { id: "restart", label: "Restart LifeOS AI and confirm the version in Settings.", required: true },
+    ],
+  };
+}
+
 function buildRecommendations(status: ReleaseUpdateCheck["status"], latestTag: string | null) {
   if (status === "update-available") {
     return [
@@ -144,10 +234,11 @@ function buildRecommendations(status: ReleaseUpdateCheck["status"], latestTag: s
   ];
 }
 
-export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; now?: Date } = {}): Promise<ReleaseUpdateCheck> {
+export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; now?: Date; platform?: NodeJS.Platform } = {}): Promise<ReleaseUpdateCheck> {
   const currentVersion = getPackageVersion();
   const currentTag = packageVersionToReleaseTag(currentVersion);
   const checkedAt = (options.now || new Date()).toISOString();
+  const platform = platformFromNodePlatform(options.platform);
   const { owner, repo } = configuredRepository();
   const url = process.env.LIFEOS_RELEASE_API_URL || `https://api.github.com/repos/${owner}/${repo}/releases?per_page=20`;
   const fetchImpl = options.fetchImpl || fetch;
@@ -178,6 +269,7 @@ export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; no
         updateAvailable: false,
         manualUpdateRequired: true,
         autoUpdateEnabled: false,
+        manualUpdatePlan: null,
         reason: "no_public_release_found",
         recommendations: buildRecommendations("unavailable", null),
       };
@@ -193,6 +285,7 @@ export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; no
       updateAvailable,
       manualUpdateRequired: true,
       autoUpdateEnabled: false,
+      manualUpdatePlan: buildManualUpdatePlan(latest, platform),
       reason: updateAvailable ? "newer_release_available" : "current_release_is_latest",
       recommendations: buildRecommendations(status, latest.tag),
     };
@@ -205,6 +298,7 @@ export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; no
       updateAvailable: false,
       manualUpdateRequired: true,
       autoUpdateEnabled: false,
+      manualUpdatePlan: null,
       reason: error?.name === "AbortError" ? "release_check_timeout" : String(error?.message || "release_check_failed").slice(0, 120),
       recommendations: buildRecommendations("error", null),
     };

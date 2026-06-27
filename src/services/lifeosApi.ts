@@ -316,6 +316,24 @@ export type ReleaseUpdateCheck = {
   updateAvailable: boolean;
   manualUpdateRequired: true;
   autoUpdateEnabled: false;
+  manualUpdatePlan: {
+    platform: "macos" | "windows" | "linux" | "unknown";
+    assetName: string | null;
+    assetUrl: string | null;
+    checksumUrl: string | null;
+    checksumCommand: string;
+    installCommand: string;
+    backupRequired: true;
+    sha256Required: true;
+    autoUpdateBlockedReason: string;
+    steps: Array<{
+      id: "backup" | "download" | "checksum" | "install" | "restart";
+      label: string;
+      required: boolean;
+      command?: string;
+      url?: string;
+    }>;
+  } | null;
   reason: string;
   recommendations: string[];
 };

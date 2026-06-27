@@ -2111,6 +2111,9 @@ function checkAssets() {
 
   const configDiagnosticsPanelSource = exists("src/pages/admin/settings/ConfigDiagnosticsPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/ConfigDiagnosticsPanel.tsx"), "utf8") : "";
   const releaseReadinessSummarySource = exists("src/pages/admin/settings/ReleaseReadinessSummary.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/ReleaseReadinessSummary.tsx"), "utf8") : "";
+  const releaseUpdateCheckSource = exists("server/releaseUpdateCheck.ts") ? fs.readFileSync(path.join(rootDir, "server/releaseUpdateCheck.ts"), "utf8") : "";
+  const releaseUpdateStatusCardSource = exists("src/pages/admin/settings/ReleaseUpdateStatusCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/ReleaseUpdateStatusCard.tsx"), "utf8") : "";
+  const releaseUpdateCheckTestSource = exists("tests/release-update-check.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/release-update-check.test.mjs"), "utf8") : "";
   if (
     adminRoutesSource.includes("release:") &&
     adminRoutesSource.includes("getReleaseDiagnostics()") &&
@@ -2144,6 +2147,20 @@ function checkAssets() {
     frontendSmokeTestSource.includes("diagnostics\\.release\\.manifestAvailable")
   ) pass("admin settings diagnostics surfaces release manifest and checksum status");
   else warn("admin settings diagnostics does not surface release manifest/checksum status");
+
+  if (
+    releaseUpdateCheckSource.includes("ReleaseManualUpdatePlan") &&
+    releaseUpdateCheckSource.includes("chooseAssetForPlatform") &&
+    releaseUpdateCheckSource.includes("checksumCommandForPlatform") &&
+    releaseUpdateStatusCardSource.includes("manualUpdatePlan") &&
+    releaseUpdateStatusCardSource.includes("checksumCommand") &&
+    releaseUpdateStatusCardSource.includes("releaseUpdate.manualPlan") &&
+    translationsSource.includes("diagnostics.releaseUpdate.manualPlan") &&
+    translationsSource.includes("diagnostics.releaseUpdate.step.checksum") &&
+    releaseUpdateCheckTestSource.includes("manualUpdatePlan.platform") &&
+    frontendSmokeTestSource.includes("releaseUpdate\\.manualPlan")
+  ) pass("admin update check provides a platform-specific manual SHA256 update plan");
+  else warn("admin update check is missing platform-specific manual update plan coverage");
 
   const calendarSyncPreviewSource = exists("server/calendarSyncPreview.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncPreview.ts"), "utf8") : "";
   const googleCalendarConnectorSource = exists("server/googleCalendarConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleCalendarConnector.ts"), "utf8") : "";

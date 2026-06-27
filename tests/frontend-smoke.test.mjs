@@ -1429,8 +1429,14 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(adminSettingsPageSource, /Promise\.allSettled/);
   assert.match(releaseUpdateStatusCardSource, /releaseUpdate\.availableTitle/);
   assert.match(releaseUpdateStatusCardSource, /releaseUpdate\.rec\.sha/);
+  assert.match(releaseUpdateStatusCardSource, /manualUpdatePlan/);
+  assert.match(releaseUpdateStatusCardSource, /checksumCommand/);
+  assert.match(releaseUpdateStatusCardSource, /releaseUpdate\.manualPlan/);
   assert.match(translationsSource, /发现新版本/);
   assert.match(translationsSource, /New Version Available/);
+  assert.match(translationsSource, /手动更新计划/);
+  assert.match(translationsSource, /Manual Update Plan/);
+  assert.match(translationsSource, /diagnostics\.releaseUpdate\.step\.checksum/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.manifestAvailable/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.checksumAvailable/);
   assert.match(releaseReadinessSummarySource, /releaseReadyTitle/);

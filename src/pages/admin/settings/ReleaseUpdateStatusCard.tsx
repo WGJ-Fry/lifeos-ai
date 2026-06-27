@@ -59,6 +59,41 @@ export default function ReleaseUpdateStatusCard({ updateCheck }: { updateCheck: 
           <div className="mt-3 space-y-1 border-t border-current/15 pt-3 opacity-90">
             {recommendationKeys.map((key) => <div key={key}>{t(key as any, { tag: latestTag })}</div>)}
           </div>
+          {updateCheck.manualUpdatePlan ? (
+            <div className="mt-3 rounded-xl border border-current/15 bg-black/10 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="font-bold">{t("diagnostics.releaseUpdate.manualPlan")}</div>
+                <span className="rounded-full border border-current/15 px-2 py-0.5 text-[11px] uppercase tracking-wide">
+                  {updateCheck.manualUpdatePlan.platform}
+                </span>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div>
+                  <div className="opacity-70">{t("diagnostics.releaseUpdate.asset")}</div>
+                  <div className="mt-0.5 break-all font-semibold">{updateCheck.manualUpdatePlan.assetName || "-"}</div>
+                </div>
+                <div>
+                  <div className="opacity-70">{t("diagnostics.releaseUpdate.safety")}</div>
+                  <div className="mt-0.5 font-semibold">
+                    {t("diagnostics.releaseUpdate.backupAndSha")}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 rounded-lg border border-current/15 bg-black/15 p-2 font-mono text-[11px]">
+                <div className="opacity-70">{t("diagnostics.releaseUpdate.checksumCommand")}</div>
+                <div className="mt-1 break-all">{updateCheck.manualUpdatePlan.checksumCommand}</div>
+              </div>
+              <div className="mt-2 rounded-lg border border-current/15 bg-black/15 p-2 text-[11px]">
+                <div className="opacity-70">{t("diagnostics.releaseUpdate.installCommand")}</div>
+                <div className="mt-1">{updateCheck.manualUpdatePlan.installCommand}</div>
+              </div>
+              <ol className="mt-2 list-inside list-decimal space-y-1">
+                {updateCheck.manualUpdatePlan.steps.map((step) => (
+                  <li key={step.id}>{t(`diagnostics.releaseUpdate.step.${step.id}` as any)}</li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
           {updateCheck.latest?.url ? (
             <a
               href={updateCheck.latest.url}

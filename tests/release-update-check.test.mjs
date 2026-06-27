@@ -34,7 +34,9 @@ test("release update check detects newer public prerelease and checksum asset", 
         published_at: "2026-06-28T00:00:00.000Z",
         assets: [
           { name: "SHA256SUMS", size: 200, browser_download_url: "https://example.com/SHA256SUMS" },
+          { name: "LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip", size: 1200, browser_download_url: "https://example.com/app.zip" },
           { name: "LifeOS.AI.Setup.0.1.5-alpha.0.exe", size: 1000, browser_download_url: "https://example.com/app.exe" },
+          { name: "LifeOS.AI-0.1.5-alpha.0.AppImage", size: 1100, browser_download_url: "https://example.com/app.AppImage" },
         ],
       },
       {
@@ -44,6 +46,7 @@ test("release update check detects newer public prerelease and checksum asset", 
         assets: [],
       },
     ]),
+    platform: "darwin",
   });
 
   assert.equal(module.packageVersionToReleaseTag("0.1.4-alpha.0"), "v0.1.4-alpha");
@@ -55,6 +58,13 @@ test("release update check detects newer public prerelease and checksum asset", 
   assert.equal(result.latest.checksumAsset.name, "SHA256SUMS");
   assert.equal(result.manualUpdateRequired, true);
   assert.equal(result.autoUpdateEnabled, false);
+  assert.equal(result.manualUpdatePlan.platform, "macos");
+  assert.equal(result.manualUpdatePlan.assetName, "LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip");
+  assert.equal(result.manualUpdatePlan.assetUrl, "https://example.com/app.zip");
+  assert.equal(result.manualUpdatePlan.checksumUrl, "https://example.com/SHA256SUMS");
+  assert.match(result.manualUpdatePlan.checksumCommand, /shasum -a 256/);
+  assert.match(result.manualUpdatePlan.installCommand, /Applications/);
+  assert.deepEqual(result.manualUpdatePlan.steps.map((step) => step.id), ["backup", "download", "checksum", "install", "restart"]);
   assert.match(result.recommendations.join("\n"), /Verify SHA256SUMS/);
 });
 

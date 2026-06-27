@@ -288,6 +288,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(releaseUpdateCheck.latest.checksumAsset.name, "SHA256SUMS");
   assert.equal(releaseUpdateCheck.manualUpdateRequired, true);
   assert.equal(releaseUpdateCheck.autoUpdateEnabled, false);
+  assert.ok(releaseUpdateCheck.manualUpdatePlan);
+  assert.equal(typeof releaseUpdateCheck.manualUpdatePlan.checksumCommand, "string");
+  assert.equal(releaseUpdateCheck.manualUpdatePlan.sha256Required, true);
   assert.equal(diagnostics.calendarSync.mode, "preview-only");
   assert.equal(diagnostics.calendarSync.externalWritesEnabled, false);
   assert.equal(diagnostics.calendarSync.writeBackSupported, false);
