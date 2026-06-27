@@ -20,6 +20,7 @@ import { getOnboardingStatus, markOnboardingComplete } from "../onboarding";
 import { getBackupSchedule } from "../backupSchedule";
 import { getLatestBindingSession } from "../devices";
 import { checkReleaseUpdate } from "../releaseUpdateCheck";
+import { buildNativeAutomationPlan, executeNativeAutomation } from "../nativeAutomationBridge";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -377,6 +378,41 @@ export function registerAdminRoutes(app: express.Express) {
       }, (req as any).actor?.type, (req as any).actor?.id);
       res.status(400).json({ error: message });
     }
+  });
+
+  app.post("/api/v1/admin/native-automation/plan", requireAdmin, (req, res) => {
+    const plan = buildNativeAutomationPlan(req.body || {});
+    insertAuditLog("native_automation_plan_created", "native_automation", plan.actionId, {
+      kind: plan.kind,
+      status: plan.status,
+      canExecute: plan.canExecute,
+      blockedReasons: plan.blockedReasons,
+      bridgeEnabled: plan.safety.bridgeEnabled,
+      allowlisted: plan.safety.allowlisted,
+      platformSupported: plan.safety.platformSupported,
+      explicitConsent: plan.safety.explicitConsent,
+      confirmationAccepted: plan.safety.confirmationAccepted,
+    }, (req as any).actor?.type, (req as any).actor?.id);
+    res.json(plan);
+  });
+
+  app.post("/api/v1/admin/native-automation/execute", requireAdmin, async (req, res) => {
+    const result = await executeNativeAutomation(req.body || {});
+    insertAuditLog(result.ok ? "native_automation_executed" : "native_automation_blocked", "native_automation", result.plan.actionId, {
+      kind: result.plan.kind,
+      status: result.plan.status,
+      canExecute: result.plan.canExecute,
+      blockedReasons: result.plan.blockedReasons,
+      bridgeEnabled: result.plan.safety.bridgeEnabled,
+      allowlisted: result.plan.safety.allowlisted,
+      platformSupported: result.plan.safety.platformSupported,
+      explicitConsent: result.plan.safety.explicitConsent,
+      confirmationAccepted: result.plan.safety.confirmationAccepted,
+      commandExitCode: result.commandResult?.exitCode ?? null,
+      commandTimedOut: result.commandResult?.timedOut ?? false,
+      writesExternalSystem: result.auditSummary.writesExternalSystem,
+    }, (req as any).actor?.type, (req as any).actor?.id);
+    res.status(result.ok ? 200 : 400).json(result);
   });
 
   app.get("/api/v1/admin/network-diagnostics", requireAdmin, (_req, res) => {

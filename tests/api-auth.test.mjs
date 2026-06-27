@@ -351,6 +351,46 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.match(disabledCalendarSyncExecute.error, /connector is not configured|External calendar writes are disabled/);
 
+  const blockedNativeAutomationPlan = await request(port, "/api/v1/admin/native-automation/plan", {
+    method: "POST",
+    body: JSON.stringify({ kind: "clipboard", payload: "hello" }),
+  });
+  assert.equal(blockedNativeAutomationPlan.status, 401);
+  const nativeAutomationPlan = await request(port, "/api/v1/admin/native-automation/plan", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      kind: "clipboard",
+      title: "Copy user@example.test token=secret",
+      target: "/Users/example/private.txt",
+      payload: "github_pat_secret token=secret",
+      explicitConsent: true,
+      confirmationText: "RUN NATIVE ACTION",
+    }),
+  }).then((res) => res.json());
+  assert.equal(nativeAutomationPlan.status, "blocked");
+  assert.equal(nativeAutomationPlan.canExecute, false);
+  assert.equal(nativeAutomationPlan.safety.bridgeEnabled, false);
+  assert.ok(nativeAutomationPlan.blockedReasons.includes("native_bridge_disabled"));
+  assert.ok(nativeAutomationPlan.blockedReasons.includes("sensitive_payload_blocked"));
+  assert.equal(JSON.stringify(nativeAutomationPlan).includes("github_pat_secret"), false);
+  assert.equal(JSON.stringify(nativeAutomationPlan).includes("/Users/example"), false);
+  const nativeAutomationExecuteResponse = await request(port, "/api/v1/admin/native-automation/execute", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      kind: "clipboard",
+      payload: "safe text",
+      explicitConsent: true,
+      confirmationText: "RUN NATIVE ACTION",
+    }),
+  });
+  assert.equal(nativeAutomationExecuteResponse.status, 400);
+  const nativeAutomationExecute = await nativeAutomationExecuteResponse.json();
+  assert.equal(nativeAutomationExecute.ok, false);
+  assert.equal(nativeAutomationExecute.dryRun, true);
+  assert.equal(nativeAutomationExecute.auditSummary.connector, "native-automation-bridge");
+
   const blockedPasswordChange = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "new strong password 123!" }),

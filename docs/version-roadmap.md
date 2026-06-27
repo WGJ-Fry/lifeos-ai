@@ -49,7 +49,7 @@ Scope:
 - Expand the macOS calendar/reminders connector from narrow external writes toward a productized permission review, rollback plan, and conflict preview.
 - Add first Google Calendar event and Google Tasks connectors behind explicit admin setup, external-write opt-in, consent, audit logging, and rollback guidance; keep broad two-way account sync out of scope until real-account evidence exists.
 - Add generated-tool multi-version comparison plus audited auto-repair task planning with risk gates, retry limits, rollback version references, and runtime events so users can inspect what changed before saving.
-- Deepen native automation design without enabling broad shell/file writes until a native bridge, explicit consent, and audit logging are complete.
+- Add the first native automation bridge skeleton: disabled by default, admin-only, exact allowlist, explicit confirmation phrase, audit logging, sensitive-payload blocking, mock execution tests, and narrow clipboard/Shortcut command paths; broad shell/file/calendar/reminder automation remains blocked.
 - Do not claim signed desktop packages, auto-update, two-way calendar/task sync, native automation, or fully automatic unattended Studio repair until they are actually shipped and verified.
 
 Release gate:
@@ -91,7 +91,7 @@ These capabilities should not be described as current release features until the
 
 | Version | Theme | Planned work |
 | --- | --- | --- |
-| `v0.1.5-alpha` | Mobile reliability and connector hardening | Stronger offline conflict handling, multi-device edit warnings, failed-sync review, weak-network background recovery, safer macOS/calendar connector UX, and audited Studio auto-repair task planning. |
+| `v0.1.5-alpha` | Mobile reliability and connector hardening | Stronger offline conflict handling, multi-device edit warnings, failed-sync review, weak-network background recovery, safer macOS/calendar connector UX, audited Studio auto-repair task planning, and an opt-in native automation bridge skeleton that remains blocked by default. |
 | `v0.2.0-alpha` | Calendar and tasks | Productized Google Calendar/Tasks sync, Apple Calendar / system Reminders sync, explicit permission prompts, write-back audit log, conflict preview, and rollback path. |
 | `v0.3.0-alpha` | Studio product loop | Template marketplace polish, multi-version visual comparison, automatic repair proposal flow, capability review center, and stronger generated-tool quality scoring. |
 | `v0.4.0-alpha` | Native action safety | Safer local automation bridge beyond URL Scheme, OS-level permission explanations, action logs, and per-action revoke controls. |
@@ -148,7 +148,7 @@ These capabilities should not be described as current release features until the
 - 将 macOS 日历/提醒事项连接器从窄写入路径推进到产品化权限复核、回滚计划和冲突预览。
 - 增加第一版 Google Calendar 事件和 Google Tasks 连接器候选：必须经过管理员配置、外部写入开关、用户确认、审计日志和回滚提示；宽泛账号双向同步仍不在这一小步范围内。
 - 增加生成程序多版本对比，以及带审计的自动修复任务计划：包含风险闸门、重试上限、回滚版本引用和运行事件，用户保存前能看清变化。
-- 继续设计原生自动化桥，但在原生桥、用户确认和审计日志完成前，不启用宽泛 shell/file 写入。
+- 增加第一版原生自动化桥骨架：默认关闭、仅管理员可用、精确白名单、确认短语、审计日志、敏感 payload 阻断、mock 执行测试，以及非常窄的剪贴板/快捷指令命令路径；宽泛 shell/file/calendar/reminder 自动化仍然阻断。
 - 未真正发布前，不宣传签名包、自动更新、日历/任务双向同步、原生自动化或完全无人值守 Studio 修复。
 
 ### 尚未发布

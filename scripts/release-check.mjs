@@ -1896,6 +1896,9 @@ function checkAssets() {
   const systemActionsServiceSource = exists("src/services/systemActions.ts") ? fs.readFileSync(path.join(rootDir, "src/services/systemActions.ts"), "utf8") : "";
   const systemActionStorageSource = exists("src/services/systemActionStorage.ts") ? fs.readFileSync(path.join(rootDir, "src/services/systemActionStorage.ts"), "utf8") : "";
   const systemActionsTestSource = exists("tests/system-actions.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/system-actions.test.mjs"), "utf8") : "";
+  const nativeAutomationBridgeSource = exists("server/nativeAutomationBridge.ts") ? fs.readFileSync(path.join(rootDir, "server/nativeAutomationBridge.ts"), "utf8") : "";
+  const nativeAutomationBridgeTestSource = exists("tests/native-automation-bridge.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/native-automation-bridge.test.mjs"), "utf8") : "";
+  const nativeAutomationApiTestSource = exists("tests/api-auth.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/api-auth.test.mjs"), "utf8") : "";
   if (
     systemActionsSource.includes("actions.permissionCenter") &&
     systemActionsSource.includes("actionLogSummary") &&
@@ -1984,8 +1987,22 @@ function checkAssets() {
     frontendSmokeTestSource.includes("Native Automation Safety Gate") &&
     frontendSmokeTestSource.includes("actions\\.nativeStatus\\.blockedPreview") &&
     systemActionsTestSource.includes("system action plan blocks unsafe URL schemes and native automation preview writes") &&
-    systemActionsTestSource.includes("native system action summary keeps OS automation blocked")
-  ) pass("native local automation remains blocked behind preview, consent, and audit gates");
+    systemActionsTestSource.includes("native system action summary keeps OS automation blocked") &&
+    nativeAutomationBridgeSource.includes("LIFEOS_ENABLE_NATIVE_AUTOMATION_BRIDGE") &&
+    nativeAutomationBridgeSource.includes("LIFEOS_NATIVE_AUTOMATION_ALLOWLIST") &&
+    nativeAutomationBridgeSource.includes("NATIVE_AUTOMATION_CONFIRMATION_TEXT") &&
+    nativeAutomationBridgeSource.includes("unsupported_native_action_kind") &&
+    nativeAutomationBridgeSource.includes("sensitive_payload_blocked") &&
+    adminRoutesSource.includes("/api/v1/admin/native-automation/plan") &&
+    adminRoutesSource.includes("/api/v1/admin/native-automation/execute") &&
+    adminRoutesSource.includes("native_automation_blocked") &&
+    packageJson.scripts.test.includes("tests/native-automation-bridge.test.mjs") &&
+    nativeAutomationBridgeTestSource.includes("native automation bridge is disabled by default") &&
+    nativeAutomationBridgeTestSource.includes("executes only after enable flag, allowlist, and confirmation") &&
+    nativeAutomationBridgeTestSource.includes("refuses shell, file, calendar, and reminder writes") &&
+    nativeAutomationApiTestSource.includes("/api/v1/admin/native-automation/plan") &&
+    nativeAutomationApiTestSource.includes("/api/v1/admin/native-automation/execute")
+  ) pass("native local automation remains blocked by default and has an opt-in audited bridge skeleton");
   else warn("native local automation lacks blocked-preview safety gates or tests");
 
   const dataLifecycleSource = exists("server/dataLifecycle.ts") ? fs.readFileSync(path.join(rootDir, "server/dataLifecycle.ts"), "utf8") : "";
