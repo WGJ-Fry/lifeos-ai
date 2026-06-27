@@ -215,6 +215,9 @@ export function registerCustomAppRoutes(app: express.Express) {
         staticSmokeStatus: result.staticSmoke?.review.status ?? null,
         staticSmokeMethod: result.staticSmoke?.review.method ?? null,
         staticSmokeFailures: result.staticSmoke?.review.failures.length ?? null,
+        autoRollbackStatus: result.autoRollback?.status ?? null,
+        autoRollbackAttempted: result.autoRollback?.attempted ?? null,
+        autoRollbackVersion: result.autoRollback?.rollbackVersion ?? null,
       }, actor(req)?.type, actor(req)?.id);
       broadcastRealtime({
         type: "custom_app.auto_repair_completed",
@@ -238,6 +241,24 @@ export function registerCustomAppRoutes(app: express.Express) {
           event: result.staticSmoke.event,
           review: result.staticSmoke.review,
           timestamp: result.staticSmoke.event?.createdAt || Date.now(),
+        });
+      }
+      if (result.autoRollback) {
+        insertAuditLog("custom_app_auto_repair_auto_rollback", "custom_app", req.params.appId, {
+          taskId: result.result.taskId,
+          resultId: result.result.id,
+          status: result.autoRollback.status,
+          attempted: result.autoRollback.attempted,
+          fromVersion: result.autoRollback.fromVersion ?? null,
+          rollbackVersion: result.autoRollback.rollbackVersion ?? null,
+          toVersion: result.autoRollback.toVersion ?? null,
+          reason: result.autoRollback.reason,
+        }, actor(req)?.type, actor(req)?.id);
+        broadcastRealtime({
+          type: "custom_app.auto_repair_auto_rolled_back",
+          appId: req.params.appId,
+          autoRollback: result.autoRollback,
+          timestamp: Date.now(),
         });
       }
       res.json(result);

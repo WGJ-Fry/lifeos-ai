@@ -60,7 +60,8 @@ export type CustomAppRuntimeEventType =
   | "auto_repair_applied"
   | "auto_repair_needs_review"
   | "auto_repair_smoke_passed"
-  | "auto_repair_smoke_failed";
+  | "auto_repair_smoke_failed"
+  | "auto_repair_auto_rolled_back";
 export type CustomAppRuntimeSeverity = "info" | "warning" | "error";
 
 export type StoredCustomApp = {
@@ -216,6 +217,17 @@ export type CustomAppAutoRepairSmokeReview = {
   rollbackRecommended: boolean;
   nextSteps: string[];
   reviewedAt: number;
+};
+
+export type CustomAppAutoRepairAutoRollback = {
+  attempted: boolean;
+  status: "rolled-back" | "skipped" | "failed";
+  reason: string;
+  fromVersion?: number | null;
+  rollbackVersion?: number | null;
+  toVersion?: number | null;
+  eventId?: string | null;
+  error?: string | null;
 };
 
 export type CustomAppAutoRepairQueueItem = {
@@ -572,6 +584,7 @@ function normalizeRuntimeEventType(value: unknown): CustomAppRuntimeEventType {
     || type === "auto_repair_needs_review"
     || type === "auto_repair_smoke_passed"
     || type === "auto_repair_smoke_failed"
+    || type === "auto_repair_auto_rolled_back"
   ) {
     return type;
   }
@@ -1792,7 +1805,76 @@ export function completeCustomAppAutoRepair(appId: string, input: Record<string,
   }, actor);
   const autoSmokeRequested = input.autoSmoke === true || input.staticSmoke === true || input.runStaticSmoke === true;
   const staticSmoke = autoSmokeRequested ? recordStaticAutoRepairSmokeReview(app, result, comparison, actor) : null;
-  return { event, result, comparison, staticSmoke };
+  const autoRollback = maybeAutoRollbackFailedStaticSmoke(appId, result, staticSmoke?.review ?? null, actor);
+  return { event, result, comparison, staticSmoke, autoRollback };
+}
+
+function maybeAutoRollbackFailedStaticSmoke(
+  appId: string,
+  result: CustomAppAutoRepairResult,
+  review: CustomAppAutoRepairSmokeReview | null,
+  actor?: { type: string; id: string },
+): CustomAppAutoRepairAutoRollback | null {
+  if (!review || review.status !== "failed" || review.method !== "static-auto") return null;
+  if (result.status !== "applied") {
+    return {
+      attempted: false,
+      status: "skipped",
+      reason: "Static smoke failed, but the repair result was not applied.",
+      fromVersion: result.toVersion,
+      rollbackVersion: result.rollbackVersion,
+      toVersion: null,
+    };
+  }
+  if (!result.rollbackAvailable || !result.rollbackVersion) {
+    return {
+      attempted: false,
+      status: "skipped",
+      reason: "Static smoke failed, but no rollback version is available.",
+      fromVersion: result.toVersion,
+      rollbackVersion: result.rollbackVersion,
+      toVersion: null,
+    };
+  }
+
+  try {
+    const rollback = rollbackCustomAppVersion(appId, result.rollbackVersion, actor);
+    const rollbackEvent = createCustomAppRuntimeEvent(appId, {
+      eventType: "auto_repair_auto_rolled_back",
+      severity: "warning",
+      label: "Auto repair automatically rolled back",
+      message: sanitizeActionText(`Static smoke failed; rolled back to v${result.rollbackVersion}.`, 300),
+      detail: {
+        autoRepairResult: result,
+        autoRepairSmokeReview: review,
+        autoRepairAutoRollback: {
+          fromVersion: result.toVersion,
+          rollbackVersion: result.rollbackVersion,
+          toVersion: rollback?.version.version ?? null,
+        },
+      },
+    }, actor);
+    return {
+      attempted: true,
+      status: "rolled-back",
+      reason: "Static smoke failed, so LifeOS automatically restored the recorded rollback version.",
+      fromVersion: result.toVersion,
+      rollbackVersion: result.rollbackVersion,
+      toVersion: rollback?.version.version ?? null,
+      eventId: rollbackEvent?.id ?? null,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Automatic rollback failed";
+    return {
+      attempted: true,
+      status: "failed",
+      reason: "Static smoke failed, but automatic rollback could not be completed.",
+      fromVersion: result.toVersion,
+      rollbackVersion: result.rollbackVersion,
+      toVersion: null,
+      error: sanitizeActionText(message, 240),
+    };
+  }
 }
 
 function buildStaticAutoRepairSmokeGate(

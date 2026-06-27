@@ -1905,6 +1905,44 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(customAppAutoRepairQueueAfterComplete.queue.some((item) => item.resumeInstruction === customAppAutoRepairPlan.suggestedInstruction), false);
 
+  const rollbackAutoRepairPlan = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      issue: "Fix the small runtime rendering error without changing permissions",
+    }),
+  }).then((res) => res.json());
+  assert.equal(rollbackAutoRepairPlan.autoRepairTask.status, "ready");
+  await request(port, "/api/v1/custom-apps/custom-ledger-1", {
+    method: "PATCH",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      code: "<p>x</p>",
+    }),
+  }).then((res) => res.json());
+  const failedStaticSmokeAutoRepair = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/complete", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      taskId: rollbackAutoRepairPlan.autoRepairTask.id,
+      fromVersion: rollbackAutoRepairPlan.autoRepairTask.rollbackVersion,
+      suggestedInstruction: rollbackAutoRepairPlan.suggestedInstruction,
+      autoSmoke: true,
+    }),
+  }).then((res) => res.json());
+  assert.equal(failedStaticSmokeAutoRepair.result.status, "applied");
+  assert.equal(failedStaticSmokeAutoRepair.staticSmoke.review.status, "failed");
+  assert.equal(failedStaticSmokeAutoRepair.staticSmoke.review.rollbackRecommended, true);
+  assert.equal(failedStaticSmokeAutoRepair.autoRollback.status, "rolled-back");
+  assert.equal(failedStaticSmokeAutoRepair.autoRollback.attempted, true);
+  assert.equal(failedStaticSmokeAutoRepair.autoRollback.rollbackVersion, rollbackAutoRepairPlan.autoRepairTask.rollbackVersion);
+  assert.equal(failedStaticSmokeAutoRepair.autoRollback.toVersion > failedStaticSmokeAutoRepair.result.toVersion, true);
+  const customAppAfterAutoRollback = await request(port, "/api/v1/custom-apps/custom-ledger-1", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.match(customAppAfterAutoRollback.app.code, /Fixed ledger workflow/);
+  assert.doesNotMatch(customAppAfterAutoRollback.app.code, /<p>x<\/p>/);
+
   const highRiskCustomAppDebugRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/debug-requests", {
     method: "POST",
     headers: adminHeaders,
@@ -2244,32 +2282,35 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const customAppVersionsAfterUpdate = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions", {
     headers: adminHeaders,
   }).then((res) => res.json());
-  assert.equal(customAppVersionsAfterUpdate.versions[0].version, 3);
+  const updatedCustomAppVersion = customAppVersionsAfterUpdate.versions[0].version;
+  const previousCustomAppVersion = customAppVersionsAfterUpdate.versions.find((version) => version.version < updatedCustomAppVersion)?.version;
+  assert.equal(updatedCustomAppVersion > customAppAutoRepairComplete.result.toVersion, true);
+  assert.ok(previousCustomAppVersion);
   assert.equal(customAppVersionsAfterUpdate.versions[0].code, "<div>safe updated code</div>");
-  const customAppVersionComparison = await request(port, "/api/v1/custom-apps/custom-ledger-1/version-compare?from=2&to=3", {
+  const customAppVersionComparison = await request(port, `/api/v1/custom-apps/custom-ledger-1/version-compare?from=${previousCustomAppVersion}&to=${updatedCustomAppVersion}`, {
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(customAppVersionComparison.comparison.appId, "custom-ledger-1");
-  assert.equal(customAppVersionComparison.comparison.fromVersion, 2);
-  assert.equal(customAppVersionComparison.comparison.toVersion, 3);
+  assert.equal(customAppVersionComparison.comparison.fromVersion, previousCustomAppVersion);
+  assert.equal(customAppVersionComparison.comparison.toVersion, updatedCustomAppVersion);
   assert.equal(customAppVersionComparison.comparison.totalChangedLines >= 1, true);
   assert.equal(customAppVersionComparison.comparison.risk, "low");
   assert.equal(customAppVersionComparison.comparison.riskNotes.some((note) => note.includes("No high-risk")), true);
   assert.equal(customAppVersionComparison.comparison.reviewChecklist.length >= 3, true);
-  assert.equal(customAppVersionComparison.comparison.repairHints.some((hint) => hint.includes("roll back to v2")), true);
+  assert.equal(customAppVersionComparison.comparison.repairHints.some((hint) => hint.includes(`roll back to v${previousCustomAppVersion}`)), true);
   assert.equal(JSON.stringify(customAppVersionComparison).includes("github_pat_customAppSecret"), false);
   assert.equal(JSON.stringify(customAppVersionComparison).includes("/Users/example/private-app.html"), false);
   const defaultCustomAppVersionComparison = await request(port, "/api/v1/custom-apps/custom-ledger-1/version-compare", {
     headers: adminHeaders,
   }).then((res) => res.json());
-  assert.equal(defaultCustomAppVersionComparison.comparison.fromVersion, 2);
-  assert.equal(defaultCustomAppVersionComparison.comparison.toVersion, 3);
+  assert.equal(defaultCustomAppVersionComparison.comparison.fromVersion, previousCustomAppVersion);
+  assert.equal(defaultCustomAppVersionComparison.comparison.toVersion, updatedCustomAppVersion);
   const rollbackCustomApp = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions/1/rollback", {
     method: "POST",
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(rollbackCustomApp.app.code, customAppVersionsAfterCreate.versions[0].code);
-  assert.equal(rollbackCustomApp.version.version, 4);
+  assert.equal(rollbackCustomApp.version.version > updatedCustomAppVersion, true);
   const deletedCustomApp = await request(port, "/api/v1/custom-apps/custom-ledger-1", {
     method: "DELETE",
     headers: adminHeaders,
@@ -2655,6 +2696,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(smokeReviewAudit.metadata.status, "passed");
   assert.equal(smokeReviewAudit.metadata.method, "static-auto");
   assert.equal(smokeReviewAudit.metadata.rollbackRecommended, false);
+  const autoRollbackAudit = finalAudit.logs.find((log) =>
+    log.action === "custom_app_auto_repair_auto_rollback" &&
+    log.targetId === "custom-ledger-1" &&
+    log.metadata.resultId === failedStaticSmokeAutoRepair.result.id
+  );
+  assert.equal(autoRollbackAudit.metadata.status, "rolled-back");
+  assert.equal(autoRollbackAudit.metadata.attempted, true);
+  assert.equal(autoRollbackAudit.metadata.rollbackVersion, rollbackAutoRepairPlan.autoRepairTask.rollbackVersion);
   const blockedAutoRepairAudit = finalAudit.logs.find((log) =>
     log.action === "custom_app_auto_repair_planned" &&
     log.targetId === "custom-ledger-1" &&

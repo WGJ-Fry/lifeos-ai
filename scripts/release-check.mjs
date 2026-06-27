@@ -1463,6 +1463,7 @@ function checkAssets() {
 	    customAppsSource.includes("buildCustomAppAutoRepairExecutionSession") &&
 	    customAppsSource.includes("buildStaticAutoRepairSmokeGate") &&
 	    customAppsSource.includes("recordStaticAutoRepairSmokeReview") &&
+	    customAppsSource.includes("maybeAutoRollbackFailedStaticSmoke") &&
 	    customAppsSource.includes("method?: \"manual\" | \"static-auto\"") &&
 	    customAppsSource.includes("canRunUnattended") &&
 	    customAppsSource.includes("autoRepairExecutionSession") &&
@@ -1473,6 +1474,7 @@ function checkAssets() {
 	    customAppsSource.includes("auto_repair_applied") &&
 	    customAppsSource.includes("auto_repair_smoke_passed") &&
 	    customAppsSource.includes("auto_repair_smoke_failed") &&
+	    customAppsSource.includes("auto_repair_auto_rolled_back") &&
 	    customAppsSource.includes("buildRepairProposal") &&
 	    customAppsSource.includes("buildRepairExecutionPlan") &&
 	    customAppsSource.includes("repairProposal") &&
@@ -1486,6 +1488,8 @@ function checkAssets() {
 	    customAppRoutesSource.includes("custom_app_auto_repair_planned") &&
 	    customAppRoutesSource.includes("custom_app_auto_repair_completed") &&
 	    customAppRoutesSource.includes("custom_app_auto_repair_smoke_reviewed") &&
+	    customAppRoutesSource.includes("custom_app_auto_repair_auto_rollback") &&
+	    customAppRoutesSource.includes("autoRollbackStatus") &&
 	    customAppRoutesSource.includes("staticSmokeStatus") &&
 	    customAppRoutesSource.includes("staticSmokeMethod") &&
 	    customAppRoutesSource.includes("repairRisk") &&
@@ -1499,6 +1503,7 @@ function checkAssets() {
 	    lifeosApiSource.includes("CustomAppAutoRepairQueueItem") &&
 	    lifeosApiSource.includes("CustomAppAutoRepairResult") &&
 	    lifeosApiSource.includes("CustomAppAutoRepairSmokeReview") &&
+	    lifeosApiSource.includes("CustomAppAutoRepairAutoRollback") &&
 	    lifeosApiSource.includes("createCustomAppAutoRepairPlan") &&
 	    lifeosApiSource.includes("listCustomAppAutoRepairQueue") &&
 	    lifeosApiSource.includes("completeCustomAppAutoRepair") &&
@@ -1514,6 +1519,7 @@ function checkAssets() {
 	    studioRuntimeDebugHookSource.includes("listCustomAppAutoRepairQueue") &&
 	    studioRuntimeDebugHookSource.includes("completeRuntimeAutoRepair") &&
 	    studioRuntimeDebugHookSource.includes("autoSmoke: true") &&
+	    studioRuntimeDebugHookSource.includes("response.autoRollback?.status") &&
 	    studioRuntimeDebugHookSource.includes("setRuntimeAutoRepairSmokeReview(response.staticSmoke?.review") &&
 	    studioRuntimeDebugHookSource.includes("response.repairProposal") &&
 	    studioRuntimeDebugHookSource.includes("return response") &&
@@ -1548,6 +1554,7 @@ function checkAssets() {
 	    translationsSource.includes("studio.runtime.autoRepairSessionStatus.ready") &&
 	    translationsSource.includes("studio.runtime.autoRepairSmokeReview") &&
 	    translationsSource.includes("studio.runtime.autoRepairStaticSmokePassed") &&
+	    translationsSource.includes("studio.runtime.autoRepairAutoRollbackDone") &&
 	    translationsSource.includes("studio.runtime.autoRepairSmokeMethod.static-auto") &&
 	    translationsSource.includes("studio.runtime.autoRepairReadinessStatus.ready") &&
 	    apiAuthTestSource.includes("executionPlan.canAutoApply") &&
@@ -1562,6 +1569,8 @@ function checkAssets() {
 	    apiAuthTestSource.includes("auto_repair_applied") &&
 	    apiAuthTestSource.includes("auto_repair_smoke_passed") &&
 	    apiAuthTestSource.includes("custom_app_auto_repair_smoke_reviewed") &&
+	    apiAuthTestSource.includes("failedStaticSmokeAutoRepair.autoRollback.status, \"rolled-back\"") &&
+	    apiAuthTestSource.includes("custom_app_auto_repair_auto_rollback") &&
 	    apiAuthTestSource.includes("autoSmoke: true") &&
 	    apiAuthTestSource.includes("staticSmoke.review.method, \"static-auto\"") &&
 	    apiAuthTestSource.includes("staticSmokeStatus, \"passed\"") &&

@@ -156,8 +156,12 @@ export function useStudioRuntimeDebug({
       setRuntimeAutoRepairSmokeReview(response.staticSmoke?.review ?? null);
       appendSimulatorLog({
         time: "DEBUG",
-        text: response.staticSmoke?.review
-          ? t(response.staticSmoke.review.status === "passed" ? "studio.runtime.autoRepairStaticSmokePassed" : "studio.runtime.autoRepairStaticSmokeFailed")
+        text: response.autoRollback?.status === "rolled-back"
+          ? t("studio.runtime.autoRepairAutoRollbackDone")
+          : response.autoRollback?.status === "failed"
+            ? t("studio.runtime.autoRepairAutoRollbackFailed")
+            : response.staticSmoke?.review
+              ? t(response.staticSmoke.review.status === "passed" ? "studio.runtime.autoRepairStaticSmokePassed" : "studio.runtime.autoRepairStaticSmokeFailed")
           : response.result.status === "applied"
             ? t("studio.runtime.autoRepairCompleted")
             : t("studio.runtime.autoRepairNeedsReview"),

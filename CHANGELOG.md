@@ -11,6 +11,7 @@ Release candidate for the next public alpha. Do not advertise as publicly availa
 - Added a structured Studio auto-repair execution session for low-risk repairs, including worker steps, completion endpoint, rollback version, smoke checks, and blocked-session metadata for high-risk or retry-limited repairs.
 - Added Studio auto-repair smoke review records so applied repairs stay visible until a passed/failed smoke check is audited; failed smoke checks recommend rollback and block further unattended repair.
 - Added a conservative server-side static smoke gate for low-risk Studio auto-repairs; when requested, completion can automatically record pass/fail smoke evidence, clear safe repairs from the queue, and keep unsafe repairs in review.
+- Added automatic rollback for failed server-side static smoke reviews so a low-risk Studio auto-repair can restore the recorded safe version without waiting for manual cleanup.
 - Added mobile offline queue sync identity with mutation IDs, idempotency keys, client sequence numbers, visible sync stages, and backup metadata for weak-network recovery.
 - Added duplicate-safe chat write-back so replayed offline messages with the same idempotency key return the existing SQLite message instead of creating duplicates.
 - Added an opt-in macOS Apple Calendar/System Reminders connector path with explicit admin confirmation, rollback guidance, audit logging, and tests; Apple Calendar now supports gated create/update/delete, Reminders supports gated create/update/complete/delete.

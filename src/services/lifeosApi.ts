@@ -1057,6 +1057,17 @@ export type CustomAppAutoRepairSmokeReview = {
   reviewedAt: number;
 };
 
+export type CustomAppAutoRepairAutoRollback = {
+  attempted: boolean;
+  status: "rolled-back" | "skipped" | "failed";
+  reason: string;
+  fromVersion?: number | null;
+  rollbackVersion?: number | null;
+  toVersion?: number | null;
+  eventId?: string | null;
+  error?: string | null;
+};
+
 export type CustomAppAutoRepairQueueItem = {
   id: string;
   appId: string;
@@ -1174,7 +1185,8 @@ export type StoredCustomAppRuntimeEvent = {
     | "auto_repair_applied"
     | "auto_repair_needs_review"
     | "auto_repair_smoke_passed"
-    | "auto_repair_smoke_failed";
+    | "auto_repair_smoke_failed"
+    | "auto_repair_auto_rolled_back";
   severity: "info" | "warning" | "error";
   label: string;
   message: string;
@@ -2099,6 +2111,7 @@ export function completeCustomAppAutoRepair(appId: string, input: {
       review: CustomAppAutoRepairSmokeReview;
       result: CustomAppAutoRepairResult;
     } | null;
+    autoRollback?: CustomAppAutoRepairAutoRollback | null;
   }>(
     `/api/v1/custom-apps/${encodeURIComponent(appId)}/auto-repairs/complete`,
     {
