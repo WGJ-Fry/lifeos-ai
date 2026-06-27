@@ -379,8 +379,17 @@ export type ReleaseUpdateCheck = {
     };
   } | null;
   updateAvailable: boolean;
-  manualUpdateRequired: true;
-  autoUpdateEnabled: false;
+  manualUpdateRequired: boolean;
+  autoUpdateEnabled: boolean;
+  autoUpdate: {
+    configured: boolean;
+    enabled: boolean;
+    mode: "manual" | "feed-ready" | "blocked";
+    feedUrl: string | null;
+    updateUrlHost: string;
+    reason: "not_configured" | "opt_in_required" | "ready" | "non_https" | "url_contains_credentials_or_tokens" | "url_points_to_artifact" | "invalid_url";
+    requirements: string[];
+  };
   manualUpdatePlan: {
     platform: "macos" | "windows" | "linux" | "unknown";
     assetName: string | null;

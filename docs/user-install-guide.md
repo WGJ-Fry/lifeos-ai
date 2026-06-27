@@ -226,7 +226,7 @@ Get-FileHash ".\LifeOS.AI.Setup.0.1.4-alpha.0.exe" -Algorithm SHA256
 4. 安装新版。
 5. 打开后确认管理端、手机绑定和备份列表正常。
 
-自动更新以后需要配置 `LIFEOS_UPDATE_URL`，并发布 `release-manifest.json` 和对应 `latest*.yml`。
+自动更新以后需要配置安全的 HTTPS 目录 `LIFEOS_UPDATE_URL`，发布 `release-manifest.json` 和对应 `latest*.yml`，并显式设置 `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`。只设置 URL 不会自动启用更新检查。
 
 ## 常见问题
 
@@ -459,7 +459,7 @@ Auto-update is not enabled in the current build. Manual update flow:
 4. Install the newer package.
 5. Open the app and confirm admin, phone pairing, and backups still look correct.
 
-Future auto-update requires `LIFEOS_UPDATE_URL`, `release-manifest.json`, and the matching `latest*.yml` feed files.
+Future auto-update requires a safe HTTPS directory in `LIFEOS_UPDATE_URL`, `release-manifest.json`, the matching `latest*.yml` feed files, and an explicit `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1` opt-in. Setting only the URL does not enable update checks.
 
 ## Troubleshooting
 

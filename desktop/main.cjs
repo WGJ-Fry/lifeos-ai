@@ -22,6 +22,7 @@ let desktopShellStatus = {
 let desktopUpdateStatus = {
   configured: false,
   enabled: false,
+  mode: "manual",
   updateUrlHost: "",
   reason: "not_configured",
 };
@@ -117,20 +118,24 @@ function normalizeDesktopRuntimeConfig(config) {
 
 function validateDesktopUpdateUrl(value) {
   const raw = String(value || "").trim();
-  if (!raw) return { configured: false, enabled: false, updateUrlHost: "", reason: "not_configured" };
+  if (!raw) return { configured: false, enabled: false, mode: "manual", updateUrlHost: "", reason: "not_configured" };
   try {
     const parsed = new URL(raw);
     const updateUrlHost = parsed.host;
-    if (parsed.protocol !== "https:") return { configured: true, enabled: false, updateUrlHost, reason: "non_https" };
+    const blocked = (reason) => ({ configured: true, enabled: false, mode: "blocked", updateUrlHost, reason, url: raw });
+    if (parsed.protocol !== "https:") return blocked("non_https");
     if (parsed.username || parsed.password || parsed.search || parsed.hash) {
-      return { configured: true, enabled: false, updateUrlHost, reason: "url_contains_credentials_or_tokens" };
+      return blocked("url_contains_credentials_or_tokens");
     }
     if (/\.(dmg|zip|exe|AppImage|yml|json)$/i.test(parsed.pathname)) {
-      return { configured: true, enabled: false, updateUrlHost, reason: "url_points_to_artifact" };
+      return blocked("url_points_to_artifact");
     }
-    return { configured: true, enabled: true, updateUrlHost, reason: "ready", url: raw };
+    if (process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE !== "1") {
+      return { configured: true, enabled: false, mode: "manual", updateUrlHost, reason: "opt_in_required", url: raw };
+    }
+    return { configured: true, enabled: true, mode: "feed-ready", updateUrlHost, reason: "ready", url: raw };
   } catch {
-    return { configured: true, enabled: false, updateUrlHost: "invalid-url", reason: "invalid_url" };
+    return { configured: true, enabled: false, mode: "blocked", updateUrlHost: "invalid-url", reason: "invalid_url" };
   }
 }
 
@@ -526,6 +531,7 @@ async function createDesktopDiagnosticBundle() {
       label: desktopUpdateLabel(),
       configured: desktopUpdateStatus.configured,
       enabled: desktopUpdateStatus.enabled,
+      mode: desktopUpdateStatus.mode,
       updateUrlHost: desktopUpdateStatus.updateUrlHost,
       reason: desktopUpdateStatus.reason,
     },

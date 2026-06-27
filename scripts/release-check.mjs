@@ -2225,16 +2225,24 @@ function checkAssets() {
 
   if (
     releaseUpdateCheckSource.includes("ReleaseManualUpdatePlan") &&
+    releaseUpdateCheckSource.includes("ReleaseAutoUpdateState") &&
     releaseUpdateCheckSource.includes("chooseAssetForPlatform") &&
     releaseUpdateCheckSource.includes("checksumCommandForPlatform") &&
+    releaseUpdateCheckSource.includes("LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE") &&
+    releaseUpdateCheckSource.includes("buildAutoUpdateState") &&
     releaseUpdateStatusCardSource.includes("manualUpdatePlan") &&
+    releaseUpdateStatusCardSource.includes("autoUpdate.mode") &&
+    releaseUpdateStatusCardSource.includes("autoUpdate.reason") &&
     releaseUpdateStatusCardSource.includes("checksumCommand") &&
     releaseUpdateStatusCardSource.includes("releaseUpdate.manualPlan") &&
+    translationsSource.includes("diagnostics.releaseUpdate.autoUpdate") &&
+    translationsSource.includes("diagnostics.releaseUpdate.autoReason.opt_in_required") &&
     translationsSource.includes("diagnostics.releaseUpdate.manualPlan") &&
     translationsSource.includes("diagnostics.releaseUpdate.step.checksum") &&
     releaseUpdateCheckTestSource.includes("manualUpdatePlan.platform") &&
+    releaseUpdateCheckTestSource.includes("opt-in auto-update feed readiness") &&
     frontendSmokeTestSource.includes("releaseUpdate\\.manualPlan")
-  ) pass("admin update check provides a platform-specific manual SHA256 update plan");
+  ) pass("admin update check provides a platform-specific manual SHA256 update plan and guarded auto-update feed readiness");
   else warn("admin update check is missing platform-specific manual update plan coverage");
 
   const calendarSyncPreviewSource = exists("server/calendarSyncPreview.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncPreview.ts"), "utf8") : "";
@@ -2692,12 +2700,16 @@ function checkSecurityConfig() {
     desktopMain.includes("validateDesktopUpdateUrl") &&
     desktopMain.includes("url_contains_credentials_or_tokens") &&
     desktopMain.includes("url_points_to_artifact") &&
+    desktopMain.includes("LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE") &&
+    desktopMain.includes("opt_in_required") &&
     desktopMain.includes("desktopUpdateStatus.enabled") &&
+    desktopMain.includes("desktopUpdateStatus.mode") &&
     desktopMain.includes("label: desktopUpdateLabel()") &&
     desktopSmokeTestSource.includes("diagnostics.updates.enabled") &&
+    desktopSmokeTestSource.includes("diagnostics.updates.mode") &&
     desktopSmokeTestSource.includes("diagnostics.updates.label") &&
     desktopSmokeTestSource.includes("url_contains_credentials_or_tokens")
-  ) pass("desktop runtime disables unsafe auto-update URLs");
+  ) pass("desktop runtime disables unsafe auto-update URLs and requires explicit auto-update opt-in");
   else warn("desktop runtime may accept unsafe auto-update URLs");
   if (
     desktopMain.includes("function desktopUpdateLabel") &&

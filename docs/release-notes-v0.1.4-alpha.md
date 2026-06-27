@@ -16,6 +16,7 @@ Package version: `0.1.4-alpha.0`
 - Calendar/task sync safety gates plus narrow connector paths: `.ics` support remains read-only; Apple Calendar and system Reminders can be read as external previews when the macOS connector is enabled. Apple Calendar create/update/delete and Reminders create/update/complete/delete can execute only when the external-write flag is also enabled, the admin confirms `WRITE TO EXTERNAL CALENDAR`, rollback guidance is returned, and an audit log is recorded. Google Calendar events and Google Tasks now have guarded OAuth connector paths for read preview plus explicitly confirmed write operations, and `npm run calendar:acceptance` can generate real-account read/write evidence before public sync claims.
 - Native automation safety gates: URL Scheme/browser/Shortcuts actions remain the primary local action path; the guarded native bridge is disabled by default and only exposes narrow clipboard, allowlisted Shortcuts, and Finder reveal actions when all opt-in gates pass. Shell, calendar, reminder, and broad file-write automation remain blocked.
 - Release truth checks that keep README, release notes, Docker image tags, asset names, alpha limitations, complete desktop assets, and real-world remote acceptance evidence aligned before public promotion.
+- Desktop update diagnostics now show manual mode, blocked feed URLs, or explicitly opted-in HTTPS feed readiness. `LIFEOS_UPDATE_URL` alone does not enable update checks; maintainers must also set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
 
 ## Desktop Packages
 
@@ -38,7 +39,7 @@ docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha
 
 ## Current Limits
 
-- Automatic updates are not enabled by default. Use manual download plus SHA256 verification.
+- Automatic updates are not enabled by default. Use manual download plus SHA256 verification unless a maintainer publishes a stable HTTPS feed and explicitly sets `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
 - macOS Developer ID signing/notarization and Windows Authenticode signing are not part of this unsigned alpha.
 - Apple Calendar, Google Calendar, Google Tasks, and system reminders full account sync/write-back are not broadly shipped yet. Narrow connector writes require explicit environment opt-in, explicit admin confirmation, audit logging, rollback guidance, and real-account `calendar:acceptance` evidence before public promotion.
 - `.ics` support is read-only local ingestion, not two-way calendar/task management.

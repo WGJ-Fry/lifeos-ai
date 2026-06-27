@@ -194,6 +194,7 @@ Set an update feed only after a release host is ready:
 
 ```bash
 LIFEOS_UPDATE_URL="https://updates.example.com/lifeos-ai"
+LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1
 ```
 
 `LIFEOS_UPDATE_URL` must point to the HTTPS directory that contains the feed files, not to a single `.zip`, `.dmg`, `.exe`, `.AppImage`, `.yml`, or `.json` file. Do not put usernames, passwords, query tokens, or fragments in this value.
@@ -210,9 +211,10 @@ Upload the complete contents of `release/update-feed/` to the HTTPS directory us
 
 ```bash
 LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.4-alpha"
+LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1
 ```
 
-Without this value, the packaged desktop app starts normally and skips update checks.
+Without this URL or without `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`, the packaged desktop app starts normally and keeps update checks in manual mode.
 
 ## Release Notes And Rollback
 

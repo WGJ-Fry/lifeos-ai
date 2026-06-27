@@ -46,6 +46,7 @@ These changes are implemented on `main` after the public `v0.1.4-alpha` release 
 - Google Calendar events and Google Tasks now have guarded OAuth connector code paths plus `calendar:acceptance` real-account evidence generation. Public sync claims still require a new Release, uploaded assets, and a passing read/write acceptance report.
 - Studio auto-repair queue items now include a structured readiness gate with passed checks, failed checks, rollback status, and an explicit resume/manual-review/smoke-verification decision. This improves resumability, but does not make Studio fully unattended yet.
 - Release promotion truth checks now require a remote acceptance evidence file when running `npm run version:truth:release`; the evidence must show a stable HTTPS entry plus completed cellular, network-switch, restart, stale-QR, network-interruption, and diagnostic-export scenarios.
+- Desktop update diagnostics now distinguish manual mode, blocked feeds, and explicitly opted-in HTTPS feed readiness. A safe `LIFEOS_UPDATE_URL` is not enough by itself; maintainers must also set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
 
 ## Next Planned Alpha: v0.1.5-alpha
 

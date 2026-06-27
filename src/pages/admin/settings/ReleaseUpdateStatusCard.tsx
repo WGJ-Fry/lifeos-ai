@@ -59,6 +59,33 @@ export default function ReleaseUpdateStatusCard({ updateCheck }: { updateCheck: 
           <div className="mt-3 space-y-1 border-t border-current/15 pt-3 opacity-90">
             {recommendationKeys.map((key) => <div key={key}>{t(key as any, { tag: latestTag })}</div>)}
           </div>
+          <div className="mt-3 rounded-xl border border-current/15 bg-black/10 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="font-bold">{t("diagnostics.releaseUpdate.autoUpdate")}</div>
+              <span className="rounded-full border border-current/15 px-2 py-0.5 text-[11px] uppercase tracking-wide">
+                {t(`diagnostics.releaseUpdate.autoMode.${updateCheck.autoUpdate.mode}` as any)}
+              </span>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div>
+                <div className="opacity-70">{t("diagnostics.releaseUpdate.feedHost")}</div>
+                <div className="mt-0.5 break-all font-semibold">{updateCheck.autoUpdate.updateUrlHost || "-"}</div>
+              </div>
+              <div>
+                <div className="opacity-70">{t("diagnostics.releaseUpdate.autoReason")}</div>
+                <div className="mt-0.5 font-semibold">
+                  {t(`diagnostics.releaseUpdate.autoReason.${updateCheck.autoUpdate.reason}` as any)}
+                </div>
+              </div>
+            </div>
+            {updateCheck.autoUpdate.enabled ? (
+              <div className="mt-2 text-[11px] opacity-85">{t("diagnostics.releaseUpdate.autoReady")}</div>
+            ) : (
+              <ul className="mt-2 list-inside list-disc space-y-1 text-[11px] opacity-85">
+                {updateCheck.autoUpdate.requirements.slice(0, 3).map((requirement) => <li key={requirement}>{requirement}</li>)}
+              </ul>
+            )}
+          </div>
           {updateCheck.manualUpdatePlan ? (
             <div className="mt-3 rounded-xl border border-current/15 bg-black/10 p-3">
               <div className="flex flex-wrap items-center gap-2">

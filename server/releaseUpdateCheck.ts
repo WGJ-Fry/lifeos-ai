@@ -20,6 +20,16 @@ export type ReleaseManualUpdateStep = {
   url?: string;
 };
 
+export type ReleaseAutoUpdateState = {
+  configured: boolean;
+  enabled: boolean;
+  mode: "manual" | "feed-ready" | "blocked";
+  feedUrl: string | null;
+  updateUrlHost: string;
+  reason: "not_configured" | "opt_in_required" | "ready" | "non_https" | "url_contains_credentials_or_tokens" | "url_points_to_artifact" | "invalid_url";
+  requirements: string[];
+};
+
 export type ReleaseManualUpdatePlan = {
   platform: ReleaseUpdatePlatform;
   assetName: string | null;
@@ -52,8 +62,9 @@ export type ReleaseUpdateCheck = {
     checksumAsset?: ReleaseUpdateAsset;
   } | null;
   updateAvailable: boolean;
-  manualUpdateRequired: true;
-  autoUpdateEnabled: false;
+  manualUpdateRequired: boolean;
+  autoUpdateEnabled: boolean;
+  autoUpdate: ReleaseAutoUpdateState;
   manualUpdatePlan: ReleaseManualUpdatePlan | null;
   reason: string;
   recommendations: string[];
@@ -188,6 +199,73 @@ function installCommandForPlatform(platform: ReleaseUpdatePlatform, assetName: s
   return `Open the verified package for your platform only after comparing it with SHA256SUMS.`;
 }
 
+function buildAutoUpdateState(): ReleaseAutoUpdateState {
+  const raw = String(process.env.LIFEOS_UPDATE_URL || "").trim();
+  const optIn = process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE === "1";
+  const baseRequirements = [
+    "Publish the complete release/update-feed directory to the HTTPS feed URL.",
+    "Keep SHA256SUMS and release-manifest.json beside the latest*.yml feed files.",
+    "Set LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1 only after the feed URL is stable and public.",
+  ];
+  if (!raw) {
+    return {
+      configured: false,
+      enabled: false,
+      mode: "manual",
+      feedUrl: null,
+      updateUrlHost: "",
+      reason: "not_configured",
+      requirements: baseRequirements,
+    };
+  }
+  try {
+    const parsed = new URL(raw);
+    const updateUrlHost = parsed.host;
+    const blocked = (reason: ReleaseAutoUpdateState["reason"]): ReleaseAutoUpdateState => ({
+      configured: true,
+      enabled: false,
+      mode: "blocked",
+      feedUrl: raw,
+      updateUrlHost,
+      reason,
+      requirements: baseRequirements,
+    });
+    if (parsed.protocol !== "https:") return blocked("non_https");
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return blocked("url_contains_credentials_or_tokens");
+    if (/\.(dmg|zip|exe|AppImage|yml|json)$/i.test(parsed.pathname)) return blocked("url_points_to_artifact");
+    if (!optIn) {
+      return {
+        configured: true,
+        enabled: false,
+        mode: "manual",
+        feedUrl: raw,
+        updateUrlHost,
+        reason: "opt_in_required",
+        requirements: baseRequirements,
+      };
+    }
+    return {
+      configured: true,
+      enabled: true,
+      mode: "feed-ready",
+      feedUrl: raw,
+      updateUrlHost,
+      reason: "ready",
+      requirements: baseRequirements,
+    };
+  } catch {
+    return {
+      configured: true,
+      enabled: false,
+      mode: "blocked",
+      feedUrl: raw,
+      updateUrlHost: "invalid-url",
+      reason: "invalid_url",
+      requirements: baseRequirements,
+    };
+  }
+}
+
 function buildManualUpdatePlan(latest: NonNullable<ReleaseUpdateCheck["latest"]>, platform: ReleaseUpdatePlatform): ReleaseManualUpdatePlan {
   const asset = chooseAssetForPlatform(latest.assets, platform);
   const assetName = asset?.name || null;
@@ -239,6 +317,7 @@ export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; no
   const currentTag = packageVersionToReleaseTag(currentVersion);
   const checkedAt = (options.now || new Date()).toISOString();
   const platform = platformFromNodePlatform(options.platform);
+  const autoUpdate = buildAutoUpdateState();
   const { owner, repo } = configuredRepository();
   const url = process.env.LIFEOS_RELEASE_API_URL || `https://api.github.com/repos/${owner}/${repo}/releases?per_page=20`;
   const fetchImpl = options.fetchImpl || fetch;
@@ -267,8 +346,9 @@ export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; no
         current: { version: currentVersion, tag: currentTag },
         latest: null,
         updateAvailable: false,
-        manualUpdateRequired: true,
-        autoUpdateEnabled: false,
+        manualUpdateRequired: !autoUpdate.enabled,
+        autoUpdateEnabled: autoUpdate.enabled,
+        autoUpdate,
         manualUpdatePlan: null,
         reason: "no_public_release_found",
         recommendations: buildRecommendations("unavailable", null),
@@ -283,8 +363,9 @@ export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; no
       current: { version: currentVersion, tag: currentTag },
       latest,
       updateAvailable,
-      manualUpdateRequired: true,
-      autoUpdateEnabled: false,
+      manualUpdateRequired: !autoUpdate.enabled,
+      autoUpdateEnabled: autoUpdate.enabled,
+      autoUpdate,
       manualUpdatePlan: buildManualUpdatePlan(latest, platform),
       reason: updateAvailable ? "newer_release_available" : "current_release_is_latest",
       recommendations: buildRecommendations(status, latest.tag),
@@ -296,8 +377,9 @@ export async function checkReleaseUpdate(options: { fetchImpl?: typeof fetch; no
       current: { version: currentVersion, tag: currentTag },
       latest: null,
       updateAvailable: false,
-      manualUpdateRequired: true,
-      autoUpdateEnabled: false,
+      manualUpdateRequired: !autoUpdate.enabled,
+      autoUpdateEnabled: autoUpdate.enabled,
+      autoUpdate,
       manualUpdatePlan: null,
       reason: error?.name === "AbortError" ? "release_check_timeout" : String(error?.message || "release_check_failed").slice(0, 120),
       recommendations: buildRecommendations("error", null),

@@ -46,7 +46,7 @@ LifeOS AI-0.1.4-alpha.0-arm64.dmg
 signed LifeOS.AI.Setup.0.1.4-alpha.0.exe
 ```
 
-如果未来启用自动更新，安装包会读取这些 feed 文件。当前没有配置 `LIFEOS_UPDATE_URL`，所以 update feed 主要用于诊断和后续准备。
+如果未来启用自动更新，安装包会读取这些 feed 文件。当前没有配置 `LIFEOS_UPDATE_URL` 和 `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`，所以 update feed 主要用于诊断和后续准备。
 
 ## 当前 SHA256
 
@@ -134,7 +134,7 @@ LifeOS AI-0.1.4-alpha.0-arm64.dmg
 signed LifeOS.AI.Setup.0.1.4-alpha.0.exe
 ```
 
-These feed files are required for future auto-update support. Because `LIFEOS_UPDATE_URL` is not configured yet, the current feed files are mostly for diagnostics and future preparation.
+These feed files are required for future auto-update support. Because `LIFEOS_UPDATE_URL` and `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1` are not configured yet, the current feed files are mostly for diagnostics and future preparation.
 
 ## Current SHA256
 
