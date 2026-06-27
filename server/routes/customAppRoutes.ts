@@ -24,6 +24,7 @@ import {
   listCustomAppRuntimeEvents,
   listCustomApps,
   listCustomAppVersions,
+  recordCustomAppAutoRepairSmokeReview,
   rollbackCustomAppVersion,
   updateCustomApp,
   updateCustomAppActionPolicy,
@@ -358,6 +359,31 @@ export function registerCustomAppRoutes(app: express.Express) {
       }, actor(req)?.type, actor(req)?.id);
       broadcastRealtime({ type: "custom_app.action_decided", appId: req.params.appId, request, timestamp: request.decidedAt || Date.now() });
       res.json({ request });
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
+  });
+
+  app.post("/api/v1/custom-apps/:appId/auto-repairs/smoke-review", requireActor, (req, res) => {
+    try {
+      const result = recordCustomAppAutoRepairSmokeReview(req.params.appId, req.body || {}, actor(req));
+      if (!result) return res.status(404).json({ error: "Custom app not found" });
+      insertAuditLog("custom_app_auto_repair_smoke_reviewed", "custom_app", req.params.appId, {
+        eventId: result.event?.id,
+        resultId: result.review.resultId,
+        taskId: result.review.taskId,
+        status: result.review.status,
+        rollbackRecommended: result.review.rollbackRecommended,
+        failureCount: result.review.failures.length,
+      }, actor(req)?.type, actor(req)?.id);
+      broadcastRealtime({
+        type: "custom_app.auto_repair_smoke_reviewed",
+        appId: req.params.appId,
+        event: result.event,
+        review: result.review,
+        timestamp: result.event?.createdAt || Date.now(),
+      });
+      res.json(result);
     } catch (error) {
       handleCustomAppError(res, error);
     }

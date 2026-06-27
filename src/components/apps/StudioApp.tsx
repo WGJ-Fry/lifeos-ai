@@ -64,10 +64,12 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
     completeRuntimeAutoRepair,
     planRuntimeAutoRepair,
     recordRuntimeDebugApplied,
+    recordRuntimeAutoRepairSmokeReview,
     requestRuntimeDebug,
     runtimeAutoRepairQueue,
     runtimeAutoRepairTask,
     runtimeAutoRepairResult,
+    runtimeAutoRepairSmokeReview,
     runtimeDebugIssue,
     runtimeEvents,
     runtimeEventsError, runtimeRepairProposal, setRuntimeDebugIssue,
@@ -629,6 +631,7 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
                       runtimeAutoRepairQueue={runtimeAutoRepairQueue}
                       runtimeAutoRepairTask={runtimeAutoRepairTask}
                       runtimeAutoRepairResult={runtimeAutoRepairResult}
+                      runtimeAutoRepairSmokeReview={runtimeAutoRepairSmokeReview}
                       isRequestingRuntimeDebug={isRequestingRuntimeDebug}
                       isApplyingRuntimeRepair={isApplyingRuntimeRepair}
                       onInstructionChange={setRefineInstruction}
@@ -643,6 +646,7 @@ export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteA
                       onRequestRuntimeDebug={() => void requestRuntimeDebug(activeAppToEdit.id)}
                       onApplyRuntimeRepair={() => void handleApplyRuntimeRepair(activeAppToEdit.id)}
                       onResumeRuntimeRepair={(item) => void handleResumeRuntimeRepair(item)}
+                      onRecordRuntimeRepairSmokeReview={(result, status) => void recordRuntimeAutoRepairSmokeReview(result, status, undefined, activeAppToEdit.id)}
                       onApplyStoredVersionRepair={(instruction) => void handleRefineCode(instruction, true)}
                     />
 

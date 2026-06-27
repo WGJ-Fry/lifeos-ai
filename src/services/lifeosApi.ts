@@ -983,6 +983,19 @@ export type CustomAppAutoRepairResult = {
   createdAt: number;
 };
 
+export type CustomAppAutoRepairSmokeReview = {
+  id: string;
+  appId: string;
+  resultId: string;
+  taskId?: string | null;
+  status: "passed" | "failed";
+  note?: string | null;
+  failures: string[];
+  rollbackRecommended: boolean;
+  nextSteps: string[];
+  reviewedAt: number;
+};
+
 export type CustomAppAutoRepairQueueItem = {
   id: string;
   appId: string;
@@ -997,6 +1010,7 @@ export type CustomAppAutoRepairQueueItem = {
   readiness: CustomAppAutoRepairReadiness;
   repairProposal?: CustomAppRepairProposal | null;
   latestResult?: CustomAppAutoRepairResult | null;
+  latestSmokeReview?: CustomAppAutoRepairSmokeReview | null;
   rollbackVersion?: number | null;
   createdAt: number;
 };
@@ -1097,7 +1111,9 @@ export type StoredCustomAppRuntimeEvent = {
     | "auto_repair_planned"
     | "auto_repair_blocked"
     | "auto_repair_applied"
-    | "auto_repair_needs_review";
+    | "auto_repair_needs_review"
+    | "auto_repair_smoke_passed"
+    | "auto_repair_smoke_failed";
   severity: "info" | "warning" | "error";
   label: string;
   message: string;
@@ -1996,6 +2012,25 @@ export function completeCustomAppAutoRepair(appId: string, input: {
     comparison: CustomAppVersionComparison | null;
   }>(
     `/api/v1/custom-apps/${encodeURIComponent(appId)}/auto-repairs/complete`,
+    {
+      method: "POST",
+      body: JSON.stringify(input),
+    },
+  );
+}
+
+export function recordCustomAppAutoRepairSmokeReview(appId: string, input: {
+  resultId: string;
+  status: "passed" | "failed" | "smoke-passed" | "smoke-failed";
+  note?: string;
+  failures?: string[];
+}) {
+  return requestJson<{
+    event: StoredCustomAppRuntimeEvent | null;
+    review: CustomAppAutoRepairSmokeReview;
+    result: CustomAppAutoRepairResult;
+  }>(
+    `/api/v1/custom-apps/${encodeURIComponent(appId)}/auto-repairs/smoke-review`,
     {
       method: "POST",
       body: JSON.stringify(input),

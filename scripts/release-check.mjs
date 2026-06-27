@@ -1448,8 +1448,10 @@ function checkAssets() {
 	    customAppsSource.includes("CustomAppAutoRepairExecutionSession") &&
 	    customAppsSource.includes("CustomAppAutoRepairQueueItem") &&
 	    customAppsSource.includes("CustomAppAutoRepairResult") &&
+	    customAppsSource.includes("CustomAppAutoRepairSmokeReview") &&
 	    customAppsSource.includes("createCustomAppAutoRepairPlan") &&
 	    customAppsSource.includes("completeCustomAppAutoRepair") &&
+	    customAppsSource.includes("recordCustomAppAutoRepairSmokeReview") &&
 	    customAppsSource.includes("listCustomAppAutoRepairQueue") &&
 	    customAppsSource.includes("buildCustomAppAutoRepairReadiness") &&
 	    customAppsSource.includes("buildCustomAppAutoRepairExecutionSession") &&
@@ -1459,6 +1461,8 @@ function checkAssets() {
 	    customAppsSource.includes("auto_repair_planned") &&
 	    customAppsSource.includes("auto_repair_blocked") &&
 	    customAppsSource.includes("auto_repair_applied") &&
+	    customAppsSource.includes("auto_repair_smoke_passed") &&
+	    customAppsSource.includes("auto_repair_smoke_failed") &&
 	    customAppsSource.includes("buildRepairProposal") &&
 	    customAppsSource.includes("buildRepairExecutionPlan") &&
 	    customAppsSource.includes("repairProposal") &&
@@ -1468,8 +1472,10 @@ function checkAssets() {
 	    customAppRoutesSource.includes("/api/v1/custom-apps/:appId/auto-repairs") &&
 	    customAppRoutesSource.includes("/api/v1/custom-apps/:appId/auto-repairs/queue") &&
 	    customAppRoutesSource.includes("/api/v1/custom-apps/:appId/auto-repairs/complete") &&
+	    customAppRoutesSource.includes("/api/v1/custom-apps/:appId/auto-repairs/smoke-review") &&
 	    customAppRoutesSource.includes("custom_app_auto_repair_planned") &&
 	    customAppRoutesSource.includes("custom_app_auto_repair_completed") &&
+	    customAppRoutesSource.includes("custom_app_auto_repair_smoke_reviewed") &&
 	    customAppRoutesSource.includes("repairRisk") &&
 	    customAppRoutesSource.includes("suspectedArea") &&
 	    customAppRoutesSource.includes("repairStepCount") &&
@@ -1480,9 +1486,11 @@ function checkAssets() {
 	    lifeosApiSource.includes("CustomAppAutoRepairExecutionSession") &&
 	    lifeosApiSource.includes("CustomAppAutoRepairQueueItem") &&
 	    lifeosApiSource.includes("CustomAppAutoRepairResult") &&
+	    lifeosApiSource.includes("CustomAppAutoRepairSmokeReview") &&
 	    lifeosApiSource.includes("createCustomAppAutoRepairPlan") &&
 	    lifeosApiSource.includes("listCustomAppAutoRepairQueue") &&
 	    lifeosApiSource.includes("completeCustomAppAutoRepair") &&
+	    lifeosApiSource.includes("recordCustomAppAutoRepairSmokeReview") &&
 	    lifeosApiSource.includes("repairProposal: CustomAppRepairProposal") &&
 	    studioRuntimeDebugHookSource.includes("runtimeRepairProposal") &&
 	    studioRuntimeDebugHookSource.includes("runtimeAutoRepairTask") &&
@@ -1505,6 +1513,7 @@ function checkAssets() {
 	    studioRuntimeEventsPanelSource.includes("autoRepairExecutionSession") &&
 	    studioRuntimeEventsPanelSource.includes("autoRepairSessionMeta") &&
 	    studioRuntimeEventsPanelSource.includes("autoRepairResult") &&
+	    studioRuntimeEventsPanelSource.includes("autoRepairSmokeReview") &&
 	    studioRuntimeEventsPanelSource.includes("studio.runtime.executionPlan") &&
 	    studioRuntimeRepairActionsSource.includes("executionSession?.canRunUnattended") &&
 	    studioRuntimeRepairActionsSource.includes("completeRuntimeAutoRepair") &&
@@ -1519,6 +1528,7 @@ function checkAssets() {
 	    translationsSource.includes("studio.runtime.autoRepairReadinessMeta") &&
 	    translationsSource.includes("studio.runtime.autoRepairExecutionSession") &&
 	    translationsSource.includes("studio.runtime.autoRepairSessionStatus.ready") &&
+	    translationsSource.includes("studio.runtime.autoRepairSmokeReview") &&
 	    translationsSource.includes("studio.runtime.autoRepairReadinessStatus.ready") &&
 	    apiAuthTestSource.includes("executionPlan.canAutoApply") &&
 	    apiAuthTestSource.includes("executionSession.canRunUnattended") &&
@@ -1530,6 +1540,8 @@ function checkAssets() {
 	    apiAuthTestSource.includes("custom_app_auto_repair_planned") &&
 	    apiAuthTestSource.includes("custom_app_auto_repair_completed") &&
 	    apiAuthTestSource.includes("auto_repair_applied") &&
+	    apiAuthTestSource.includes("auto_repair_smoke_passed") &&
+	    apiAuthTestSource.includes("custom_app_auto_repair_smoke_reviewed") &&
 	    apiAuthTestSource.includes("verification.status, \"pending-smoke\"") &&
 	    apiAuthTestSource.includes("reasonKey, \"high-risk-action\"") &&
 	    apiAuthTestSource.includes("customAppDebugRequest.repairProposal") &&

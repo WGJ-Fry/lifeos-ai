@@ -58,7 +58,9 @@ export type CustomAppRuntimeEventType =
   | "auto_repair_planned"
   | "auto_repair_blocked"
   | "auto_repair_applied"
-  | "auto_repair_needs_review";
+  | "auto_repair_needs_review"
+  | "auto_repair_smoke_passed"
+  | "auto_repair_smoke_failed";
 export type CustomAppRuntimeSeverity = "info" | "warning" | "error";
 
 export type StoredCustomApp = {
@@ -201,6 +203,19 @@ export type CustomAppAutoRepairResult = {
   createdAt: number;
 };
 
+export type CustomAppAutoRepairSmokeReview = {
+  id: string;
+  appId: string;
+  resultId: string;
+  taskId?: string | null;
+  status: "passed" | "failed";
+  note?: string | null;
+  failures: string[];
+  rollbackRecommended: boolean;
+  nextSteps: string[];
+  reviewedAt: number;
+};
+
 export type CustomAppAutoRepairQueueItem = {
   id: string;
   appId: string;
@@ -215,6 +230,7 @@ export type CustomAppAutoRepairQueueItem = {
   readiness: CustomAppAutoRepairReadiness;
   repairProposal?: CustomAppRepairProposal | null;
   latestResult?: CustomAppAutoRepairResult | null;
+  latestSmokeReview?: CustomAppAutoRepairSmokeReview | null;
   rollbackVersion?: number | null;
   createdAt: number;
 };
@@ -320,6 +336,14 @@ function sanitizeOptionalText(value: unknown, maxLength: number) {
   if (value === undefined || value === null) return undefined;
   const text = redactAuditString(String(value).replace(/\s+/g, " ").trim());
   return text.slice(0, maxLength);
+}
+
+function sanitizeRuntimeReferenceId(value: unknown, label: string, maxLength = 200) {
+  const text = String(value ?? "").trim();
+  if (!text || text.length > maxLength || !/^[a-zA-Z0-9_:-]+$/.test(text)) {
+    throw statusError(`${label} is invalid`);
+  }
+  return text;
 }
 
 function sanitizeActionText(value: unknown, maxLength: number, fallback = "") {
@@ -544,6 +568,8 @@ function normalizeRuntimeEventType(value: unknown): CustomAppRuntimeEventType {
     || type === "auto_repair_blocked"
     || type === "auto_repair_applied"
     || type === "auto_repair_needs_review"
+    || type === "auto_repair_smoke_passed"
+    || type === "auto_repair_smoke_failed"
   ) {
     return type;
   }
@@ -556,18 +582,31 @@ function normalizeRuntimeSeverity(value: unknown, eventType: CustomAppRuntimeEve
   return "info";
 }
 
-function sanitizeRuntimeDetailValue(value: unknown, depth = 0): unknown {
+function isRuntimeReferenceKey(key: string) {
+  return /^(id|appId|taskId|resultId|eventId|debugEventId|requestId|operationId|recentEventIds)$/.test(key);
+}
+
+function isSafeRuntimeReference(value: string) {
+  if (/\b(github_pat_|ghp_|sk-[A-Za-z0-9_-]{12,}|sk-or-|AIza)/.test(value)) return false;
+  return /^(custom|app|app-event|auto-repair|repair-queue|capability|action|state|calendar-sync)[a-zA-Z0-9_:-]{0,180}$/.test(value);
+}
+
+function sanitizeRuntimeDetailValue(value: unknown, depth = 0, key = ""): unknown {
   if (depth > 5) return "[truncated]";
-  if (typeof value === "string") return sanitizeActionText(value, 1000);
-  if (Array.isArray(value)) return value.slice(0, 20).map((item) => sanitizeRuntimeDetailValue(item, depth + 1));
+  if (typeof value === "string") {
+    const text = value.trim();
+    if (isRuntimeReferenceKey(key) && isSafeRuntimeReference(text)) return text;
+    return sanitizeActionText(value, 1000);
+  }
+  if (Array.isArray(value)) return value.slice(0, 20).map((item) => sanitizeRuntimeDetailValue(item, depth + 1, key));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
       .slice(0, 40)
-      .map(([key, item]) => [
-        sensitiveStateKey.test(key) ? "[redacted]" : sanitizeActionText(key, 80, "field"),
-        sanitizeRuntimeDetailValue(item, depth + 1),
-      ]),
+      .map(([childKey, item]) => {
+        const safeKey = sensitiveStateKey.test(childKey) ? "[redacted]" : sanitizeActionText(childKey, 80, "field");
+        return [safeKey, sanitizeRuntimeDetailValue(item, depth + 1, safeKey)];
+      }),
   );
 }
 
@@ -1256,6 +1295,15 @@ function readRuntimeAutoRepairResult(event: StoredCustomAppRuntimeEvent): Custom
   return candidate as CustomAppAutoRepairResult;
 }
 
+function readRuntimeAutoRepairSmokeReview(event: StoredCustomAppRuntimeEvent): CustomAppAutoRepairSmokeReview | null {
+  const review = runtimeEventDetailRecord(event).autoRepairSmokeReview;
+  if (!review || typeof review !== "object" || Array.isArray(review)) return null;
+  const candidate = review as Partial<CustomAppAutoRepairSmokeReview>;
+  if (!candidate.id || !candidate.appId || !candidate.resultId) return null;
+  if (candidate.status !== "passed" && candidate.status !== "failed") return null;
+  return candidate as CustomAppAutoRepairSmokeReview;
+}
+
 function readRuntimeRepairProposal(event: StoredCustomAppRuntimeEvent): CustomAppRepairProposal | null {
   const proposal = runtimeEventDetailRecord(event).repairProposal;
   if (!proposal || typeof proposal !== "object" || Array.isArray(proposal)) return null;
@@ -1338,6 +1386,12 @@ export function listCustomAppAutoRepairQueue(appId: string, limitInput?: unknown
   const limit = normalizeLimit(limitInput);
   const events = listCustomAppRuntimeEvents(appId, 100) || [];
   const resultsByTaskId = new Map<string, CustomAppAutoRepairResult>();
+  const smokeReviewByResultId = new Map<string, CustomAppAutoRepairSmokeReview>();
+  for (const event of events) {
+    if (event.eventType !== "auto_repair_smoke_passed" && event.eventType !== "auto_repair_smoke_failed") continue;
+    const review = readRuntimeAutoRepairSmokeReview(event);
+    if (review?.resultId && !smokeReviewByResultId.has(review.resultId)) smokeReviewByResultId.set(review.resultId, review);
+  }
   for (const event of events) {
     if (event.eventType !== "auto_repair_applied" && event.eventType !== "auto_repair_needs_review") continue;
     const result = readRuntimeAutoRepairResult(event);
@@ -1352,7 +1406,8 @@ export function listCustomAppAutoRepairQueue(appId: string, limitInput?: unknown
     if (!task || seenTaskIds.has(task.id)) continue;
     seenTaskIds.add(task.id);
     const latestResult = resultsByTaskId.get(task.id) || null;
-    if (latestResult?.status === "applied") continue;
+    const latestSmokeReview = latestResult?.id ? smokeReviewByResultId.get(latestResult.id) || null : null;
+    if (latestResult?.status === "applied" && latestSmokeReview?.status === "passed") continue;
     const repairProposal = readRuntimeRepairProposal(event);
     const readiness = buildCustomAppAutoRepairReadiness(task, latestResult, repairProposal);
     const status: CustomAppAutoRepairQueueItem["status"] = latestResult
@@ -1379,6 +1434,7 @@ export function listCustomAppAutoRepairQueue(appId: string, limitInput?: unknown
       readiness,
       repairProposal,
       latestResult,
+      latestSmokeReview,
       rollbackVersion: task.rollbackVersion ?? latestResult?.rollbackVersion ?? null,
       createdAt: event.createdAt || task.createdAt,
     });
@@ -1733,6 +1789,64 @@ export function completeCustomAppAutoRepair(appId: string, input: Record<string,
     },
   }, actor);
   return { event, result, comparison };
+}
+
+export function recordCustomAppAutoRepairSmokeReview(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const resultId = sanitizeRuntimeReferenceId(input.resultId, "resultId", 160);
+  const statusInput = String(input.status || "").trim().toLowerCase();
+  const status: CustomAppAutoRepairSmokeReview["status"] = statusInput === "passed" || statusInput === "smoke-passed"
+    ? "passed"
+    : statusInput === "failed" || statusInput === "smoke-failed"
+      ? "failed"
+      : (() => { throw statusError("Invalid smoke review status"); })();
+  const events = listCustomAppRuntimeEvents(appId, 100) || [];
+  const result = events
+    .map(readRuntimeAutoRepairResult)
+    .find((item): item is CustomAppAutoRepairResult => Boolean(item && item.id === resultId));
+  if (!result) throw statusError("Auto repair result not found", 404);
+  const note = sanitizeOptionalText(input.note ?? input.message, 500) || null;
+  const rawFailures = Array.isArray(input.failures) ? input.failures : status === "failed" ? [input.failure ?? note ?? "Smoke check failed"] : [];
+  const failures = rawFailures
+    .map((item) => sanitizeOptionalText(item, 240))
+    .filter((item): item is string => Boolean(item))
+    .slice(0, 5);
+  const rollbackRecommended = status === "failed";
+  const nextSteps = status === "passed"
+    ? [
+        "Mark this repair as smoke verified and keep the rollback point for normal version history.",
+        "Allow a future auto repair only if a new runtime failure is captured.",
+      ]
+    : [
+        "Roll back to the recorded safe version before retrying the repair.",
+        "Request a narrower repair proposal with the failing smoke-check note.",
+        "Do not run another unattended repair until this failure is reviewed.",
+      ];
+  const now = Date.now();
+  const review: CustomAppAutoRepairSmokeReview = {
+    id: `auto-repair-smoke-${crypto.randomUUID()}`,
+    appId,
+    resultId,
+    taskId: result.taskId || null,
+    status,
+    note,
+    failures,
+    rollbackRecommended,
+    nextSteps,
+    reviewedAt: now,
+  };
+  const event = createCustomAppRuntimeEvent(appId, {
+    eventType: status === "passed" ? "auto_repair_smoke_passed" : "auto_repair_smoke_failed",
+    severity: status === "passed" ? "info" : "warning",
+    label: status === "passed" ? "Auto repair smoke passed" : "Auto repair smoke failed",
+    message: sanitizeActionText(note || `${status}: auto repair smoke review`, 500),
+    detail: {
+      autoRepairSmokeReview: review,
+      autoRepairResult: result,
+    },
+  }, actor);
+  return { event, review, result };
 }
 
 function selectCustomAppCapabilityRequest(appId: string, requestId: string) {

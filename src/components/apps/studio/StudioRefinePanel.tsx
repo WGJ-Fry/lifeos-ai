@@ -1,6 +1,6 @@
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
-import type { CustomAppAutoRepairQueueItem, CustomAppAutoRepairResult, CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
+import type { CustomAppAutoRepairQueueItem, CustomAppAutoRepairResult, CustomAppAutoRepairSmokeReview, CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
 import StudioRuntimeEventsPanel from "./StudioRuntimeEventsPanel";
 import StudioRefineVersionCompareCard from "./StudioRefineVersionCompareCard";
 import StudioStoredVersionCompareCard from "./StudioStoredVersionCompareCard";
@@ -28,6 +28,7 @@ type StudioRefinePanelProps = {
   runtimeAutoRepairQueue: CustomAppAutoRepairQueueItem[];
   runtimeAutoRepairTask: CustomAppAutoRepairTask | null;
   runtimeAutoRepairResult: CustomAppAutoRepairResult | null;
+  runtimeAutoRepairSmokeReview: CustomAppAutoRepairSmokeReview | null;
   isRequestingRuntimeDebug: boolean;
   isApplyingRuntimeRepair: boolean;
   onInstructionChange: (value: string) => void;
@@ -38,6 +39,7 @@ type StudioRefinePanelProps = {
   onRequestRuntimeDebug: () => void;
   onApplyRuntimeRepair: () => void;
   onResumeRuntimeRepair: (item: CustomAppAutoRepairQueueItem) => void;
+  onRecordRuntimeRepairSmokeReview: (result: CustomAppAutoRepairResult, status: "passed" | "failed") => void;
   onApplyStoredVersionRepair: (instruction: string) => void;
 };
 
@@ -56,6 +58,7 @@ export default function StudioRefinePanel({
   runtimeAutoRepairQueue,
   runtimeAutoRepairTask,
   runtimeAutoRepairResult,
+  runtimeAutoRepairSmokeReview,
   isRequestingRuntimeDebug,
   isApplyingRuntimeRepair,
   onInstructionChange,
@@ -66,6 +69,7 @@ export default function StudioRefinePanel({
   onRequestRuntimeDebug,
   onApplyRuntimeRepair,
   onResumeRuntimeRepair,
+  onRecordRuntimeRepairSmokeReview,
   onApplyStoredVersionRepair,
 }: StudioRefinePanelProps) {
   const { t } = useI18n();
@@ -203,6 +207,7 @@ export default function StudioRefinePanel({
         autoRepairQueue={runtimeAutoRepairQueue}
         autoRepairTask={runtimeAutoRepairTask}
         autoRepairResult={runtimeAutoRepairResult}
+        autoRepairSmokeReview={runtimeAutoRepairSmokeReview}
         isRequestingDebug={isRequestingRuntimeDebug}
         isApplyingRepair={isApplyingRuntimeRepair}
         onIssueChange={onRuntimeDebugIssueChange}
@@ -210,6 +215,7 @@ export default function StudioRefinePanel({
         onRequestDebug={onRequestRuntimeDebug}
         onApplyRepair={onApplyRuntimeRepair}
         onResumeAutoRepair={onResumeRuntimeRepair}
+        onRecordSmokeReview={onRecordRuntimeRepairSmokeReview}
       />
 
       <div className="mt-auto pt-4 border-t border-white/[0.04] text-[10px] text-zinc-500 flex items-center gap-1.5 justify-center">

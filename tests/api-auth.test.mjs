@@ -1873,7 +1873,28 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const customAppAutoRepairQueueAfterComplete = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/queue?limit=5", {
     headers: adminHeaders,
   }).then((res) => res.json());
-  assert.equal(customAppAutoRepairQueueAfterComplete.queue.some((item) => item.resumeInstruction === customAppAutoRepairPlan.suggestedInstruction), false);
+  const smokePendingAutoRepair = customAppAutoRepairQueueAfterComplete.queue.find((item) => item.resumeInstruction === customAppAutoRepairPlan.suggestedInstruction);
+  assert.equal(smokePendingAutoRepair.status, "needs-review");
+  assert.equal(smokePendingAutoRepair.waitingFor, "smoke-verification");
+  assert.equal(smokePendingAutoRepair.latestResult.id, customAppAutoRepairComplete.result.id);
+  assert.equal(smokePendingAutoRepair.latestSmokeReview, null);
+  const customAppAutoRepairSmokePassed = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/smoke-review", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      resultId: customAppAutoRepairComplete.result.id,
+      status: "passed",
+      note: "Main ledger workflow opened and saved sample state",
+    }),
+  }).then((res) => res.json());
+  assert.equal(customAppAutoRepairSmokePassed.event.eventType, "auto_repair_smoke_passed");
+  assert.equal(customAppAutoRepairSmokePassed.review.status, "passed");
+  assert.equal(customAppAutoRepairSmokePassed.review.resultId, customAppAutoRepairComplete.result.id);
+  assert.equal(customAppAutoRepairSmokePassed.review.rollbackRecommended, false);
+  const customAppAutoRepairQueueAfterSmokePass = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/queue?limit=5", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(customAppAutoRepairQueueAfterSmokePass.queue.some((item) => item.resumeInstruction === customAppAutoRepairPlan.suggestedInstruction), false);
 
   const highRiskCustomAppDebugRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/debug-requests", {
     method: "POST",
@@ -1945,6 +1966,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "debug_requested"), true);
   assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "auto_repair_planned"), true);
   assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "auto_repair_applied"), true);
+  assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "auto_repair_smoke_passed"), true);
   assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "auto_repair_blocked"), true);
   const debugRuntimeEvent = customAppRuntimeEvents.events.find((event) => event.eventType === "debug_requested" && event.detail?.repairProposal?.suspectedArea === "runtime-error");
   assert.equal(debugRuntimeEvent.detail.repairProposal.suspectedArea, "runtime-error");
@@ -2613,6 +2635,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(completedAutoRepairAudit.metadata.rollbackAvailable, true);
   assert.equal(completedAutoRepairAudit.metadata.verificationStatus, "pending-smoke");
   assert.equal(completedAutoRepairAudit.metadata.comparisonRisk, "low");
+  const smokeReviewAudit = finalAudit.logs.find((log) =>
+    log.action === "custom_app_auto_repair_smoke_reviewed" &&
+    log.targetId === "custom-ledger-1" &&
+    log.metadata.resultId === customAppAutoRepairComplete.result.id
+  );
+  assert.equal(smokeReviewAudit.metadata.status, "passed");
+  assert.equal(smokeReviewAudit.metadata.rollbackRecommended, false);
   const blockedAutoRepairAudit = finalAudit.logs.find((log) =>
     log.action === "custom_app_auto_repair_planned" &&
     log.targetId === "custom-ledger-1" &&

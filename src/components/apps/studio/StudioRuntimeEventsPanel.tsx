@@ -1,6 +1,6 @@
 import { AlertCircle, Bug, RefreshCw, ShieldCheck, WandSparkles } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
-import type { CustomAppAutoRepairQueueItem, CustomAppAutoRepairResult, CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
+import type { CustomAppAutoRepairQueueItem, CustomAppAutoRepairResult, CustomAppAutoRepairSmokeReview, CustomAppAutoRepairTask, CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
 
 type StudioRuntimeEventsPanelProps = {
   events: StoredCustomAppRuntimeEvent[];
@@ -11,6 +11,7 @@ type StudioRuntimeEventsPanelProps = {
   autoRepairQueue: CustomAppAutoRepairQueueItem[];
   autoRepairTask: CustomAppAutoRepairTask | null;
   autoRepairResult: CustomAppAutoRepairResult | null;
+  autoRepairSmokeReview: CustomAppAutoRepairSmokeReview | null;
   isRequestingDebug: boolean;
   isApplyingRepair: boolean;
   onIssueChange: (value: string) => void;
@@ -18,6 +19,7 @@ type StudioRuntimeEventsPanelProps = {
   onRequestDebug: () => void;
   onApplyRepair: () => void;
   onResumeAutoRepair: (item: CustomAppAutoRepairQueueItem) => void;
+  onRecordSmokeReview: (result: CustomAppAutoRepairResult, status: "passed" | "failed") => void;
 };
 
 function eventClass(severity: StoredCustomAppRuntimeEvent["severity"]) {
@@ -46,6 +48,7 @@ export default function StudioRuntimeEventsPanel({
   autoRepairQueue,
   autoRepairTask,
   autoRepairResult,
+  autoRepairSmokeReview,
   isRequestingDebug,
   isApplyingRepair,
   onIssueChange,
@@ -53,6 +56,7 @@ export default function StudioRuntimeEventsPanel({
   onRequestDebug,
   onApplyRepair,
   onResumeAutoRepair,
+  onRecordSmokeReview,
 }: StudioRuntimeEventsPanelProps) {
   const { t } = useI18n();
   const autoApplyBlocked = Boolean(repairProposal && !repairProposal.executionPlan.canAutoApply);
@@ -125,6 +129,14 @@ export default function StudioRuntimeEventsPanel({
                           status: t(`studio.runtime.autoRepairSessionStatus.${item.executionSession.status}` as any),
                           steps: String(item.executionSession.requiredSteps.length),
                           checks: String(item.executionSession.smokeChecks.length),
+                        })}
+                      </div>
+                    )}
+                    {item.latestSmokeReview && (
+                      <div className={`mt-1 ${item.latestSmokeReview.status === "passed" ? "text-emerald-200/75" : "text-amber-200/75"}`}>
+                        {t("studio.runtime.autoRepairSmokeReviewMeta", {
+                          status: t(`studio.runtime.autoRepairSmokeReviewStatus.${item.latestSmokeReview.status}` as any),
+                          failures: String(item.latestSmokeReview.failures.length),
                         })}
                       </div>
                     )}
@@ -275,7 +287,39 @@ export default function StudioRuntimeEventsPanel({
           </div>
           <div className="mt-3 space-y-2">
             <ProposalList title={t("studio.runtime.autoRepairVerification")} items={autoRepairResult.verification.requiredChecks.slice(0, 3)} />
+            {autoRepairSmokeReview && autoRepairSmokeReview.resultId === autoRepairResult.id && (
+              <ProposalList
+                title={t("studio.runtime.autoRepairSmokeReview")}
+                items={[
+                  t("studio.runtime.autoRepairSmokeReviewMeta", {
+                    status: t(`studio.runtime.autoRepairSmokeReviewStatus.${autoRepairSmokeReview.status}` as any),
+                    failures: String(autoRepairSmokeReview.failures.length),
+                  }),
+                  ...autoRepairSmokeReview.nextSteps.slice(0, 2),
+                ]}
+              />
+            )}
             <ProposalList title={t("studio.runtime.autoRepairNextSteps")} items={autoRepairResult.nextSteps.slice(0, 3)} />
+            {autoRepairResult.verification.status === "pending-smoke" && (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => onRecordSmokeReview(autoRepairResult, "passed")}
+                  disabled={isRequestingDebug || isApplyingRepair}
+                  className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-[10px] font-black text-emerald-200 disabled:opacity-50"
+                >
+                  {t("studio.runtime.autoRepairSmokePassed")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onRecordSmokeReview(autoRepairResult, "failed")}
+                  disabled={isRequestingDebug || isApplyingRepair}
+                  className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1.5 text-[10px] font-black text-amber-200 disabled:opacity-50"
+                >
+                  {t("studio.runtime.autoRepairSmokeFailed")}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

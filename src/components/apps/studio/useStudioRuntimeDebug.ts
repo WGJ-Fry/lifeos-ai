@@ -6,9 +6,11 @@ import {
   createCustomAppRuntimeEvent,
   listCustomAppAutoRepairQueue,
   listCustomAppRuntimeEvents,
+  recordCustomAppAutoRepairSmokeReview,
   type CustomAppAutoRepairQueueItem,
   type CustomAppAutoRepairTask,
   type CustomAppAutoRepairResult,
+  type CustomAppAutoRepairSmokeReview,
   type CustomAppRepairProposal,
   type StoredCustomAppRuntimeEvent,
 } from "../../../services/lifeosApi";
@@ -38,6 +40,7 @@ export function useStudioRuntimeDebug({
   const [runtimeAutoRepairQueue, setRuntimeAutoRepairQueue] = useState<CustomAppAutoRepairQueueItem[]>([]);
   const [runtimeAutoRepairTask, setRuntimeAutoRepairTask] = useState<CustomAppAutoRepairTask | null>(null);
   const [runtimeAutoRepairResult, setRuntimeAutoRepairResult] = useState<CustomAppAutoRepairResult | null>(null);
+  const [runtimeAutoRepairSmokeReview, setRuntimeAutoRepairSmokeReview] = useState<CustomAppAutoRepairSmokeReview | null>(null);
 
   const loadRuntimeEvents = useCallback(async (appId = editingAppId) => {
     if (!appId) {
@@ -78,6 +81,7 @@ export function useStudioRuntimeDebug({
       setRuntimeRepairProposal(response.repairProposal);
       setRuntimeAutoRepairTask(null);
       setRuntimeAutoRepairResult(null);
+      setRuntimeAutoRepairSmokeReview(null);
       setRuntimeDebugIssue("");
       appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.debugInstructionReady"), type: "info" });
       await loadRuntimeEvents(appId);
@@ -87,6 +91,7 @@ export function useStudioRuntimeDebug({
       setRuntimeRepairProposal(null);
       setRuntimeAutoRepairTask(null);
       setRuntimeAutoRepairResult(null);
+      setRuntimeAutoRepairSmokeReview(null);
       return null;
     } finally {
       setIsRequestingRuntimeDebug(false);
@@ -105,6 +110,7 @@ export function useStudioRuntimeDebug({
       setRuntimeRepairProposal(response.repairProposal);
       setRuntimeAutoRepairTask(response.autoRepairTask);
       setRuntimeAutoRepairResult(null);
+      setRuntimeAutoRepairSmokeReview(null);
       setRuntimeDebugIssue("");
       appendSimulatorLog({
         time: "DEBUG",
@@ -118,6 +124,7 @@ export function useStudioRuntimeDebug({
       setRuntimeRepairProposal(null);
       setRuntimeAutoRepairTask(null);
       setRuntimeAutoRepairResult(null);
+      setRuntimeAutoRepairSmokeReview(null);
       return null;
     } finally {
       setIsRequestingRuntimeDebug(false);
@@ -145,10 +152,39 @@ export function useStudioRuntimeDebug({
         suggestedInstruction: instruction,
       });
       setRuntimeAutoRepairResult(response.result);
+      setRuntimeAutoRepairSmokeReview(null);
       appendSimulatorLog({
         time: "DEBUG",
         text: response.result.status === "applied" ? t("studio.runtime.autoRepairCompleted") : t("studio.runtime.autoRepairNeedsReview"),
         type: response.result.status === "applied" ? "info" : "log",
+      });
+      await loadRuntimeEvents(appId);
+      return response;
+    } catch (error: any) {
+      setRuntimeEventsError(error?.message || t("studio.runtime.applyFailed"));
+      return null;
+    }
+  }, [appendSimulatorLog, editingAppId, loadRuntimeEvents, t]);
+
+  const recordRuntimeAutoRepairSmokeReview = useCallback(async (
+    result: CustomAppAutoRepairResult,
+    status: "passed" | "failed",
+    note?: string,
+    appId = editingAppId,
+  ) => {
+    if (!appId || !result.id) return null;
+    try {
+      const response = await recordCustomAppAutoRepairSmokeReview(appId, {
+        resultId: result.id,
+        status,
+        note,
+        failures: status === "failed" ? [note || t("studio.runtime.autoRepairSmokeFailedDefault")] : [],
+      });
+      setRuntimeAutoRepairSmokeReview(response.review);
+      appendSimulatorLog({
+        time: "DEBUG",
+        text: status === "passed" ? t("studio.runtime.autoRepairSmokePassedLog") : t("studio.runtime.autoRepairSmokeFailedLog"),
+        type: status === "passed" ? "info" : "log",
       });
       await loadRuntimeEvents(appId);
       return response;
@@ -165,10 +201,12 @@ export function useStudioRuntimeDebug({
     loadRuntimeEvents,
     planRuntimeAutoRepair,
     recordRuntimeDebugApplied,
+    recordRuntimeAutoRepairSmokeReview,
     requestRuntimeDebug,
     runtimeAutoRepairQueue,
     runtimeAutoRepairTask,
     runtimeAutoRepairResult,
+    runtimeAutoRepairSmokeReview,
     runtimeDebugIssue,
     runtimeEvents,
     runtimeEventsError,
