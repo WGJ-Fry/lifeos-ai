@@ -193,7 +193,9 @@ export default function MobileDevicePage() {
   const handleRetryQueue = () => {
     const result = retryFailedOfflineMessages();
     refreshQueue();
-    setStatus(t("mobileDevice.failedResetDetailed", { count: result.retriedIds.length }));
+    setStatus(result.retriedIds.length === 1
+      ? t("mobileDevice.failedReset")
+      : t("mobileDevice.failedResetDetailed", { count: result.retriedIds.length }));
   };
 
   const handleRemoveFailedQueue = () => {
