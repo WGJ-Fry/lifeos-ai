@@ -23,7 +23,61 @@ test("version truth check keeps public docs aligned with current release facts",
   assert.match(result.stdout, /English README keeps the current alpha limits visible/);
   assert.match(result.stdout, /Chinese README keeps the current alpha limits visible/);
   assert.match(result.stdout, /version roadmap separates shipped, next, and future work/);
+  assert.match(result.stdout, /remote acceptance evidence guard is available/);
   assert.match(result.stdout, /release promotion guard is available/);
+});
+
+test("version truth remote acceptance guard requires real-world evidence", async (t) => {
+  const releaseDir = await mkdtemp(path.join(tmpdir(), "lifeos-version-truth-remote-"));
+  t.after(async () => {
+    await rm(releaseDir, { recursive: true, force: true });
+  });
+
+  const missingEvidence = spawnSync(process.execPath, ["scripts/check-version-truth.mjs", "--require-remote-acceptance"], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_DIR: releaseDir,
+    },
+    encoding: "utf8",
+  });
+  assert.notEqual(missingEvidence.status, 0, `${missingEvidence.stdout}\n${missingEvidence.stderr}`);
+  assert.match(missingEvidence.stderr, /missing remote acceptance evidence file/);
+
+  const scenarioMatrix = [
+    "restart-restore",
+    "cellular-mobile-chat",
+    "network-switch",
+    "stale-qr-repair",
+    "network-interruption",
+    "diagnostic-export",
+  ].map((id) => ({ id, status: "passed", acceptedAt: Date.now(), expiresAt: Date.now() + 86_400_000 }));
+  await writeFile(path.join(releaseDir, "remote-acceptance-evidence.json"), `${JSON.stringify({
+    remote: {
+      acceptanceEvidencePack: {
+        ready: true,
+        baseUrl: "https://lifeos.example.test",
+        longTermEntryReady: true,
+        automatedReady: true,
+        realWorldReady: true,
+        missingCount: 0,
+        expiredCount: 0,
+        scenarioMatrix,
+      },
+    },
+  }, null, 2)}\n`);
+
+  const completeEvidence = spawnSync(process.execPath, ["scripts/check-version-truth.mjs", "--require-remote-acceptance"], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      LIFEOS_RELEASE_DIR: releaseDir,
+    },
+    encoding: "utf8",
+  });
+  assert.equal(completeEvidence.status, 0, `${completeEvidence.stdout}\n${completeEvidence.stderr}`);
+  assert.match(completeEvidence.stdout, /remote acceptance evidence covers all real-world scenarios/);
+  assert.match(completeEvidence.stdout, /remote acceptance base URL is not a temporary trycloudflare tunnel/);
 });
 
 test("version truth release asset guard requires all desktop platforms", async (t) => {

@@ -45,6 +45,7 @@ These changes are implemented on `main` after the public `v0.1.4-alpha` release 
 - Release checks and tests now guard the Finder reveal path, outside-root blocking, local path redaction, and the still-blocked high-risk native writes.
 - Google Calendar events and Google Tasks now have guarded OAuth connector code paths plus `calendar:acceptance` real-account evidence generation. Public sync claims still require a new Release, uploaded assets, and a passing read/write acceptance report.
 - Studio auto-repair queue items now include a structured readiness gate with passed checks, failed checks, rollback status, and an explicit resume/manual-review/smoke-verification decision. This improves resumability, but does not make Studio fully unattended yet.
+- Release promotion truth checks now require a remote acceptance evidence file when running `npm run version:truth:release`; the evidence must show a stable HTTPS entry plus completed cellular, network-switch, restart, stale-QR, network-interruption, and diagnostic-export scenarios.
 
 ## Next Planned Alpha: v0.1.5-alpha
 
@@ -77,7 +78,7 @@ npm run version:truth:release
 npm run github:public:check
 ```
 
-`npm run version:truth:release` is intentionally stricter than the daily version check. Run it only when the worktree is clean, `main` has been pushed, the new public tag already points at the exact commit whose assets will be uploaded, and `LIFEOS_RELEASE_DIR` points at the complete macOS/Windows/Linux release payload if it is not the default `release/` directory. If it fails, fix the release state before editing GitHub Release assets.
+`npm run version:truth:release` is intentionally stricter than the daily version check. Run it only when the worktree is clean, `main` has been pushed, the new public tag already points at the exact commit whose assets will be uploaded, `LIFEOS_RELEASE_DIR` points at the complete macOS/Windows/Linux release payload if it is not the default `release/` directory, and `LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE` points at the exported diagnostic bundle or `release/remote-acceptance-evidence.json` contains the remote evidence pack. If it fails, fix the release state before editing GitHub Release assets.
 
 When the public assets are uploaded, also run:
 
@@ -180,6 +181,7 @@ These capabilities should not be described as current release features until the
 - 为 `v0.1.5-alpha` 新增 GitHub Discussions 文章；旧帖不再反复改，除非是事实性废弃提示。
 - 发布前强制版本真相检查：README、中文 README、release notes、Docker 镜像、桌面包名和当前限制必须一致。
 - 发布前运行 `npm run version:truth:release`：工作区必须干净，`main` 必须已推送，新 tag 必须指向准备上传资产的同一个提交；如果完整 macOS/Windows/Linux 上传包不在默认 `release/` 目录，必须用 `LIFEOS_RELEASE_DIR` 指向完整发布资产目录。
+- 发布前 `npm run version:truth:release` 还会要求真实异地验收证据：默认读取 `release/remote-acceptance-evidence.json`，也可以用 `LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE` 指向导出的诊断包。证据必须包含稳定 HTTPS 入口、蜂窝、换网、重启、旧二维码、隧道中断和诊断导出场景。
 - 继续在诊断和发布说明里保留远程长测证据，并增强缺失真实设备证据时的产品内提示。
 - 改进手机弱网后台恢复和多设备冲突复核，重点覆盖手机重启、浏览器存储压力和旧远程入口。
 - 将 macOS 日历/提醒事项连接器从窄写入路径推进到产品化权限复核、回滚计划和冲突预览。

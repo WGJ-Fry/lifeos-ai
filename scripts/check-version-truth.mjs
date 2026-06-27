@@ -18,8 +18,13 @@ const passes = [];
 const args = new Set(process.argv.slice(2));
 const promotionMode = args.has("--promotion") || process.env.LIFEOS_RELEASE_PROMOTION === "1";
 const requireReleaseAssets = promotionMode || args.has("--require-assets") || process.env.LIFEOS_REQUIRE_FULL_RELEASE_ARTIFACTS === "1";
+const requireRemoteAcceptanceEvidence = promotionMode || args.has("--require-remote-acceptance") || process.env.LIFEOS_REQUIRE_REMOTE_ACCEPTANCE_EVIDENCE === "1";
 const releaseDir = process.env.LIFEOS_RELEASE_DIR ? path.resolve(process.env.LIFEOS_RELEASE_DIR) : path.join(rootDir, "release");
 const releaseFeedDir = path.join(releaseDir, "update-feed");
+const remoteAcceptanceEvidencePath = process.env.LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE
+  ? path.resolve(process.env.LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE)
+  : path.join(releaseDir, "remote-acceptance-evidence.json");
+const realWorldRemoteAcceptanceIds = ["restart-restore", "cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"];
 
 function read(relativePath) {
   const fullPath = path.join(rootDir, relativePath);
@@ -99,6 +104,57 @@ function checkReleaseAssetsReady() {
     check(fs.existsSync(artifactPath), `release artifact exists: ${fileName}`, `missing release artifact: ${path.relative(rootDir, artifactPath)}`);
     if (feedFile) check(fs.existsSync(feedPath), `release feed exists: ${feedFile}`, `missing release feed: ${path.relative(rootDir, feedPath)}`);
     check(checksums.includes(`  ${fileName}`), `SHA256SUMS includes release artifact: ${fileName}`, `SHA256SUMS must include ${fileName}`);
+  }
+}
+
+function remoteAcceptancePackFromEvidence(evidence) {
+  return evidence?.remote?.acceptanceEvidencePack
+    || evidence?.remoteAcceptanceEvidencePack
+    || evidence?.acceptanceEvidencePack
+    || evidence?.evidencePack
+    || evidence;
+}
+
+function checkRemoteAcceptanceEvidenceReady() {
+  check(
+    fs.existsSync(remoteAcceptanceEvidencePath),
+    "remote acceptance evidence file exists",
+    `missing remote acceptance evidence file: ${path.relative(rootDir, remoteAcceptanceEvidencePath)}`,
+  );
+  if (!fs.existsSync(remoteAcceptanceEvidencePath)) return;
+
+  let evidence;
+  try {
+    evidence = readJsonFile(remoteAcceptanceEvidencePath);
+  } catch (error) {
+    failures.push(`remote acceptance evidence is not valid JSON: ${error.message}`);
+    return;
+  }
+
+  const pack = remoteAcceptancePackFromEvidence(evidence);
+  const baseUrl = String(pack?.baseUrl || evidence?.network?.recommendedBaseUrl || evidence?.network?.publicBaseUrl || "");
+  const scenarioMatrix = Array.isArray(pack?.scenarioMatrix) ? pack.scenarioMatrix : [];
+  const coverage = Array.isArray(pack?.coverage) ? pack.coverage : [];
+  const scenarioById = new Map([...scenarioMatrix, ...coverage].map((item) => [item?.id, item]));
+  const missingScenarioIds = realWorldRemoteAcceptanceIds.filter((id) => scenarioById.get(id)?.status !== "passed");
+
+  check(pack?.ready === true, "remote acceptance evidence pack is ready", "remote acceptance evidence pack must have ready=true");
+  check(pack?.longTermEntryReady === true, "remote acceptance long-term entry is ready", "remote acceptance evidence must include a long-term stable entry");
+  check(pack?.automatedReady === true, "remote acceptance automated smoke is ready", "remote acceptance evidence must include passing automated smoke checks");
+  check(pack?.realWorldReady === true, "remote acceptance real-world checks are ready", "remote acceptance evidence must include completed real-world checks");
+  check(Number(pack?.missingCount || 0) === 0, "remote acceptance evidence has no missing real-world scenarios", `remote acceptance evidence has missing scenario count: ${pack?.missingCount}`);
+  check(Number(pack?.expiredCount || 0) === 0, "remote acceptance evidence has no expired real-world scenarios", `remote acceptance evidence has expired scenario count: ${pack?.expiredCount}`);
+  check(missingScenarioIds.length === 0, "remote acceptance evidence covers all real-world scenarios", `remote acceptance evidence is missing passed scenario(s): ${missingScenarioIds.join(", ")}`);
+
+  try {
+    const parsed = new URL(baseUrl);
+    const host = parsed.hostname.toLowerCase();
+    check(parsed.protocol === "https:", "remote acceptance base URL uses HTTPS", `remote acceptance base URL must use HTTPS: ${baseUrl || "(missing)"}`);
+    check(!parsed.username && !parsed.password && !parsed.search && !parsed.hash, "remote acceptance base URL has no secrets", "remote acceptance base URL must not include username, password, query, or fragment");
+    check(!["localhost", "127.0.0.1", "::1"].includes(host), "remote acceptance base URL is not localhost", "remote acceptance evidence must use a real remote URL, not localhost");
+    check(!host.endsWith(".trycloudflare.com"), "remote acceptance base URL is not a temporary trycloudflare tunnel", "remote acceptance evidence must use a stable tunnel or Tailscale HTTPS entry, not a temporary trycloudflare.com URL");
+  } catch {
+    failures.push(`remote acceptance evidence has an invalid base URL: ${baseUrl || "(missing)"}`);
   }
 }
 
@@ -208,6 +264,12 @@ if (requireReleaseAssets) {
   checkReleaseAssetsReady();
 } else {
   check(true, "full release asset guard is available; run with --require-assets or --promotion before public upload");
+}
+
+if (requireRemoteAcceptanceEvidence) {
+  checkRemoteAcceptanceEvidenceReady();
+} else {
+  check(true, "remote acceptance evidence guard is available; run with --require-remote-acceptance or --promotion before public upload");
 }
 
 if (promotionMode) {

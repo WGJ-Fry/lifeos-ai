@@ -15,7 +15,7 @@ Package version: `0.1.4-alpha.0`
 - Studio auto-repair queue entries now expose a readiness gate with passed checks, failed checks, rollback status, and the exact resume/manual-review/smoke-verification decision.
 - Calendar/task sync safety gates plus narrow connector paths: `.ics` support remains read-only; Apple Calendar and system Reminders can be read as external previews when the macOS connector is enabled. Apple Calendar create/update/delete and Reminders create/update/complete/delete can execute only when the external-write flag is also enabled, the admin confirms `WRITE TO EXTERNAL CALENDAR`, rollback guidance is returned, and an audit log is recorded. Google Calendar events and Google Tasks now have guarded OAuth connector paths for read preview plus explicitly confirmed write operations, and `npm run calendar:acceptance` can generate real-account read/write evidence before public sync claims.
 - Native automation safety gates: URL Scheme/browser/Shortcuts actions remain the primary local action path; the guarded native bridge is disabled by default and only exposes narrow clipboard, allowlisted Shortcuts, and Finder reveal actions when all opt-in gates pass. Shell, calendar, reminder, and broad file-write automation remain blocked.
-- Release truth checks that keep README, release notes, Docker image tags, asset names, and alpha limitations aligned before public promotion.
+- Release truth checks that keep README, release notes, Docker image tags, asset names, alpha limitations, complete desktop assets, and real-world remote acceptance evidence aligned before public promotion.
 
 ## Desktop Packages
 
@@ -60,6 +60,8 @@ npm run version:truth:release
 npm run github:public:check
 LIFEOS_CHECK_GHCR=1 LIFEOS_CHECK_GITHUB_RELEASE=1 npm run check:cold-launch
 ```
+
+`npm run version:truth:release` now requires remote acceptance evidence. Save the exported diagnostic bundle or remote evidence pack as `release/remote-acceptance-evidence.json`, or set `LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE=/path/to/diagnostic-bundle.json`, before running the release gate.
 
 If this release promotes the Google Calendar/Tasks connector, also run the real-account acceptance command with a disposable test calendar/task list or a safe personal test account:
 

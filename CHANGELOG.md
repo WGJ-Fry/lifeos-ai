@@ -16,6 +16,7 @@ Release candidate for the next public alpha. Do not advertise as publicly availa
 - Added release-check and smoke-test guards so README/Release communication cannot claim fully automatic unattended repair, native automation, or calendar/task write-back before matching code, tests, cleanup evidence, and release assets exist.
 - Added a stricter release-promotion truth guard that requires a complete macOS, Windows, and Linux artifact manifest plus `SHA256SUMS` before public upload.
 - Tightened long-term remote acceptance records so each real-world scenario requires scenario-specific proof instead of accepting generic notes.
+- Added a release-promotion remote acceptance evidence guard so public promotion requires stable HTTPS plus cellular, network-switch, restart, stale-QR, tunnel-interruption, and diagnostic-export evidence.
 
 ## 0.1.3-alpha.0
 

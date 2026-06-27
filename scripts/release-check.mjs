@@ -165,6 +165,7 @@ function checkScripts() {
   }
 
   if (exists("scripts/check-version-truth.mjs")) {
+    const versionTruthSource = fs.readFileSync(path.join(rootDir, "scripts/check-version-truth.mjs"), "utf8");
     const versionTruthCheck = spawnSync(process.execPath, ["scripts/check-version-truth.mjs"], {
       cwd: rootDir,
       encoding: "utf8",
@@ -172,9 +173,13 @@ function checkScripts() {
     if (
       versionTruthCheck.status === 0 &&
       versionTruthCheck.stdout.includes(`Version truth passed for ${currentReleaseTag}`) &&
-      versionTruthCheck.stdout.includes("full release asset guard is available")
+      versionTruthCheck.stdout.includes("full release asset guard is available") &&
+      versionTruthCheck.stdout.includes("remote acceptance evidence guard is available") &&
+      versionTruthSource.includes("--require-remote-acceptance") &&
+      versionTruthSource.includes("LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE") &&
+      versionTruthSource.includes("realWorldRemoteAcceptanceIds")
     ) {
-      pass("version truth check verifies README, release notes, Docker image, asset names, alpha limits, and release asset guard availability");
+      pass("version truth check verifies README, release notes, Docker image, asset names, alpha limits, release asset guard, and remote acceptance evidence guard availability");
     } else {
       fail(`version truth check failed: ${(versionTruthCheck.stderr || versionTruthCheck.stdout || "").trim()}`);
     }

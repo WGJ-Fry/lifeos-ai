@@ -152,6 +152,7 @@ chmod +x "LifeOS.AI-0.1.4-alpha.0.AppImage"
 14. 临时断开 Tailscale/Tunnel/网络路径，再恢复连接，运行“立即检查异地健康”，确认手机端给出明确恢复提示；记录“网络中断后恢复”。
 15. 退出并重新打开电脑端 LifeOS AI，再运行“立即检查异地健康”；确认恢复后，在同一清单记录“重启后自动恢复”。
 16. 从“设置”导出诊断包。诊断包会包含远程健康报告、验收清单和最近的真实验收记录，便于以后排查或发布前复盘。
+17. 如果这是发布前长测，把诊断包里的远程验收 JSON 保存为 `release/remote-acceptance-evidence.json`，或在发布检查时设置 `LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE=/path/to/diagnostic-bundle.json`。`npm run version:truth:release` 会拒绝没有真实蜂窝、换网、重启、旧二维码、隧道中断和诊断导出证据的发布。
 
 Tailscale HTTPS Serve 会给手机一个 `https://<device>.<tailnet>` 入口，更适合 PWA、Service Worker 和 WebCrypto 设备签名。只有在 HTTPS Serve 不可用时，才退回 Tailnet IP 或 HTTP MagicDNS。
 
@@ -405,7 +406,7 @@ For an HTTPS public entry, use Cloudflare Tunnel:
 
 Quick `trycloudflare.com` tunnels are temporary. LifeOS AI can recreate a Tunnel on the next launch and refresh QR addresses, but an old home-screen icon that points to the previous temporary domain may stop working. For a stable long-term entry, use Tailscale, Cloudflare Named Tunnel, or your own trusted HTTPS reverse proxy.
 
-For long-term acceptance, complete every manual item in the desktop `Long-Term Remote Acceptance Checklist`: turn off phone Wi-Fi and send a message over cellular data; switch the phone between Wi-Fi and cellular and confirm queue/realtime recovery; regenerate the pairing QR and verify an old QR or stale home-screen entry fails safely before re-pairing with the fresh QR; interrupt and restore Tailscale/Tunnel/network connectivity and confirm the phone shows clear recovery guidance; quit and reopen the desktop app, run `Run Remote Health Check`, and mark restart restore as verified. Export a diagnostic bundle from Settings afterward; it includes the remote health summary, latest remote smoke report, acceptance checklist, and recent manual acceptance records.
+For long-term acceptance, complete every manual item in the desktop `Long-Term Remote Acceptance Checklist`: turn off phone Wi-Fi and send a message over cellular data; switch the phone between Wi-Fi and cellular and confirm queue/realtime recovery; regenerate the pairing QR and verify an old QR or stale home-screen entry fails safely before re-pairing with the fresh QR; interrupt and restore Tailscale/Tunnel/network connectivity and confirm the phone shows clear recovery guidance; quit and reopen the desktop app, run `Run Remote Health Check`, and mark restart restore as verified. Export a diagnostic bundle from Settings afterward; it includes the remote health summary, latest remote smoke report, acceptance checklist, and recent manual acceptance records. For release promotion, save that remote acceptance JSON as `release/remote-acceptance-evidence.json`, or set `LIFEOS_REMOTE_ACCEPTANCE_EVIDENCE=/path/to/diagnostic-bundle.json` before `npm run version:truth:release`. The release truth check rejects promotion without real cellular, network-switch, restart, stale-QR, tunnel-interruption, and diagnostic-export evidence.
 
 ## AI Keys
 
