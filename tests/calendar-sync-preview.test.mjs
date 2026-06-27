@@ -62,6 +62,8 @@ test("calendar sync preview imports local ICS items as read-only operations", as
     assert.equal(preview.externalWritesEnabled, false);
     assert.equal(preview.writeBackSupported, false);
     assert.equal(preview.summary.readOnlyItems, 2);
+    assert.equal(preview.summary.externalReadItems, 0);
+    assert.equal(preview.summary.externalReadErrors, 0);
     assert.equal(preview.summary.providersReadyForRead, 1);
     assert.equal(preview.summary.providersReadyForWrite, 0);
     assert.equal(preview.providers.find((provider) => provider.id === "ics-local")?.status, "ready-readonly");
@@ -72,6 +74,26 @@ test("calendar sync preview imports local ICS items as read-only operations", as
     assert.match(JSON.stringify(preview), /Renew contract/);
     assert.doesNotMatch(JSON.stringify(preview), /Completed task should stay out/);
     assert.doesNotMatch(JSON.stringify(preview), new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
+});
+
+test("macOS connector can read external calendar and reminder previews without enabling writes", async () => {
+  await withCalendarPreview("macos-read-preview", {}, async ({ buildCalendarSyncPreview }) => {
+    const preview = buildCalendarSyncPreview();
+    assert.equal(preview.mode, "preview-only");
+    assert.equal(preview.externalWritesEnabled, false);
+    assert.equal(preview.writeBackSupported, false);
+    assert.equal(preview.summary.externalReadItems, 2);
+    assert.equal(preview.summary.externalReadErrors, 0);
+    assert.equal(preview.summary.providersReadyForRead, 2);
+    assert.equal(preview.summary.providersReadyForWrite, 0);
+    assert.equal(preview.operations.filter((operation) => operation.action === "read-only-import").length, 2);
+    assert.equal(preview.operations.every((operation) => operation.writesExternalSystem === false), true);
+    assert.equal(preview.operations.some((operation) => operation.providerId === "apple-calendar" && operation.source.startsWith("macos:apple-calendar:")), true);
+    assert.equal(preview.operations.some((operation) => operation.providerId === "system-reminders" && operation.source.startsWith("macos:system-reminders:")), true);
+  }, {
+    LIFEOS_MACOS_CALENDAR_CONNECTOR_MOCK: "1",
+    LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR: "1",
   });
 });
 

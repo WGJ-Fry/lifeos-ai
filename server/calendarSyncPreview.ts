@@ -6,6 +6,7 @@ const VAULT_DIR = path.resolve(process.env.LIFEOS_VAULT_DIR || "/app/vault");
 const CALENDAR_ICS_DIR = path.resolve(process.env.LIFEOS_CALENDAR_ICS_DIR || path.join(VAULT_DIR, "calendar"));
 const MAX_PREVIEW_ICS_FILES = Number(process.env.LIFEOS_CALENDAR_PREVIEW_MAX_FILES || 10);
 const MAX_PREVIEW_ITEMS = Number(process.env.LIFEOS_CALENDAR_PREVIEW_MAX_ITEMS || 30);
+const MAX_EXTERNAL_READ_ITEMS = Number(process.env.LIFEOS_CALENDAR_EXTERNAL_READ_MAX_ITEMS || 10);
 const MAX_PROPOSED_ITEMS = 20;
 const MACOS_CONNECTOR_ENABLED = process.env.LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR === "1";
 const EXTERNAL_WRITES_ENABLED = process.env.LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES === "1";
@@ -68,6 +69,8 @@ export type CalendarSyncPreview = {
   };
   summary: {
     readOnlyItems: number;
+    externalReadItems: number;
+    externalReadErrors: number;
     blockedWrites: number;
     providersReadyForRead: number;
     providersReadyForWrite: number;
@@ -114,6 +117,15 @@ type IcsItem = {
   title: string;
   scheduledAt?: string;
   relativePath: string;
+};
+
+type ExternalConnectorReadItem = {
+  providerId: Extract<CalendarSyncProviderId, "apple-calendar" | "system-reminders">;
+  kind: CalendarSyncItemKind;
+  title: string;
+  scheduledAt?: string;
+  externalId?: string;
+  source: string;
 };
 
 function compact(value: unknown, fallback = "") {
@@ -330,6 +342,106 @@ function jxaString(value: unknown) {
   return JSON.stringify(String(value || ""));
 }
 
+function parseJsonOutput<T>(raw: string, fallback: T): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeExternalReadItems(providerId: Extract<CalendarSyncProviderId, "apple-calendar" | "system-reminders">, rawItems: unknown): ExternalConnectorReadItem[] {
+  if (!Array.isArray(rawItems)) return [];
+  return rawItems.slice(0, MAX_EXTERNAL_READ_ITEMS).map((item, index) => {
+    const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    const kind: CalendarSyncItemKind = providerId === "system-reminders" ? "task" : "event";
+    const scheduledAt = compact(record.scheduledAt || "");
+    const externalId = compact(record.externalId || "");
+    return {
+      providerId,
+      kind,
+      title: compact(record.title, kind === "task" ? "Untitled reminder" : "Untitled calendar event"),
+      scheduledAt: scheduledAt || undefined,
+      externalId: externalId || undefined,
+      source: `macos:${providerId}:${externalId || index + 1}`,
+    };
+  });
+}
+
+function readMacosConnectorItems(providerId: Extract<CalendarSyncProviderId, "apple-calendar" | "system-reminders">): { items: ExternalConnectorReadItem[]; warning?: string } {
+  if (!isMacosCalendarConnectorConfigured(providerId)) return { items: [] };
+  if (MACOS_CONNECTOR_MOCK) {
+    const mockItems = providerId === "apple-calendar"
+      ? [{ title: "Mock Apple Calendar review", scheduledAt: "2026-07-07T09:00:00.000Z", externalId: "mock-apple-event-1" }]
+      : [{ title: "Mock Reminders follow-up", scheduledAt: "2026-07-08T12:00:00.000Z", externalId: "mock-reminder-1" }];
+    return { items: normalizeExternalReadItems(providerId, mockItems) };
+  }
+  try {
+    const script = providerId === "apple-calendar"
+      ? `
+        const Calendar = Application('Calendar');
+        const now = new Date();
+        const horizon = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+        const output = [];
+        const calendars = Calendar.calendars();
+        for (let calendarIndex = 0; calendarIndex < calendars.length && output.length < ${MAX_EXTERNAL_READ_ITEMS}; calendarIndex++) {
+          const calendar = calendars[calendarIndex];
+          const events = calendar.events();
+          for (let eventIndex = 0; eventIndex < events.length && output.length < ${MAX_EXTERNAL_READ_ITEMS}; eventIndex++) {
+            const event = events[eventIndex];
+            const start = event.startDate();
+            if (!start || start < now || start > horizon) continue;
+            output.push({
+              title: String(event.summary() || 'Untitled calendar event'),
+              scheduledAt: start.toISOString(),
+              externalId: String(event.uid ? event.uid() : event.id()),
+            });
+          }
+        }
+        JSON.stringify(output);
+      `
+      : `
+        const Reminders = Application('Reminders');
+        const output = [];
+        const lists = Reminders.lists();
+        for (let listIndex = 0; listIndex < lists.length && output.length < ${MAX_EXTERNAL_READ_ITEMS}; listIndex++) {
+          const list = lists[listIndex];
+          const reminders = list.reminders();
+          for (let reminderIndex = 0; reminderIndex < reminders.length && output.length < ${MAX_EXTERNAL_READ_ITEMS}; reminderIndex++) {
+            const reminder = reminders[reminderIndex];
+            if (reminder.completed()) continue;
+            const due = reminder.dueDate ? reminder.dueDate() : null;
+            output.push({
+              title: String(reminder.name() || 'Untitled reminder'),
+              scheduledAt: due ? due.toISOString() : '',
+              externalId: String(reminder.id()),
+            });
+          }
+        }
+        JSON.stringify(output);
+      `;
+    const raw = runOsascript(script);
+    return { items: normalizeExternalReadItems(providerId, parseJsonOutput(raw, [])) };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "macOS connector read failed";
+    return { items: [], warning: `${providerLabel(providerId)} read preview failed or needs macOS permission: ${compact(message)}` };
+  }
+}
+
+function loadExternalConnectorReadItems() {
+  const warnings: string[] = [];
+  const items: ExternalConnectorReadItem[] = [];
+  for (const providerId of ["apple-calendar", "system-reminders"] as const) {
+    const result = readMacosConnectorItems(providerId);
+    items.push(...result.items);
+    if (result.warning) warnings.push(result.warning);
+  }
+  return {
+    items: items.slice(0, MAX_EXTERNAL_READ_ITEMS),
+    warnings,
+  };
+}
+
 function executeMacosOperation(input: CalendarSyncExecuteInput, normalized: ReturnType<typeof validateExternalOperation>) {
   if (MACOS_CONNECTOR_MOCK) return `mock-${normalized.providerId}-${normalized.action}-${Date.now()}`;
   const notes = compact(input.notes, "Created by LifeOS AI after explicit admin confirmation.");
@@ -387,6 +499,7 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
   const externalWritesEnabled = EXTERNAL_WRITES_ENABLED && providers.some((provider) => provider.writeSupported);
   const operations: CalendarSyncPreviewOperation[] = [];
   const icsItems = hasIcsDirectory ? loadIcsItems() : [];
+  const externalReadPreview = loadExternalConnectorReadItems();
 
   icsItems.forEach((item, index) => {
     operations.push({
@@ -405,6 +518,23 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
     });
   });
 
+  externalReadPreview.items.forEach((item, index) => {
+    operations.push({
+      id: operationId(icsItems.length + index, item.providerId, "read-only-import"),
+      providerId: item.providerId,
+      providerLabel: providerLabel(item.providerId),
+      kind: item.kind,
+      action: "read-only-import",
+      status: "ready",
+      title: item.title,
+      scheduledAt: item.scheduledAt,
+      source: item.source,
+      writesExternalSystem: false,
+      risk: "low",
+      reason: "Read-only macOS connector preview. LifeOS will not modify this external item unless a separate write operation is explicitly confirmed and audited.",
+    });
+  });
+
   normalizeProposedItems(input.proposedItems).forEach((item, index) => {
     const providerId = item.providerId && providerStatuses(true).some((provider) => provider.id === item.providerId)
       ? item.providerId
@@ -415,7 +545,7 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
     const provider = providers.find((candidate) => candidate.id === providerId);
     const canWrite = Boolean(provider?.writeSupported && externalWritesEnabled);
     operations.push({
-      id: operationId(icsItems.length + index, providerId, action),
+      id: operationId(icsItems.length + externalReadPreview.items.length + index, providerId, action),
       providerId,
       providerLabel: providerLabel(providerId),
       kind,
@@ -433,6 +563,7 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
   });
 
   const readOnlyItems = operations.filter((operation) => operation.action === "read-only-import").length;
+  const externalReadItems = externalReadPreview.items.length;
   const blockedWrites = operations.filter((operation) => operation.status === "blocked").length;
   const providersReadyForWrite = providers.filter((provider) => provider.writeSupported).length;
   const warnings = [
@@ -442,6 +573,7 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
     "Any future connector must use this dry-run preview before changing external calendars or tasks.",
   ];
   if (!hasIcsDirectory) warnings.unshift("No local .ics directory was found, so calendar memory is not active.");
+  warnings.push(...externalReadPreview.warnings);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -459,6 +591,8 @@ export function buildCalendarSyncPreview(input: { proposedItems?: unknown } = {}
     },
     summary: {
       readOnlyItems,
+      externalReadItems,
+      externalReadErrors: externalReadPreview.warnings.length,
       blockedWrites,
       providersReadyForRead: providers.filter((provider) => provider.readSupported).length,
       providersReadyForWrite,

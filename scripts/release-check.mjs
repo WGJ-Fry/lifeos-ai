@@ -2088,6 +2088,8 @@ function checkAssets() {
     calendarSyncPreviewSource.includes("buildCalendarSyncPreview") &&
     calendarSyncPreviewSource.includes("LIFEOS_ENABLE_MACOS_CALENDAR_CONNECTOR") &&
     calendarSyncPreviewSource.includes("LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES") &&
+    calendarSyncPreviewSource.includes("readMacosConnectorItems") &&
+    calendarSyncPreviewSource.includes("externalReadItems") &&
     calendarSyncPreviewSource.includes("executeCalendarSyncOperation") &&
     calendarSyncPreviewSource.includes("WRITE TO EXTERNAL CALENDAR") &&
     calendarSyncPreviewSource.includes("requiresExplicitConsentBeforeWrite") &&
@@ -2106,6 +2108,7 @@ function checkAssets() {
     apiAuthTestSource.includes("blockedCalendarSyncExecute") &&
     diagnosticBundleTestSource.includes("bundle.calendarSync.externalWritesEnabled") &&
     calendarSyncPreviewTestSource.includes("blocks proposed external writes until connectors are shipped") &&
+    calendarSyncPreviewTestSource.includes("macOS connector can read external calendar and reminder previews without enabling writes") &&
     calendarSyncPreviewTestSource.includes("macOS calendar connector requires opt-in and explicit confirmation before writes")
   ) pass("calendar/task sync has preview safety gates plus opt-in macOS connector execution coverage");
   else warn("calendar/task sync lacks preview safety, opt-in connector execution, API/auth coverage, diagnostics, or release checks");

@@ -208,6 +208,8 @@ export type CalendarSyncPreview = {
   };
   summary: {
     readOnlyItems: number;
+    externalReadItems: number;
+    externalReadErrors: number;
     blockedWrites: number;
     providersReadyForRead: number;
     providersReadyForWrite: number;
