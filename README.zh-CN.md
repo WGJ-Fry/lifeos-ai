@@ -45,7 +45,7 @@ LifeOS 先从一个很小但有用的工作流开始：
 
 | 轨道 | 可以期待什么 |
 | --- | --- |
-| `v0.1.4-alpha` 公开发布版 | Docker Compose 本地 Markdown + 只读 `.ics` 记忆演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、带幂等重放和冲突复核提示的离线队列、SQLite migration、备份恢复、诊断包、发布检查、连接诊断、Studio 蓝图确认/模板/权限/修复提示和就绪/质量评分，以及由管理员显式确认的 macOS Calendar/Reminders 连接器路径。 |
+| `v0.1.4-alpha` 公开发布版 | Docker Compose 本地 Markdown + 只读 `.ics` 记忆演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、带幂等重放和冲突复核提示的离线队列、SQLite migration、备份恢复、诊断包、发布检查、连接诊断、Studio 蓝图确认/模板/权限/修复提示和就绪/质量评分，以及由管理员显式确认的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径、审计日志、写入历史和回滚状态。 |
 | 当前 `main` 源码 | 仅面向开发者。它可能包含 tag 发布之后的源码变化；只有你愿意从源码构建时才需要关注。 |
 | 更早基础版本 | `0.1.1-alpha.0` 增加 Docker quickstart/Ollama/Markdown vault 默认路径。`0.1.0` 建立桌面/PWA 底座。 |
 
@@ -280,9 +280,9 @@ LifeOS 仍是 alpha 软件。Docker quickstart 是目前最稳定的演示路径
 - 当前公开桌面包仍是 unsigned alpha。macOS Developer ID 签名/公证 和 Windows Authenticode 签名不在本版本内，所以 Gatekeeper 或 SmartScreen 可能提示。
 - 远程诊断可以验证配置，但长期稳定性仍需要用户自己完成真实设备长测：手机蜂窝网络、Wi-Fi 切换、电脑重启恢复、旧二维码修复和隧道断开恢复。
 - Docker/local 路径可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件。
-- Apple Calendar、Google Calendar、系统提醒事项的账号同步/写回还没发布。`v0.1.4-alpha` 只新增一个很窄的 macOS Apple Calendar / 系统提醒事项连接器路径，必须显式开启并由管理员确认后才会写入 LifeOS 之外的系统。
+- Apple Calendar、Google Calendar、系统提醒事项的完整后台账号同步还没发布。`v0.1.4-alpha` 只新增很窄的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径，必须显式开启并由管理员确认后才会写入 LifeOS 之外的系统；写入会进入 SQLite 历史、审计日志，并显示受控回滚状态。
 - `.ics` 只是本地只读读取，不是双向日历/任务管理。
-- 还不会写回日历或任务系统。
+- 日历/任务写回只限于受控连接器路径，不会作为无人值守后台同步运行。
 - 它不是完美的截止日期检测器。
 - 为了速度和上下文长度，只读取有限数量的文件。
 - Studio 生成程序仍是 alpha：已有蓝图、模板、就绪/质量评分、权限说明、日志、状态、带护栏修复边界和回滚，但不宣传完全无人值守自动修复。

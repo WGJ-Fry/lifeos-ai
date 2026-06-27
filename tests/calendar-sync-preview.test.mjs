@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const rootDir = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 
 async function withCalendarPreview(testName, files, run, env = {}) {
   const root = await mkdtemp(path.join(tmpdir(), `lifeos-calendar-preview-${testName}-`));
@@ -442,4 +446,66 @@ test("Google Calendar and Tasks connector supports consented event and task writ
     LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR: "1",
     LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES: "1",
   });
+});
+
+test("calendar sync history persists guarded writes and automatic rollback evidence", async (t) => {
+  const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-calendar-history-"));
+  t.after(async () => {
+    await rm(dataDir, { recursive: true, force: true });
+  });
+
+  const script = `
+    import assert from "node:assert/strict";
+    process.env.LIFEOS_DATA_DIR = ${JSON.stringify(dataDir)};
+    process.env.LIFEOS_GOOGLE_CALENDAR_CONNECTOR_MOCK = "1";
+    process.env.LIFEOS_ENABLE_GOOGLE_CALENDAR_CONNECTOR = "1";
+    process.env.LIFEOS_ENABLE_EXTERNAL_CALENDAR_WRITES = "1";
+
+    const { runMigrations } = await import("./server/migrations.ts");
+    runMigrations();
+    const { executeCalendarSyncOperationAsync } = await import("./server/calendarSyncPreview.ts");
+    const { saveCalendarSyncOperation, listCalendarSyncOperations, rollbackCalendarSyncOperation } = await import("./server/calendarSyncHistory.ts");
+
+    const result = await executeCalendarSyncOperationAsync({
+      providerId: "google-calendar",
+      kind: "event",
+      action: "create",
+      title: "History rollback event",
+      startsAt: "2026-07-12T09:00:00.000Z",
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+      source: "history-test",
+    });
+    const record = saveCalendarSyncOperation({ source: "history-test" }, result);
+    assert.equal(record.status, "executed");
+    assert.equal(record.rollback.canAutoRollback, true);
+    assert.equal(record.rollback.available, true);
+    assert.equal(listCalendarSyncOperations()[0].id, record.id);
+
+    await assert.rejects(() => rollbackCalendarSyncOperation(record.id, {
+      explicitConsent: true,
+      confirmationText: "wrong",
+    }), /Explicit confirmation is required/);
+
+    const rollback = await rollbackCalendarSyncOperation(record.id, {
+      explicitConsent: true,
+      confirmationText: "WRITE TO EXTERNAL CALENDAR",
+    });
+    assert.equal(rollback.record.status, "rolled_back");
+    assert.equal(rollback.record.rollback.canAutoRollback, false);
+    assert.equal(rollback.result.action, "delete");
+    assert.equal(rollback.result.auditSummary.connector, "google-calendar-api");
+    assert.equal(listCalendarSyncOperations()[0].rolledBackAt > 0, true);
+  `;
+
+  const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+    cwd: rootDir,
+    env: { ...process.env, LIFEOS_DATA_DIR: dataDir },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  child.stdout.on("data", (chunk) => { output += chunk.toString(); });
+  child.stderr.on("data", (chunk) => { output += chunk.toString(); });
+  const exitCode = await new Promise((resolve) => child.once("exit", resolve));
+  assert.equal(exitCode, 0, output);
 });

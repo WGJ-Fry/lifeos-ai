@@ -84,6 +84,8 @@ LIFEOS_RELEASE_SMOKE_LAUNCH=1 npm run desktop:release:smoke
 
 Do not claim Apple Calendar, Google Calendar, Google Tasks, or system Reminders write-back until the matching provider has a fresh acceptance report. Use disposable calendars/tasks whenever possible.
 
+After any real write test, open the admin calendar/task sync console and confirm the operation appears in recent external write history. For create/update/delete tests, verify the rollback status is visible and run a guarded rollback with the same `WRITE TO EXTERNAL CALENDAR` phrase when it is safe to do so.
+
 For Google Calendar/Tasks:
 
 ```bash

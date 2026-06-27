@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, Play, RefreshCw, ShieldCheck } from "lucide-react";
-import { executeCalendarSyncOperation, getCalendarSyncPreview, previewCalendarSync } from "../../../services/lifeosApi";
-import type { CalendarSyncExecuteInput, CalendarSyncPreview } from "../../../services/lifeosApi";
+import { CalendarClock, Play, RefreshCw, RotateCcw, ShieldCheck } from "lucide-react";
+import { executeCalendarSyncOperation, getCalendarSyncHistory, getCalendarSyncPreview, previewCalendarSync, rollbackCalendarSyncOperation } from "../../../services/lifeosApi";
+import type { CalendarSyncExecuteInput, CalendarSyncHistoryRecord, CalendarSyncPreview } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 
 type WritableProvider = NonNullable<CalendarSyncExecuteInput["providerId"]>;
@@ -31,10 +31,14 @@ export default function CalendarSyncControlPanel({
   const [externalId, setExternalId] = useState("");
   const [notes, setNotes] = useState("");
   const [confirmationText, setConfirmationText] = useState("");
+  const [history, setHistory] = useState<CalendarSyncHistoryRecord[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => setPreview(initialPreview), [initialPreview]);
+  useEffect(() => {
+    void refreshHistory();
+  }, []);
 
   const proposedItem = useMemo(() => ({
     providerId,
@@ -72,12 +76,18 @@ export default function CalendarSyncControlPanel({
     else setStartsAt(target.scheduledAt?.slice(0, 16) || "");
   };
 
+  const refreshHistory = async () => {
+    const result = await getCalendarSyncHistory();
+    setHistory(result.records);
+  };
+
   const refreshPreview = async () => {
     setBusy("preview");
     setStatus(null);
     try {
       const result = await previewCalendarSync([proposedItem]);
       setPreview(result);
+      await refreshHistory();
       setStatus(t("calendarSyncControl.previewReady"));
     } catch (error: any) {
       setStatus(error.message || t("calendarSyncControl.previewFailed"));
@@ -92,6 +102,7 @@ export default function CalendarSyncControlPanel({
     try {
       const result = await getCalendarSyncPreview();
       setPreview(result);
+      await refreshHistory();
       setStatus(t("calendarSyncControl.refreshed"));
     } catch (error: any) {
       setStatus(error.message || t("calendarSyncControl.previewFailed"));
@@ -118,10 +129,27 @@ export default function CalendarSyncControlPanel({
         source: "admin-settings-calendar-sync",
       });
       setStatus(t("calendarSyncControl.executed", { id: result.externalId || "-" }));
+      if (result.historyRecord) setHistory((prev) => [result.historyRecord!, ...prev.filter((record) => record.id !== result.historyRecord!.id)].slice(0, 20));
       await refreshPreview();
       await onChanged();
     } catch (error: any) {
       setStatus(error.message || t("calendarSyncControl.executeFailed"));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const rollbackRecord = async (record: CalendarSyncHistoryRecord) => {
+    setBusy(`rollback:${record.id}`);
+    setStatus(null);
+    try {
+      const result = await rollbackCalendarSyncOperation(record.id, confirmationText);
+      setStatus(t("calendarSyncControl.rollbackDone", { id: result.result.externalId || "-" }));
+      await refreshHistory();
+      await refreshPreview();
+      await onChanged();
+    } catch (error: any) {
+      setStatus(error.message || t("calendarSyncControl.rollbackFailed"));
     } finally {
       setBusy(null);
     }
@@ -271,6 +299,46 @@ export default function CalendarSyncControlPanel({
             </div>
           ))}
           {preview.syncPlan.items.length === 0 ? <div className="text-zinc-500">{t("calendarSyncControl.noPlanItems")}</div> : null}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-white/[0.06] bg-[#060a10] p-3 text-xs">
+        <div className="mb-2 flex flex-wrap items-center gap-2 font-bold">
+          {t("calendarSyncControl.historyTitle")}
+          <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[11px] text-zinc-400">{history.length}</span>
+        </div>
+        <div className="space-y-2">
+          {history.slice(0, 5).map((record) => (
+            <div key={record.id} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="font-bold text-zinc-200">{record.title}</div>
+                  <div className="mt-1 text-zinc-500">
+                    {t(`calendarSyncControl.provider.${record.providerId}` as any)} · {t(`calendarSyncControl.action.${record.action}` as any)} · {new Date(record.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <span className="rounded-full border border-white/[0.08] px-2 py-0.5 text-[10px] text-zinc-400">
+                  {t(`calendarSyncControl.historyStatus.${record.status}` as any)}
+                </span>
+              </div>
+              <div className="mt-2 text-zinc-500">{record.rollback.reason}</div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => rollbackRecord(record)}
+                  disabled={Boolean(busy) || confirmationText !== confirmationPhrase || !record.rollback.canAutoRollback}
+                  className="inline-flex items-center gap-2 rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-100 disabled:opacity-40"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {t("calendarSyncControl.rollback")}
+                </button>
+                <span className={record.rollback.canAutoRollback ? "text-emerald-300" : "text-amber-300"}>
+                  {record.rollback.canAutoRollback ? t("calendarSyncControl.rollbackReady") : t("calendarSyncControl.rollbackUnavailable")}
+                </span>
+              </div>
+            </div>
+          ))}
+          {history.length === 0 ? <div className="text-zinc-500">{t("calendarSyncControl.historyEmpty")}</div> : null}
         </div>
       </div>
     </section>

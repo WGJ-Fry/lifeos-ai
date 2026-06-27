@@ -353,6 +353,21 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     }),
   }).then((res) => res.json());
   assert.match(disabledCalendarSyncExecute.error, /connector is not configured|External calendar writes are disabled/);
+  const blockedCalendarSyncHistory = await request(port, "/api/v1/admin/calendar-sync/history");
+  assert.equal(blockedCalendarSyncHistory.status, 401);
+  const calendarSyncHistory = await request(port, "/api/v1/admin/calendar-sync/history", { headers: adminHeaders }).then((res) => res.json());
+  assert.deepEqual(calendarSyncHistory.records, []);
+  const blockedCalendarSyncRollback = await request(port, "/api/v1/admin/calendar-sync/operations/missing/rollback", {
+    method: "POST",
+    body: JSON.stringify({ explicitConsent: true, confirmationText: "WRITE TO EXTERNAL CALENDAR" }),
+  });
+  assert.equal(blockedCalendarSyncRollback.status, 401);
+  const missingCalendarSyncRollback = await request(port, "/api/v1/admin/calendar-sync/operations/missing/rollback", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ explicitConsent: true, confirmationText: "WRITE TO EXTERNAL CALENDAR" }),
+  });
+  assert.equal(missingCalendarSyncRollback.status, 404);
 
   const blockedNativeAutomationPlan = await request(port, "/api/v1/admin/native-automation/plan", {
     method: "POST",

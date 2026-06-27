@@ -285,6 +285,27 @@ export type CalendarSyncExecutionResult = {
     consent: boolean;
     writesExternalSystem: boolean;
   };
+  historyRecord?: CalendarSyncHistoryRecord;
+};
+
+export type CalendarSyncHistoryRecord = {
+  id: string;
+  providerId: "apple-calendar" | "google-calendar" | "system-reminders";
+  kind: "event" | "task";
+  action: "create" | "update" | "complete" | "delete";
+  title: string;
+  externalId?: string;
+  status: "executed" | "rolled_back" | "rollback_failed";
+  connector: "macos-automation" | "google-calendar-api" | "google-tasks-api" | "not-run";
+  source?: string;
+  createdAt: number;
+  rolledBackAt?: number;
+  rollback: {
+    available: boolean;
+    requiresManualReview: boolean;
+    canAutoRollback: boolean;
+    reason: string;
+  };
 };
 
 export type NativeAutomationKind = "clipboard" | "shortcut" | "file" | "calendar" | "reminder" | "shell";
@@ -1252,6 +1273,17 @@ export function executeCalendarSyncOperation(input: CalendarSyncExecuteInput) {
   return requestJson<CalendarSyncExecutionResult>("/api/v1/admin/calendar-sync/execute", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+export function getCalendarSyncHistory() {
+  return requestJson<{ records: CalendarSyncHistoryRecord[] }>("/api/v1/admin/calendar-sync/history");
+}
+
+export function rollbackCalendarSyncOperation(operationId: string, confirmationText: string) {
+  return requestJson<{ record: CalendarSyncHistoryRecord; result: CalendarSyncExecutionResult }>(`/api/v1/admin/calendar-sync/operations/${encodeURIComponent(operationId)}/rollback`, {
+    method: "POST",
+    body: JSON.stringify({ explicitConsent: true, confirmationText }),
   });
 }
 

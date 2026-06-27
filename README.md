@@ -45,7 +45,7 @@ Important: use the explicit [`v0.1.4-alpha` Release page](https://github.com/WGJ
 
 | Track | What to expect |
 | --- | --- |
-| `v0.1.4-alpha` public release | Docker Compose local Markdown + read-only `.ics` memory demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue with idempotent replay and conflict-review guidance, SQLite migrations, backup/restore, diagnostics, release checks, connection diagnostics, Studio blueprint confirmation/template/permission/repair guidance plus readiness/quality scoring, and an opt-in macOS Calendar/Reminders connector path guarded by explicit admin confirmation. |
+| `v0.1.4-alpha` public release | Docker Compose local Markdown + read-only `.ics` memory demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue with idempotent replay and conflict-review guidance, SQLite migrations, backup/restore, diagnostics, release checks, connection diagnostics, Studio blueprint confirmation/template/permission/repair guidance plus readiness/quality scoring, and opt-in Apple Calendar, Google Calendar/Tasks, and system Reminders connector paths guarded by explicit admin confirmation, audit logs, write history, and rollback status. |
 | Current `main` source | Developer path only. It may contain later source changes after the tagged release; use it only if you are comfortable building from source. |
 | Earlier base | `0.1.1-alpha.0` added Docker quickstart/Ollama/Markdown vault defaults. `0.1.0` started the desktop/PWA foundation. |
 
@@ -280,9 +280,9 @@ LifeOS is alpha software. The Docker quickstart is the most stable demo path; de
 - The public desktop packages are unsigned alpha builds. macOS Developer ID signing/notarization and Windows Authenticode signing are not part of this release, so Gatekeeper or SmartScreen may warn.
 - Remote diagnostics can verify configuration, but long-term remote stability still needs real-device evidence: cellular data, Wi-Fi switching, desktop restart recovery, stale QR repair, and tunnel interruption recovery.
 - Local memory reads Markdown plus optional read-only `.ics` calendar/task files in the Docker/local path.
-- Apple Calendar, Google Calendar, and system reminders account sync/write-back are not shipped yet. `v0.1.4-alpha` only adds a narrow macOS Apple Calendar/System Reminders connector path that must be explicitly enabled and confirmed by an admin before writing outside LifeOS.
+- Broad Apple Calendar, Google Calendar, and system reminders account sync is not shipped yet. `v0.1.4-alpha` only adds narrow Apple Calendar, Google Calendar/Tasks, and system reminders connector paths that must be explicitly enabled and confirmed by an admin before writing outside LifeOS; writes are audited, recorded in SQLite history, and expose guarded rollback status.
 - `.ics` support is read-only local ingestion, not two-way calendar/task management.
-- No calendar/task write-back yet.
+- Calendar/task write-back is limited to the guarded connector paths and is not advertised as unattended background sync.
 - Not a perfect deadline detector.
 - Reads a limited number of files for speed and context size.
 - Studio generated programs remain alpha: blueprints, templates, readiness/quality scoring, permission notes, logs, state, repair guidance, guarded repair boundaries, and rollback exist, but fully automatic unattended repair is not advertised.

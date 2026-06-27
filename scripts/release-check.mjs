@@ -2256,6 +2256,8 @@ function checkAssets() {
   const calendarSyncPreviewSource = exists("server/calendarSyncPreview.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncPreview.ts"), "utf8") : "";
   const googleCalendarConnectorSource = exists("server/googleCalendarConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleCalendarConnector.ts"), "utf8") : "";
   const googleTasksConnectorSource = exists("server/googleTasksConnector.ts") ? fs.readFileSync(path.join(rootDir, "server/googleTasksConnector.ts"), "utf8") : "";
+  const calendarSyncHistorySource = exists("server/calendarSyncHistory.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncHistory.ts"), "utf8") : "";
+  const calendarSyncOperationsMigrationSource = exists("server/migrations/016_calendar_sync_operations.sql") ? fs.readFileSync(path.join(rootDir, "server/migrations/016_calendar_sync_operations.sql"), "utf8") : "";
   const calendarSyncControlPanelSource = exists("src/pages/admin/settings/CalendarSyncControlPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/settings/CalendarSyncControlPanel.tsx"), "utf8") : "";
   const calendarSyncPreviewTestSource = exists("tests/calendar-sync-preview.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/calendar-sync-preview.test.mjs"), "utf8") : "";
   if (
@@ -2287,10 +2289,22 @@ function checkAssets() {
     googleTasksConnectorSource.includes("LIFEOS_GOOGLE_TASKS_LIST_ID") &&
     googleTasksConnectorSource.includes("tasks.googleapis.com/tasks/v1") &&
     googleTasksConnectorSource.includes("executeGoogleTaskOperation") &&
+    calendarSyncHistorySource.includes("saveCalendarSyncOperation") &&
+    calendarSyncHistorySource.includes("rollbackCalendarSyncOperation") &&
+    calendarSyncHistorySource.includes("listCalendarSyncOperations") &&
+    calendarSyncHistorySource.includes("CalendarSyncHistoryRecord") &&
+    calendarSyncHistorySource.includes("canAutoRollback") &&
+    calendarSyncHistorySource.includes("calendar-sync-rollback") &&
+    calendarSyncOperationsMigrationSource.includes("calendar_sync_operations") &&
+    calendarSyncOperationsMigrationSource.includes("rollback_result_json") &&
+    calendarSyncOperationsMigrationSource.includes("rolled_back_at") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/preview") &&
     adminRoutesSource.includes("/api/v1/admin/calendar-sync/execute") &&
+    adminRoutesSource.includes("/api/v1/admin/calendar-sync/history") &&
+    adminRoutesSource.includes("/api/v1/admin/calendar-sync/operations/:operationId/rollback") &&
     adminRoutesSource.includes("calendar_sync_preview_created") &&
     adminRoutesSource.includes("calendar_sync_operation_executed") &&
+    adminRoutesSource.includes("calendar_sync_operation_rolled_back") &&
     diagnosticBundleSource.includes("calendarSync: buildCalendarSyncPreview()") &&
     configDiagnosticsPanelSource.includes("diagnostics.calendarSync") &&
     configDiagnosticsPanelSource.includes("diagnostics.calendarSafetyTitle") &&
@@ -2302,14 +2316,20 @@ function checkAssets() {
     calendarSyncControlPanelSource.includes("externalTargets") &&
     calendarSyncControlPanelSource.includes("selectExternalTarget") &&
     calendarSyncControlPanelSource.includes("requiresExternalId") &&
+    calendarSyncControlPanelSource.includes("getCalendarSyncHistory") &&
+    calendarSyncControlPanelSource.includes("rollbackCalendarSyncOperation") &&
     frontendSmokeTestSource.includes("CalendarSyncControlPanel") &&
     translationsSource.includes("diagnostics.calendarSafetyBody") &&
     translationsSource.includes("calendarSyncControl.title") &&
     translationsSource.includes("calendarSyncControl.externalTarget") &&
+    translationsSource.includes("calendarSyncControl.historyStatus.rolled_back") &&
+    translationsSource.includes("calendarSyncControl.rollbackReady") &&
     translationsSource.includes("diagnostics.syncConflicts") &&
     apiAuthTestSource.includes("blockedCalendarSyncPreview") &&
     apiAuthTestSource.includes("providerId: \"google-calendar\"") &&
     apiAuthTestSource.includes("blockedCalendarSyncExecute") &&
+    apiAuthTestSource.includes("blockedCalendarSyncHistory") &&
+    apiAuthTestSource.includes("missingCalendarSyncRollback") &&
     diagnosticBundleTestSource.includes("bundle.calendarSync.externalWritesEnabled") &&
     calendarSyncPreviewTestSource.includes("blocks proposed external writes until connectors are shipped") &&
     calendarSyncPreviewTestSource.includes("macOS connector can read external calendar and reminder previews without enabling writes") &&
@@ -2319,9 +2339,10 @@ function checkAssets() {
     calendarSyncPreviewTestSource.includes("preview.syncPlan.reviewConflicts, 1") &&
     calendarSyncPreviewTestSource.includes("direction === \"review-conflict\"") &&
     calendarSyncPreviewTestSource.includes("externalSource === \"google-tasks:mock-google-task-1\"") &&
-    calendarSyncPreviewTestSource.includes("auditSummary.connector, \"google-tasks-api\"")
-  ) pass("calendar/task sync has preview safety gates plus opt-in macOS, Google Calendar, and Google Tasks connector coverage");
-  else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, API/auth coverage, diagnostics, or release checks");
+    calendarSyncPreviewTestSource.includes("auditSummary.connector, \"google-tasks-api\"") &&
+    calendarSyncPreviewTestSource.includes("calendar sync history persists guarded writes and automatic rollback evidence")
+  ) pass("calendar/task sync has preview safety gates, opt-in macOS/Google connector coverage, persistent history, and guarded rollback");
+  else warn("calendar/task sync lacks preview safety, opt-in macOS/Google connector execution, persistent rollback history, API/auth coverage, diagnostics, or release checks");
 
   const clientStateSource = exists("server/clientState.ts") ? fs.readFileSync(path.join(rootDir, "server/clientState.ts"), "utf8") : "";
   const stateRoutesSource = exists("server/routes/stateRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/stateRoutes.ts"), "utf8") : "";
@@ -3013,7 +3034,9 @@ function checkReleaseDocs() {
 	    readmeEn.includes("SHA256SUMS") &&
 	    readmeEn.includes("Local memory reads Markdown plus optional read-only `.ics` calendar/task files") &&
 	    readmeEn.includes("supporting `VEVENT` and open `VTODO` items") &&
-	    readmeEn.includes("Apple Calendar, Google Calendar, and system reminders account sync/write-back are not shipped yet") &&
+	    readmeEn.includes("Broad Apple Calendar, Google Calendar, and system reminders account sync is not shipped yet") &&
+	    readmeEn.includes("recorded in SQLite history") &&
+	    readmeEn.includes("guarded rollback status") &&
 	    readmeEn.includes("Automatic updates are not enabled yet") &&
 	    readmeEn.includes("long-term remote stability still needs real-device evidence") &&
 	    readmeEn.includes("blueprint confirmation/template/permission/repair guidance") &&
@@ -3026,7 +3049,9 @@ function checkReleaseDocs() {
 	    readmeZh.includes("SHA256SUMS") &&
 	    readmeZh.includes("可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件") &&
 	    readmeZh.includes("支持 `VEVENT` 和未完成 `VTODO`") &&
-	    readmeZh.includes("Apple Calendar、Google Calendar、系统提醒事项的账号同步/写回还没发布") &&
+	    readmeZh.includes("Apple Calendar、Google Calendar、系统提醒事项的完整后台账号同步还没发布") &&
+	    readmeZh.includes("写入会进入 SQLite 历史") &&
+	    readmeZh.includes("受控回滚状态") &&
 	    readmeZh.includes("默认不启用自动更新") &&
 	    readmeZh.includes("长期稳定性仍需要用户自己完成真实设备长测") &&
 	    readmeZh.includes("蓝图确认/模板/权限/修复提示")
