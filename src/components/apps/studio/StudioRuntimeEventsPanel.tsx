@@ -119,6 +119,15 @@ export default function StudioRuntimeEventsPanel({
                         {item.readiness.failedChecks[0]}
                       </div>
                     )}
+                    {item.executionSession && (
+                      <div className="mt-1 text-indigo-200/65">
+                        {t("studio.runtime.autoRepairSessionMeta", {
+                          status: t(`studio.runtime.autoRepairSessionStatus.${item.executionSession.status}` as any),
+                          steps: String(item.executionSession.requiredSteps.length),
+                          checks: String(item.executionSession.smokeChecks.length),
+                        })}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -221,6 +230,19 @@ export default function StudioRuntimeEventsPanel({
           </div>
           <div className="mt-3 space-y-2">
             <ProposalList title={t("studio.runtime.autoRepairChecks")} items={autoRepairTask.requiredChecks.slice(0, 3)} />
+            {autoRepairTask.executionSession && (
+              <ProposalList
+                title={t("studio.runtime.autoRepairExecutionSession")}
+                items={[
+                  t("studio.runtime.autoRepairSessionMeta", {
+                    status: t(`studio.runtime.autoRepairSessionStatus.${autoRepairTask.executionSession.status}` as any),
+                    steps: String(autoRepairTask.executionSession.requiredSteps.length),
+                    checks: String(autoRepairTask.executionSession.smokeChecks.length),
+                  }),
+                  ...autoRepairTask.executionSession.requiredSteps.slice(0, 2),
+                ]}
+              />
+            )}
             <ProposalList title={t("studio.runtime.autoRepairNextSteps")} items={autoRepairTask.nextSteps.slice(0, 3)} />
           </div>
         </div>

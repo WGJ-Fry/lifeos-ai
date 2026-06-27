@@ -138,6 +138,23 @@ export type CustomAppRepairExecutionPlan = {
   nextSteps: string[];
 };
 
+export type CustomAppAutoRepairExecutionSession = {
+  id: string;
+  appId: string;
+  taskId: string;
+  status: "ready" | "blocked";
+  mode: "studio-refine-worker" | "manual-review-gate";
+  canRunUnattended: boolean;
+  reasonKey: CustomAppRepairExecutionPlan["reasonKey"];
+  instruction: string;
+  requiredSteps: string[];
+  smokeChecks: string[];
+  completionEndpoint: string;
+  rollbackVersion?: number | null;
+  createdAt: number;
+  expiresAt: number;
+};
+
 export type CustomAppAutoRepairTask = {
   id: string;
   appId: string;
@@ -151,6 +168,7 @@ export type CustomAppAutoRepairTask = {
   repairAttempt: number;
   retryLimit: number;
   rollbackVersion?: number | null;
+  executionSession?: CustomAppAutoRepairExecutionSession | null;
   createdAt: number;
 };
 
@@ -193,6 +211,7 @@ export type CustomAppAutoRepairQueueItem = {
   canResumeInStudio: boolean;
   resumeInstruction: string;
   task: CustomAppAutoRepairTask;
+  executionSession?: CustomAppAutoRepairExecutionSession | null;
   readiness: CustomAppAutoRepairReadiness;
   repairProposal?: CustomAppRepairProposal | null;
   latestResult?: CustomAppAutoRepairResult | null;
@@ -1278,6 +1297,12 @@ function buildCustomAppAutoRepairReadiness(
     failedChecks.push("Repair completion recording is missing from required checks.");
   }
 
+  if (task.executionSession?.status === "ready" && task.executionSession.canRunUnattended) {
+    passedChecks.push("Execution session is ready for the Studio worker.");
+  } else if (task.canAutoApply) {
+    failedChecks.push("Auto-repair execution session is missing or blocked.");
+  }
+
   if (repairProposal?.risk === "high") failedChecks.push("Repair proposal is high risk.");
   else if (repairProposal) passedChecks.push(`Repair proposal risk is ${repairProposal.risk}.`);
 
@@ -1350,6 +1375,7 @@ export function listCustomAppAutoRepairQueue(appId: string, limitInput?: unknown
       canResumeInStudio: readiness.canAutoApply,
       resumeInstruction: task.suggestedInstruction,
       task,
+      executionSession: task.executionSession ?? null,
       readiness,
       repairProposal,
       latestResult,
@@ -1493,6 +1519,47 @@ function buildRepairExecutionPlan(
   };
 }
 
+function buildCustomAppAutoRepairExecutionSession(task: CustomAppAutoRepairTask): CustomAppAutoRepairExecutionSession {
+  const createdAt = task.createdAt || Date.now();
+  const isReady = task.status === "ready" && task.canAutoApply;
+  const completionEndpoint = `/api/v1/custom-apps/${encodeURIComponent(task.appId)}/auto-repairs/complete`;
+  return {
+    id: `auto-repair-session-${crypto.randomUUID()}`,
+    appId: task.appId,
+    taskId: task.id,
+    status: isReady ? "ready" : "blocked",
+    mode: isReady ? "studio-refine-worker" : "manual-review-gate",
+    canRunUnattended: isReady,
+    reasonKey: task.reasonKey,
+    instruction: task.suggestedInstruction,
+    requiredSteps: isReady
+      ? [
+          "Load the current saved app version and keep the rollback version available.",
+          "Run Studio refine with this instruction and persist the repaired code as a new version.",
+          "Call the auto-repair completion endpoint with taskId and rollbackVersion.",
+          "Run the main workflow smoke check before allowing another auto repair.",
+        ]
+      : [
+          "Stop unattended repair and keep the instruction in the refine box.",
+          "Review permissions, high-risk actions, retry history, and version diff manually.",
+          "Only resume after a human narrows the failure or approves the permission boundary.",
+        ],
+    smokeChecks: isReady
+      ? [
+          "Open the repaired generated app without runtime console errors.",
+          "Run the original failing scenario once with sample input.",
+          "Confirm no new capability request, external action, or unsafe URL scheme was introduced.",
+        ]
+      : [
+          "Manual review must clear the blocked reason before any smoke check can count.",
+        ],
+    completionEndpoint,
+    rollbackVersion: task.rollbackVersion ?? null,
+    createdAt,
+    expiresAt: createdAt + 6 * 60 * 60 * 1000,
+  };
+}
+
 export function createCustomAppDebugRequest(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
   const app = getCustomApp(appId);
   if (!app) return null;
@@ -1555,6 +1622,8 @@ export function createCustomAppAutoRepairPlan(appId: string, input: Record<strin
     rollbackVersion: latestVersion?.version || null,
     createdAt: Date.now(),
   };
+  const executionSession = buildCustomAppAutoRepairExecutionSession(task);
+  task.executionSession = executionSession;
   const autoRepairEvent = createCustomAppRuntimeEvent(appId, {
     eventType: status === "ready" ? "auto_repair_planned" : "auto_repair_blocked",
     severity: status === "ready" ? "info" : "warning",
@@ -1562,6 +1631,7 @@ export function createCustomAppAutoRepairPlan(appId: string, input: Record<strin
     message: sanitizeActionText(`${reasonKey}: ${debug.repairProposal.summary}`, 500),
     detail: {
       autoRepairTask: task,
+      autoRepairExecutionSession: executionSession,
       repairProposal: debug.repairProposal,
       debugEventId: debug.event?.id || null,
       recentEventIds: recentAfterDebug.map((item) => item.id),
@@ -1571,6 +1641,7 @@ export function createCustomAppAutoRepairPlan(appId: string, input: Record<strin
     debugEvent: debug.event,
     autoRepairEvent,
     autoRepairTask: task,
+    executionSession,
     repairProposal: debug.repairProposal,
     suggestedInstruction: debug.suggestedInstruction,
     recentEvents: recentAfterDebug,

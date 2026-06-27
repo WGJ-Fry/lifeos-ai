@@ -45,8 +45,10 @@ export function createStudioRuntimeRepairActions({
     setIsApplyingRuntimeRepair(true);
     try {
       const response = await planRuntimeAutoRepair(appId);
-      if (response?.suggestedInstruction) await runRuntimeRepairTask(response.autoRepairTask, response.suggestedInstruction, appId, {
-        canResume: response.autoRepairTask.canAutoApply,
+      const executionSession = response?.autoRepairTask.executionSession;
+      const instruction = executionSession?.instruction || response?.suggestedInstruction || "";
+      if (response && instruction) await runRuntimeRepairTask(response.autoRepairTask, instruction, appId, {
+        canResume: Boolean(executionSession?.canRunUnattended && executionSession.status === "ready"),
         completedMessage: t("studio.runtime.debugAppliedAndSaved"),
       });
     } catch (err: any) {
@@ -60,8 +62,9 @@ export function createStudioRuntimeRepairActions({
     if (!item.appId) return;
     setIsApplyingRuntimeRepair(true);
     try {
-      await runRuntimeRepairTask(item.task, item.resumeInstruction, item.appId, {
-        canResume: item.canResumeInStudio,
+      const executionSession = item.executionSession || item.task.executionSession;
+      await runRuntimeRepairTask(item.task, executionSession?.instruction || item.resumeInstruction, item.appId, {
+        canResume: Boolean(item.canResumeInStudio && executionSession?.canRunUnattended && executionSession.status === "ready"),
         completedMessage: t("studio.runtime.autoRepairQueueResumed"),
       });
     } catch (err: any) {

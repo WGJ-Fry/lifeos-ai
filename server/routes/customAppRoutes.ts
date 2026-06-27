@@ -177,6 +177,10 @@ export function registerCustomAppRoutes(app: express.Express) {
         repairAttempt: result.autoRepairTask.repairAttempt,
         retryLimit: result.autoRepairTask.retryLimit,
         rollbackVersion: result.autoRepairTask.rollbackVersion,
+        executionSessionStatus: result.executionSession.status,
+        canRunUnattended: result.executionSession.canRunUnattended,
+        executionStepCount: result.executionSession.requiredSteps.length,
+        smokeCheckCount: result.executionSession.smokeChecks.length,
         repairRisk: result.repairProposal.risk,
         suspectedArea: result.repairProposal.suspectedArea,
       }, actor(req)?.type, actor(req)?.id);

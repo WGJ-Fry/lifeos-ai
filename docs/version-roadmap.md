@@ -45,6 +45,7 @@ These changes are implemented on `main` after the public `v0.1.4-alpha` release 
 - Release checks and tests now guard the Finder reveal path, outside-root blocking, local path redaction, and the still-blocked high-risk native writes.
 - Google Calendar events, Google Tasks, Apple Calendar, and system Reminders now have guarded connector code paths plus `calendar:acceptance` real-account/device evidence generation. Public sync claims still require a new Release, uploaded assets, and passing read/write acceptance reports for the provider being promoted.
 - Studio auto-repair queue items now include a structured readiness gate with passed checks, failed checks, rollback status, and an explicit resume/manual-review/smoke-verification decision. This improves resumability, but does not make Studio fully unattended yet.
+- Studio auto-repair tasks now also include a structured execution session for low-risk repairs: worker steps, completion endpoint, rollback version, smoke checks, and a blocked session for high-risk or retry-limited cases.
 - Release promotion truth checks now require a remote acceptance evidence file when running `npm run version:truth:release`; the evidence must show a stable HTTPS entry plus completed cellular, network-switch, restart, stale-QR, network-interruption, and diagnostic-export scenarios.
 - Desktop update diagnostics now distinguish manual mode, blocked feeds, and explicitly opted-in HTTPS feed readiness. A safe `LIFEOS_UPDATE_URL` is not enough by itself; maintainers must also set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
 
@@ -62,8 +63,8 @@ Scope:
 - Improve mobile weak-network background recovery and multi-device conflict review, especially after phone restart, browser storage pressure, and stale remote entries.
 - Expand the macOS calendar/reminders connector from narrow external writes toward a productized permission review, rollback plan, and conflict preview.
 - Publish and validate the first Google Calendar/Tasks and macOS Apple Calendar/System Reminders connector paths behind explicit admin setup, external-write opt-in, consent, audit logging, rollback guidance, and passing `calendar:acceptance` reports; keep broad two-way account sync out of scope until real-account/device evidence exists.
-- Add generated-tool multi-version comparison plus audited auto-repair task planning with risk gates, retry limits, rollback version references, and runtime events so users can inspect what changed before saving.
-- Promote Studio auto-repair readiness gates only with matching tests and UI: every queued repair should explain why it can resume, why it is blocked, or why it needs smoke verification.
+- Continue productizing Studio auto-repair after the readiness gate and execution session: richer visual diff, post-smoke review status, template-specific repair recipes, and clearer recovery if the worker fails mid-run.
+- Promote Studio auto-repair only with matching tests and UI: every queued repair must explain why it can resume, why it is blocked, what worker steps will run, and what smoke checks remain.
 - Publish and validate the narrow native automation bridge path only if Release assets include it: disabled by default, admin-only, exact allowlist, explicit confirmation phrase, audit logging, sensitive-payload blocking, mock execution tests, clipboard writes, allowlisted Shortcuts, and Finder reveal inside configured file roots; broad shell/file-write/calendar/reminder automation remains blocked.
 - Do not claim signed desktop packages, auto-update, two-way calendar/task sync, native automation, or fully automatic unattended Studio repair until they are actually shipped and verified.
 
@@ -180,6 +181,7 @@ These capabilities should not be described as current release features until the
 - 测试和 release check 已覆盖 Finder 定位、根目录外拦截、本地路径脱敏和高风险原生写入继续阻断。
 - Google Calendar 事件、Google Tasks、Apple Calendar 和系统提醒事项已有受控 connector 代码路径，并新增 `calendar:acceptance` 真实账号/真实设备证据生成。公开宣传同步能力前，仍需要新 Release、安装资产和对应 provider 的读写验收报告。
 - Studio 自动修复队列现在包含结构化门禁：通过项、失败项、回滚状态，以及继续修复/人工复核/烟测验证的明确决策。这提升了可恢复性，但还不是完全无人值守修复。
+- Studio 自动修复任务现在还包含结构化执行会话：低风险修复会给出 worker 步骤、完成端点、回滚版本、烟测项；高风险或超过重试上限时会生成已拦截会话。
 
 ### 下一计划版本：v0.1.5-alpha
 
@@ -197,8 +199,8 @@ These capabilities should not be described as current release features until the
 - 改进手机弱网后台恢复和多设备冲突复核，重点覆盖手机重启、浏览器存储压力和旧远程入口。
 - 将 macOS 日历/提醒事项连接器从窄写入路径推进到产品化权限复核、回滚计划和冲突预览。
 - 发布并验证第一版 Google Calendar/Tasks 和 macOS Apple Calendar/系统提醒事项连接器路径：必须经过管理员配置、外部写入开关、用户确认、审计日志、回滚提示和通过的 `calendar:acceptance` 报告；宽泛账号双向同步仍不在这一小步范围内。
-- 增加生成程序多版本对比，以及带审计的自动修复任务计划：包含风险闸门、重试上限、回滚版本引用和运行事件，用户保存前能看清变化。
-- 只有在测试和 UI 一起覆盖后，才公开宣传 Studio 自动修复门禁：每个排队修复都必须说明为什么能继续、为什么被拦截，或为什么需要烟测验证。
+- 在已有门禁和执行会话之后继续产品化 Studio 自动修复：更清晰的可视化 diff、烟测后的复核状态、按模板分类的修复配方，以及 worker 中途失败时的恢复路径。
+- 只有在测试和 UI 一起覆盖后，才公开宣传 Studio 自动修复：每个排队修复都必须说明为什么能继续、为什么被拦截、会跑哪些 worker 步骤，以及还剩哪些烟测项。
 - 只有在 Release 资产真实包含时，发布并验证窄口径原生自动化桥：默认关闭、仅管理员可用、精确白名单、确认短语、审计日志、敏感 payload 阻断、mock 执行测试、剪贴板写入、白名单快捷指令和允许根目录内 Finder 定位；宽泛 shell/文件写入/日历/提醒事项自动化仍阻断。
 - 未真正发布前，不宣传签名包、自动更新、日历/任务双向同步、原生自动化或完全无人值守 Studio 修复。
 

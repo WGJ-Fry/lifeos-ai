@@ -920,6 +920,23 @@ export type CustomAppRepairExecutionPlan = {
   nextSteps: string[];
 };
 
+export type CustomAppAutoRepairExecutionSession = {
+  id: string;
+  appId: string;
+  taskId: string;
+  status: "ready" | "blocked";
+  mode: "studio-refine-worker" | "manual-review-gate";
+  canRunUnattended: boolean;
+  reasonKey: CustomAppRepairExecutionPlan["reasonKey"];
+  instruction: string;
+  requiredSteps: string[];
+  smokeChecks: string[];
+  completionEndpoint: string;
+  rollbackVersion?: number | null;
+  createdAt: number;
+  expiresAt: number;
+};
+
 export type CustomAppAutoRepairTask = {
   id: string;
   appId: string;
@@ -933,6 +950,7 @@ export type CustomAppAutoRepairTask = {
   repairAttempt: number;
   retryLimit: number;
   rollbackVersion?: number | null;
+  executionSession?: CustomAppAutoRepairExecutionSession | null;
   createdAt: number;
 };
 
@@ -975,6 +993,7 @@ export type CustomAppAutoRepairQueueItem = {
   canResumeInStudio: boolean;
   resumeInstruction: string;
   task: CustomAppAutoRepairTask;
+  executionSession?: CustomAppAutoRepairExecutionSession | null;
   readiness: CustomAppAutoRepairReadiness;
   repairProposal?: CustomAppRepairProposal | null;
   latestResult?: CustomAppAutoRepairResult | null;
@@ -1951,6 +1970,7 @@ export function createCustomAppAutoRepairPlan(appId: string, input: { issue?: st
     debugEvent: StoredCustomAppRuntimeEvent | null;
     autoRepairEvent: StoredCustomAppRuntimeEvent | null;
     autoRepairTask: CustomAppAutoRepairTask;
+    executionSession: CustomAppAutoRepairExecutionSession;
     repairProposal: CustomAppRepairProposal;
     suggestedInstruction: string;
     recentEvents: StoredCustomAppRuntimeEvent[];

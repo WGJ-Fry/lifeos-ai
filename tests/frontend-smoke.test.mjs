@@ -825,9 +825,12 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioRuntimeEventsPanelSource, /autoRepairTask/);
   assert.match(studioRuntimeEventsPanelSource, /autoRepairQueue/);
   assert.match(studioRuntimeEventsPanelSource, /autoRepairResult/);
+  assert.match(studioRuntimeEventsPanelSource, /executionSession/);
   assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.autoRepairTaskTitle/);
   assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.autoRepairQueueTitle/);
   assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.autoRepairResultTitle/);
+  assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.autoRepairExecutionSession/);
+  assert.match(studioRuntimeEventsPanelSource, /studio\.runtime\.autoRepairSessionMeta/);
   assert.match(studioRuntimeEventsPanelSource, /onRequestDebug/);
   assert.match(studioRuntimeEventsPanelSource, /onApplyRepair/);
   assert.match(lifeosApiSource, /CustomAppRepairProposal/);

@@ -1816,6 +1816,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(customAppAutoRepairPlan.autoRepairTask.retryLimit, 2);
   assert.equal(customAppAutoRepairPlan.autoRepairTask.rollbackVersion >= 1, true);
   assert.equal(customAppAutoRepairPlan.autoRepairTask.requiredChecks.some((item) => item.includes("rollback")), true);
+  assert.equal(customAppAutoRepairPlan.executionSession.status, "ready");
+  assert.equal(customAppAutoRepairPlan.executionSession.canRunUnattended, true);
+  assert.equal(customAppAutoRepairPlan.executionSession.mode, "studio-refine-worker");
+  assert.equal(customAppAutoRepairPlan.executionSession.taskId, customAppAutoRepairPlan.autoRepairTask.id);
+  assert.equal(customAppAutoRepairPlan.autoRepairTask.executionSession.taskId, customAppAutoRepairPlan.autoRepairTask.id);
+  assert.equal(customAppAutoRepairPlan.executionSession.requiredSteps.some((item) => item.includes("completion endpoint")), true);
+  assert.equal(customAppAutoRepairPlan.executionSession.smokeChecks.some((item) => item.includes("failing scenario")), true);
+  assert.equal(customAppAutoRepairPlan.executionSession.completionEndpoint.includes("/auto-repairs/complete"), true);
   assert.equal(customAppAutoRepairPlan.repairProposal.suggestedInstruction, customAppAutoRepairPlan.suggestedInstruction);
   const customAppAutoRepairQueue = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/queue?limit=5", {
     headers: adminHeaders,
@@ -1826,11 +1834,15 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(pendingAutoRepair.canResumeInStudio, true);
   assert.equal(pendingAutoRepair.resumeInstruction, customAppAutoRepairPlan.suggestedInstruction);
   assert.equal(pendingAutoRepair.task.rollbackVersion, customAppAutoRepairPlan.autoRepairTask.rollbackVersion);
+  assert.equal(pendingAutoRepair.executionSession.status, "ready");
+  assert.equal(pendingAutoRepair.executionSession.canRunUnattended, true);
+  assert.equal(pendingAutoRepair.executionSession.instruction, customAppAutoRepairPlan.suggestedInstruction);
   assert.equal(pendingAutoRepair.readiness.status, "ready");
   assert.equal(pendingAutoRepair.readiness.canAutoApply, true);
   assert.equal(pendingAutoRepair.readiness.decision, "resume-in-studio");
   assert.equal(pendingAutoRepair.readiness.failedChecks.length, 0);
   assert.equal(pendingAutoRepair.readiness.passedChecks.some((item) => item.includes("Rollback")), true);
+  assert.equal(pendingAutoRepair.readiness.passedChecks.some((item) => item.includes("Execution session")), true);
 
   await request(port, "/api/v1/custom-apps/custom-ledger-1", {
     method: "PATCH",
@@ -1887,6 +1899,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairTask.status, "blocked");
   assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairTask.canAutoApply, false);
   assert.equal(highRiskCustomAppAutoRepairPlan.autoRepairTask.reasonKey, "high-risk-action");
+  assert.equal(highRiskCustomAppAutoRepairPlan.executionSession.status, "blocked");
+  assert.equal(highRiskCustomAppAutoRepairPlan.executionSession.canRunUnattended, false);
+  assert.equal(highRiskCustomAppAutoRepairPlan.executionSession.mode, "manual-review-gate");
   const blockedAutoRepairQueue = await request(port, "/api/v1/custom-apps/custom-ledger-1/auto-repairs/queue?limit=10", {
     headers: adminHeaders,
   }).then((res) => res.json());
@@ -1920,6 +1935,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(retryLimitedAutoRepairPlan.autoRepairTask.status, "blocked");
   assert.equal(retryLimitedAutoRepairPlan.autoRepairTask.reasonKey, "retry-limit");
   assert.equal(retryLimitedAutoRepairPlan.autoRepairTask.repairAttempt, 3);
+  assert.equal(retryLimitedAutoRepairPlan.executionSession.status, "blocked");
+  assert.equal(retryLimitedAutoRepairPlan.executionSession.canRunUnattended, false);
 
   const customAppRuntimeEvents = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events?limit=20", {
     headers: adminHeaders,
@@ -1933,6 +1950,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(debugRuntimeEvent.detail.repairProposal.suspectedArea, "runtime-error");
   assert.equal(debugRuntimeEvent.detail.repairProposal.versionSafety.length >= 2, true);
   assert.equal(typeof debugRuntimeEvent.detail.repairProposal.executionPlan.canAutoApply, "boolean");
+  const autoRepairRuntimeEvent = customAppRuntimeEvents.events.find((event) => event.eventType === "auto_repair_planned");
+  assert.equal(autoRepairRuntimeEvent.detail.autoRepairExecutionSession.status, "ready");
+  assert.equal(autoRepairRuntimeEvent.detail.autoRepairExecutionSession.canRunUnattended, true);
 
   const defaultCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
     headers: adminHeaders,
