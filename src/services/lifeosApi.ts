@@ -262,6 +262,39 @@ export type CalendarSyncExecutionResult = {
   };
 };
 
+export type ReleaseUpdateCheck = {
+  checkedAt: string;
+  status: "up-to-date" | "update-available" | "unavailable" | "error";
+  current: {
+    version: string;
+    tag: string;
+  };
+  latest: {
+    version: string;
+    tag: string;
+    name: string;
+    url: string;
+    prerelease: boolean;
+    publishedAt: string;
+    assetCount: number;
+    assets: Array<{
+      name: string;
+      size: number;
+      downloadUrl: string;
+    }>;
+    checksumAsset?: {
+      name: string;
+      size: number;
+      downloadUrl: string;
+    };
+  } | null;
+  updateAvailable: boolean;
+  manualUpdateRequired: true;
+  autoUpdateEnabled: false;
+  reason: string;
+  recommendations: string[];
+};
+
 export type ConfigDiagnostics = {
   ai: {
     configured: boolean;
@@ -1006,6 +1039,10 @@ export function completeOnboarding() {
 
 export function getConfigDiagnostics() {
   return requestJson<ConfigDiagnostics>("/api/v1/admin/config-diagnostics");
+}
+
+export function getReleaseUpdateCheck() {
+  return requestJson<ReleaseUpdateCheck>("/api/v1/admin/release/update-check");
 }
 
 export function getCalendarSyncPreview() {

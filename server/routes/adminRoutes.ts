@@ -19,6 +19,7 @@ import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagn
 import { getOnboardingStatus, markOnboardingComplete } from "../onboarding";
 import { getBackupSchedule } from "../backupSchedule";
 import { getLatestBindingSession } from "../devices";
+import { checkReleaseUpdate } from "../releaseUpdateCheck";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -318,6 +319,20 @@ export function registerAdminRoutes(app: express.Express) {
       calendarSync: buildCalendarSyncPreview(),
       securityCheck: getSecurityDiagnostics(),
     });
+  });
+
+  app.get("/api/v1/admin/release/update-check", requireAdmin, async (req, res) => {
+    const result = await checkReleaseUpdate();
+    insertAuditLog("release_update_checked", "release", result.latest?.tag || result.current.tag, {
+      status: result.status,
+      currentTag: result.current.tag,
+      latestTag: result.latest?.tag || null,
+      updateAvailable: result.updateAvailable,
+      manualUpdateRequired: result.manualUpdateRequired,
+      autoUpdateEnabled: result.autoUpdateEnabled,
+      reason: result.reason,
+    }, (req as any).actor?.type, (req as any).actor?.id);
+    res.json(result);
   });
 
   app.get("/api/v1/admin/calendar-sync/preview", requireAdmin, (_req, res) => {

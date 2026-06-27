@@ -303,6 +303,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const studioWorkshopSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioWorkshopTab.tsx"), "utf8");
   const studioRuntimeEventsPanelSource = await readFile(path.join(rootDir, "src", "components", "apps", "studio", "StudioRuntimeEventsPanel.tsx"), "utf8");
   const configDiagnosticsPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ConfigDiagnosticsPanel.tsx"), "utf8");
+  const adminSettingsPageSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminSettingsPage.tsx"), "utf8");
+  const releaseUpdateStatusCardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "ReleaseUpdateStatusCard.tsx"), "utf8");
   assert.match(problemBlueprintSource, /deriveProblemBlueprint/);
   assert.match(problemBlueprintSource, /runnable problem-solving app/);
   assert.match(problemBlueprintSource, /confirmationChecklist/);
@@ -1404,6 +1406,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const adminPasswordPanelSource = await readFile(path.join(rootDir, "src", "pages", "admin", "settings", "AdminPasswordPanel.tsx"), "utf8");
   assert.match(configDiagnosticsPanelSource, /diagnostics\.releasePackage/);
   assert.match(configDiagnosticsPanelSource, /ReleaseReadinessSummary/);
+  assert.match(configDiagnosticsPanelSource, /ReleaseUpdateStatusCard/);
+  assert.match(adminSettingsPageSource, /getReleaseUpdateCheck/);
+  assert.match(adminSettingsPageSource, /Promise\.allSettled/);
+  assert.match(releaseUpdateStatusCardSource, /releaseUpdate\.availableTitle/);
+  assert.match(releaseUpdateStatusCardSource, /releaseUpdate\.rec\.sha/);
+  assert.match(translationsSource, /发现新版本/);
+  assert.match(translationsSource, /New Version Available/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.manifestAvailable/);
   assert.match(configDiagnosticsPanelSource, /diagnostics\.release\.checksumAvailable/);
   assert.match(releaseReadinessSummarySource, /releaseReadyTitle/);

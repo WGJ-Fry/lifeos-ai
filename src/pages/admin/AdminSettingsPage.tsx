@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowLeft, DatabaseBackup, Download, KeyRound, RefreshCw, Server, ShieldCheck } from "lucide-react";
-import { diagnosticBundleDownloadUrl, getConfigDiagnostics, getHealth, getPendingRestore, listAuditLogs, listBackups } from "../../services/lifeosApi";
-import type { AuditLogRecord, ConfigDiagnostics, PendingRestore } from "../../services/lifeosApi";
+import { diagnosticBundleDownloadUrl, getConfigDiagnostics, getHealth, getPendingRestore, getReleaseUpdateCheck, listAuditLogs, listBackups } from "../../services/lifeosApi";
+import type { AuditLogRecord, ConfigDiagnostics, PendingRestore, ReleaseUpdateCheck } from "../../services/lifeosApi";
 import ConnectionGuide from "./ConnectionGuide";
 import AuditLogPanel from "./settings/AuditLogPanel";
 import BackupRestorePanel from "./settings/BackupRestorePanel";
@@ -22,17 +22,29 @@ export default function AdminSettingsPage() {
   const [pendingRestore, setPendingRestore] = useState<PendingRestore | null>(null);
   const [logs, setLogs] = useState<AuditLogRecord[]>([]);
   const [diagnostics, setDiagnostics] = useState<ConfigDiagnostics | null>(null);
+  const [releaseUpdate, setReleaseUpdate] = useState<ReleaseUpdateCheck | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = async () => {
     setError(null);
+    setReleaseUpdate(null);
+    void getReleaseUpdateCheck()
+      .then(setReleaseUpdate)
+      .catch(() => setReleaseUpdate(null));
     try {
-      const [healthData, backupData, pendingRestoreData, auditData, diagnosticsData] = await Promise.all([getHealth(), listBackups(), getPendingRestore(), listAuditLogs(), getConfigDiagnostics()]);
-      setHealth(healthData);
-      setBackups(backupData.backups);
-      setPendingRestore(pendingRestoreData.pendingRestore);
-      setLogs(auditData.logs);
-      setDiagnostics(diagnosticsData);
+      const [healthData, backupData, pendingRestoreData, auditData, diagnosticsData] = await Promise.allSettled([
+        getHealth(),
+        listBackups(),
+        getPendingRestore(),
+        listAuditLogs(),
+        getConfigDiagnostics(),
+      ]);
+      if (healthData.status === "fulfilled") setHealth(healthData.value);
+      if (backupData.status === "fulfilled") setBackups(backupData.value.backups);
+      if (pendingRestoreData.status === "fulfilled") setPendingRestore(pendingRestoreData.value.pendingRestore);
+      if (auditData.status === "fulfilled") setLogs(auditData.value.logs);
+      if (diagnosticsData.status === "fulfilled") setDiagnostics(diagnosticsData.value);
+      if (diagnosticsData.status === "rejected") throw diagnosticsData.reason;
     } catch (err: any) {
       setError(err.message || "Failed to load settings");
     }
@@ -112,11 +124,11 @@ export default function AdminSettingsPage() {
           />
         </section>
 
-        {diagnostics ? <ConfigDiagnosticsPanel diagnostics={diagnostics} /> : null}
-
         {diagnostics ? <AdminPasswordPanel diagnostics={diagnostics} onChanged={refresh} /> : null}
 
         {diagnostics ? <AiKeyPanel diagnostics={diagnostics} onChanged={refresh} /> : null}
+
+        {diagnostics ? <ConfigDiagnosticsPanel diagnostics={diagnostics} updateCheck={releaseUpdate} /> : null}
 
         <ConnectionGuide health={health} />
 

@@ -590,8 +590,10 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(backupPanel.getByText("加密备份导入")).toBeVisible();
   await backupPanel.getByPlaceholder("加密口令，至少 12 个字符").fill("Playwright encrypted backup 2026!");
   await backupPanel.getByPlaceholder("再次输入加密口令").fill("Playwright encrypted backup 2026!");
+  const exportLatestButton = backupPanel.getByRole("button", { name: "导出最新" });
+  await expect(exportLatestButton).toBeEnabled();
   const encryptedDownloadPromise = page.waitForEvent("download");
-  await backupPanel.getByRole("button", { name: "导出最新" }).click();
+  await exportLatestButton.click();
   const encryptedDownload = await encryptedDownloadPromise;
   expect(encryptedDownload.suggestedFilename()).toMatch(/\.lifeos-backup\.json$/);
   await expect(backupPanel.getByText(/已生成加密备份/)).toBeVisible();
@@ -623,7 +625,9 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
     expect(dialog.message()).toMatch(/安排恢复备份|Schedule restore for backup/);
     await dialog.accept();
   });
-  await backupPanel.getByRole("button", { name: "恢复" }).first().click();
+  const restoreButton = backupPanel.getByRole("button", { name: "恢复" }).first();
+  await expect(restoreButton).toBeEnabled();
+  await restoreButton.click();
   await expect(backupPanel.getByText(/恢复任务等待重启|Restore Waiting for Restart/)).toBeVisible();
   page.once("dialog", async (dialog) => {
     expect(dialog.message()).toMatch(/取消等待重启|Cancel the restore task waiting for restart/);

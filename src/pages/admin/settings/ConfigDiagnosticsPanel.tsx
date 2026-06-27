@@ -1,8 +1,9 @@
 import { ArrowRight, CalendarClock, KeyRound, ShieldAlert } from "lucide-react";
-import type { ConfigDiagnostics } from "../../../services/lifeosApi";
+import type { ConfigDiagnostics, ReleaseUpdateCheck } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 import DiagnosticCard from "./DiagnosticCard";
 import ReleaseReadinessSummary from "./ReleaseReadinessSummary";
+import ReleaseUpdateStatusCard from "./ReleaseUpdateStatusCard";
 
 function formatAiSource(diagnostics: ConfigDiagnostics, t: ReturnType<typeof useI18n>["t"]) {
   if (diagnostics.ai.source === "system_secure_store") return t("diagnostics.source.system");
@@ -25,7 +26,7 @@ function securityItemText(item: { id: string; label: string; action: string }, f
   return t(`diagnostics.security.${field}.${item.id}` as any);
 }
 
-export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: ConfigDiagnostics }) {
+export default function ConfigDiagnosticsPanel({ diagnostics, updateCheck }: { diagnostics: ConfigDiagnostics; updateCheck?: ReleaseUpdateCheck | null }) {
   const { t } = useI18n();
   const latestArtifact = diagnostics.release.artifacts[0];
   const releaseReady = diagnostics.release.manifestAvailable && diagnostics.release.checksumAvailable && diagnostics.release.artifactCount > 0;
@@ -110,6 +111,7 @@ export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: C
         <div className="text-amber-100/80">{t("diagnostics.calendarSafetyBody")}</div>
       </div>
       <ReleaseReadinessSummary release={diagnostics.release} />
+      {updateCheck ? <ReleaseUpdateStatusCard updateCheck={updateCheck} /> : null}
       <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-sm font-bold">

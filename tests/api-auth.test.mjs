@@ -172,6 +172,20 @@ async function getOpenPort() {
 test("admin auth protects APIs and device binding enables mobile access", async (t) => {
   const port = await getOpenPort();
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-auth-test-"));
+  const releaseApiFixture = `data:application/json,${encodeURIComponent(JSON.stringify([
+    {
+      tag_name: "v0.1.4-alpha",
+      name: "LifeOS AI v0.1.4-alpha",
+      html_url: "https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha",
+      draft: false,
+      prerelease: true,
+      published_at: "2026-06-27T00:00:00.000Z",
+      assets: [
+        { name: "SHA256SUMS", size: 308, browser_download_url: "https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.4-alpha/SHA256SUMS" },
+        { name: "LifeOS.AI.Setup.0.1.4-alpha.0.exe", size: 1000, browser_download_url: "https://github.com/WGJ-Fry/lifeos-ai/releases/download/v0.1.4-alpha/LifeOS.AI.Setup.0.1.4-alpha.0.exe" },
+      ],
+    },
+  ]))}`;
   const child = spawn(process.execPath, ["dist/server.cjs"], {
     cwd: rootDir,
     env: {
@@ -183,6 +197,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
       PUBLIC_BASE_URL: "",
       APP_URL: "",
       GEMINI_API_KEY: "",
+      LIFEOS_RELEASE_API_URL: releaseApiFixture,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -264,6 +279,15 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof diagnostics.release.checksumAvailable, "boolean");
   assert.equal(typeof diagnostics.release.artifactCount, "number");
   assert.equal(Array.isArray(diagnostics.release.artifacts), true);
+  const blockedReleaseUpdateCheck = await request(port, "/api/v1/admin/release/update-check");
+  assert.equal(blockedReleaseUpdateCheck.status, 401);
+  const releaseUpdateCheck = await request(port, "/api/v1/admin/release/update-check", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(releaseUpdateCheck.status, "up-to-date");
+  assert.equal(releaseUpdateCheck.current.tag, "v0.1.4-alpha");
+  assert.equal(releaseUpdateCheck.latest.tag, "v0.1.4-alpha");
+  assert.equal(releaseUpdateCheck.latest.checksumAsset.name, "SHA256SUMS");
+  assert.equal(releaseUpdateCheck.manualUpdateRequired, true);
+  assert.equal(releaseUpdateCheck.autoUpdateEnabled, false);
   assert.equal(diagnostics.calendarSync.mode, "preview-only");
   assert.equal(diagnostics.calendarSync.externalWritesEnabled, false);
   assert.equal(diagnostics.calendarSync.writeBackSupported, false);
