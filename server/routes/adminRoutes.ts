@@ -2,6 +2,7 @@ import type express from "express";
 import { db } from "../db";
 import { insertAuditLog, listAuditLogs } from "../audit";
 import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, type AiProviderId } from "../appSecrets";
+import { buildCalendarSyncPreview } from "../calendarSyncPreview";
 import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
@@ -11,7 +12,7 @@ import { saveDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { getConfiguredPublicBaseUrl } from "../publicBaseUrl";
 import { getRemoteValidationReport, saveRemoteValidationReport, summarizeRemoteHealth } from "../remoteValidationReport";
 import { getRemoteHealthMonitorStatus, getRemoteRecoveryReport, runRemoteHealthCheck } from "../remoteHealthMonitor";
-import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookFromConnectionTest, saveRemoteAcceptanceRunbookReport, summarizeRemoteAcceptanceChecklist } from "../remoteAcceptance";
+import { buildRemoteAcceptanceChecklist, buildRemoteAcceptanceEvidencePack, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, saveRemoteAcceptanceRecord, saveRemoteAcceptanceRunbookFromConnectionTest, saveRemoteAcceptanceRunbookReport, summarizeRemoteAcceptanceChecklist } from "../remoteAcceptance";
 import { createSecret, tokenHash } from "../security";
 import { setClientState } from "../clientState";
 import { evaluatePasswordPolicy, getSecurityDiagnostics } from "../securityDiagnostics";
@@ -204,6 +205,7 @@ function getAdminNetworkDiagnostics() {
     report: remoteValidationReport,
     records: getRemoteAcceptanceRecords(),
   });
+  const remoteAcceptanceSummary = summarizeRemoteAcceptanceChecklist(remoteAcceptanceChecklist);
   return {
     ...enrichedDiagnostics,
     remoteValidationReport,
@@ -220,7 +222,13 @@ function getAdminNetworkDiagnostics() {
     remoteHealthMonitor: getRemoteHealthMonitorStatus(),
     remoteRecoveryReport: getRemoteRecoveryReport(),
     remoteAcceptanceChecklist,
-    remoteAcceptanceSummary: summarizeRemoteAcceptanceChecklist(remoteAcceptanceChecklist),
+    remoteAcceptanceSummary,
+    remoteAcceptanceEvidencePack: buildRemoteAcceptanceEvidencePack({
+      checklist: remoteAcceptanceChecklist,
+      summary: remoteAcceptanceSummary,
+      baseUrl: enrichedDiagnostics.desktopRuntimeConfig?.publicBaseUrl || remoteHealthSummary.baseUrl || enrichedDiagnostics.recommendedBaseUrl,
+      runbooks: remoteAcceptanceRunbookRecords,
+    }),
     remoteAcceptanceRunbooks: {
       total: remoteAcceptanceRunbookRecords.length,
       latest: remoteAcceptanceRunbookRecords.slice(-3).reverse(),
@@ -307,8 +315,26 @@ export function registerAdminRoutes(app: express.Express) {
         ...getReleaseDiagnostics(),
         recommendations: ["When publishing for regular users, provide installers, USER-INSTALL.md, SHA256SUMS, and release-manifest.json."],
       },
+      calendarSync: buildCalendarSyncPreview(),
       securityCheck: getSecurityDiagnostics(),
     });
+  });
+
+  app.get("/api/v1/admin/calendar-sync/preview", requireAdmin, (_req, res) => {
+    res.json(buildCalendarSyncPreview());
+  });
+
+  app.post("/api/v1/admin/calendar-sync/preview", requireAdmin, (req, res) => {
+    const preview = buildCalendarSyncPreview({ proposedItems: req.body?.proposedItems });
+    insertAuditLog("calendar_sync_preview_created", "calendar_sync", "preview", {
+      mode: preview.mode,
+      readOnlyItems: preview.summary.readOnlyItems,
+      blockedWrites: preview.summary.blockedWrites,
+      providerCount: preview.providers.length,
+      operationCount: preview.operations.length,
+      externalWritesEnabled: preview.externalWritesEnabled,
+    }, (req as any).actor?.type, (req as any).actor?.id);
+    res.json(preview);
   });
 
   app.get("/api/v1/admin/network-diagnostics", requireAdmin, (_req, res) => {

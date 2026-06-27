@@ -25,13 +25,13 @@ export function registerChatRoutes(app: express.Express) {
     const session = getChatSession(req.params.sessionId);
     if (!session) return res.status(404).json({ error: "Chat session not found" });
 
-    const { role, content, sourceDeviceId } = req.body || {};
+    const { role, content, sourceDeviceId, metadata } = req.body || {};
     if (!role || !content) return res.status(400).json({ error: "role and content are required" });
     if (!["user", "assistant", "system", "tool"].includes(role)) {
       return res.status(400).json({ error: "Invalid message role" });
     }
 
-    const message = insertMessage(req.params.sessionId, role, content, sourceDeviceId);
+    const message = insertMessage(req.params.sessionId, role, content, sourceDeviceId, metadata);
     broadcastRealtime({
       type: "message.created",
       sessionId: req.params.sessionId,

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Command, ExternalLink, Mail, MessageSquare, Phone, Play, Save, Trash2 } from "lucide-react";
+import { Command, ExternalLink, Mail, MessageSquare, Phone, Play, Save, ShieldAlert, Trash2 } from "lucide-react";
 import { getClientState, setClientState } from "../../services/lifeosApi";
 import {
   DANGEROUS_SCHEMES,
   buildActionLogSourceSummary,
   buildShortcutUrl,
+  getNativeSystemActionPlanSummary,
   getSystemActionCapabilitySummary,
   getUrlScheme,
   normalizeAllowedUrlSchemes,
@@ -53,6 +54,14 @@ function capabilityLabelKey(id: ReturnType<typeof getSystemActionCapabilitySumma
 
 function capabilityStatusKey(status: ReturnType<typeof getSystemActionCapabilitySummary>[number]["status"]) {
   return `actions.capabilityStatus.${status}` as TranslationKey;
+}
+
+function nativeCapabilityLabelKey(id: ReturnType<typeof getNativeSystemActionPlanSummary>[number]["id"]) {
+  return `actions.nativeCapability.${id}` as TranslationKey;
+}
+
+function nativeRequirementLabelKey(id: ReturnType<typeof getNativeSystemActionPlanSummary>[number]["requirements"][number]) {
+  return `actions.nativeRequirement.${id}` as TranslationKey;
 }
 
 function openUrl(url: string, allowedSchemes: string[], options?: {
@@ -115,6 +124,7 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
   };
   const sourceSummary = buildActionLogSourceSummary(actionLogs);
   const capabilitySummary = getSystemActionCapabilitySummary(allowedSchemes);
+  const nativeActionPlanSummary = getNativeSystemActionPlanSummary();
   const localizedUrlOptions = {
     manualSource: t("actions.source.manual"),
     unknownLabel: t("actions.unknown"),
@@ -264,6 +274,35 @@ export default function SystemActionsApp({ initialAction }: SystemActionsAppProp
                 </div>
                 <div className="mt-1 opacity-70">
                   {capability.requiresConfirmation ? t("actions.capabilityConfirmRequired") : t("actions.capabilityConfirmWhenRisky")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 rounded-xl border border-amber-300/15 bg-amber-500/[0.04] p-3">
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-black text-amber-100">
+            <ShieldAlert className="h-3.5 w-3.5" />
+            {t("actions.nativeSafetyTitle")}
+          </div>
+          <p className="mb-3 text-[10px] leading-relaxed text-amber-100/70">{t("actions.nativeSafetyBody")}</p>
+          <div className="grid gap-2 md:grid-cols-2">
+            {nativeActionPlanSummary.map((capability) => (
+              <div key={capability.id} className="rounded-xl border border-white/[0.06] bg-black/20 p-2 text-[10px] text-zinc-300">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-black text-zinc-100">{t(nativeCapabilityLabelKey(capability.id))}</span>
+                  <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-bold text-amber-100">
+                    {t("actions.nativeStatus.blockedPreview")}
+                  </span>
+                </div>
+                <div className="mt-1 text-zinc-500">
+                  {t("actions.nativeRiskLine", { risk: riskLabel(capability.risk, t) })}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {capability.requirements.map((requirement) => (
+                    <span key={requirement} className="rounded-full border border-white/[0.06] bg-white/[0.03] px-2 py-0.5 text-zinc-400">
+                      {t(nativeRequirementLabelKey(requirement))}
+                    </span>
+                  ))}
                 </div>
               </div>
             ))}

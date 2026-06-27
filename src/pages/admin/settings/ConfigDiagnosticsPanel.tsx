@@ -1,4 +1,4 @@
-import { ArrowRight, KeyRound, ShieldAlert } from "lucide-react";
+import { ArrowRight, CalendarClock, KeyRound, ShieldAlert } from "lucide-react";
 import type { ConfigDiagnostics } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
 import DiagnosticCard from "./DiagnosticCard";
@@ -29,13 +29,14 @@ export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: C
   const { t } = useI18n();
   const latestArtifact = diagnostics.release.artifacts[0];
   const releaseReady = diagnostics.release.manifestAvailable && diagnostics.release.checksumAvailable && diagnostics.release.artifactCount > 0;
+  const calendarWriteBlocked = !diagnostics.calendarSync.writeBackSupported || diagnostics.calendarSync.summary.blockedWrites > 0;
   return (
     <section className="mb-6 rounded-[28px] border border-white/[0.08] bg-[#101722] p-5">
       <div className="mb-4 flex items-center gap-2 font-bold">
         <KeyRound className="h-4 w-4 text-cyan-300" />
         {t("diagnostics.title")}
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <DiagnosticCard
           title={t("diagnostics.aiService")}
           status={diagnostics.ai.configured ? t("diagnostics.configured") : t("diagnostics.needsConfig")}
@@ -85,6 +86,26 @@ export default function ConfigDiagnosticsPanel({ diagnostics }: { diagnostics: C
           ]}
           recommendations={diagnostics.release.recommendations}
         />
+        <DiagnosticCard
+          title={t("diagnostics.calendarSync")}
+          status={calendarWriteBlocked ? t("diagnostics.previewOnly") : t("diagnostics.configured")}
+          tone={calendarWriteBlocked ? "amber" : "green"}
+          rows={[
+            [t("diagnostics.calendarMode"), diagnostics.calendarSync.mode],
+            [t("diagnostics.readOnlyItems"), String(diagnostics.calendarSync.summary.readOnlyItems)],
+            [t("diagnostics.blockedWrites"), String(diagnostics.calendarSync.summary.blockedWrites)],
+            [t("diagnostics.providersReadable"), String(diagnostics.calendarSync.summary.providersReadyForRead)],
+            [t("diagnostics.providersWritable"), String(diagnostics.calendarSync.summary.providersReadyForWrite)],
+          ]}
+          recommendations={diagnostics.calendarSync.recommendations}
+        />
+      </div>
+      <div className="mt-4 rounded-2xl border border-amber-300/10 bg-amber-500/[0.06] p-4 text-xs text-amber-100">
+        <div className="mb-2 flex items-center gap-2 font-bold text-amber-50">
+          <CalendarClock className="h-4 w-4" />
+          {t("diagnostics.calendarSafetyTitle")}
+        </div>
+        <div className="text-amber-100/80">{t("diagnostics.calendarSafetyBody")}</div>
       </div>
       <ReleaseReadinessSummary release={diagnostics.release} />
       <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">

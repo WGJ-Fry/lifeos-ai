@@ -171,6 +171,13 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(serialized.includes("github_pat_diagnosticSecret"), false);
   assert.equal(bundle.remote.acceptanceRunbooks.total, 1);
   assert.equal(bundle.remote.acceptanceRunbooks.latest[0].entryKind, "stable-https");
+  assert.equal(typeof bundle.remote.acceptanceEvidencePack.ready, "boolean");
+  assert.equal(bundle.remote.acceptanceEvidencePack.baseUrl, "https://example.com/lifeos");
+  assert.equal(bundle.remote.acceptanceEvidencePack.automatedReady, true);
+  assert.equal(Array.isArray(bundle.remote.acceptanceEvidencePack.missingRealWorldIds), true);
+  assert.equal(Array.isArray(bundle.remote.acceptanceEvidencePack.expiredRealWorldIds), true);
+  assert.equal(bundle.remote.acceptanceEvidencePack.missingRealWorldIds.includes("diagnostic-export"), true);
+  assert.equal(bundle.remote.acceptanceEvidencePack.recommendedAction, "save-long-term-entry");
   assert.equal(serialized.includes("remote-secret"), false);
   assert.equal(serialized.includes("private-release-token-should-not-leak"), false);
   assert.equal(serialized.includes("user:password"), false);
@@ -189,6 +196,11 @@ test("diagnostic bundle redacts URL credentials, query secrets, and local paths"
   assert.equal(bundle.remote.acceptanceSummary.hasLongTermEntry, false);
   assert.equal(bundle.remote.acceptanceSummary.hasRealWorldEvidence, false);
   assert.equal(typeof bundle.remote.acceptanceSummary.manualRequired, "number");
+  assert.equal(bundle.calendarSync.mode, "preview-only");
+  assert.equal(bundle.calendarSync.externalWritesEnabled, false);
+  assert.equal(bundle.calendarSync.writeBackSupported, false);
+  assert.equal(bundle.calendarSync.summary.providersReadyForWrite, 0);
+  assert.equal(bundle.calendarSync.providers.some((provider) => provider.id === "apple-calendar" && provider.writeSupported === false), true);
   assert.equal(bundle.systemActions.totalLogs, 2);
   assert.equal(bundle.systemActions.blocked, 1);
   assert.equal(bundle.systemActions.highRisk, 2);

@@ -3,6 +3,7 @@ import {
   createCustomAppDebugRequest,
   createCustomAppRuntimeEvent,
   listCustomAppRuntimeEvents,
+  type CustomAppRepairProposal,
   type StoredCustomAppRuntimeEvent,
 } from "../../../services/lifeosApi";
 import type { StudioTelemetryLog } from "./StudioTelemetryLogPanel";
@@ -27,6 +28,7 @@ export function useStudioRuntimeDebug({
   const [runtimeEventsError, setRuntimeEventsError] = useState<string | null>(null);
   const [runtimeDebugIssue, setRuntimeDebugIssue] = useState("");
   const [isRequestingRuntimeDebug, setIsRequestingRuntimeDebug] = useState(false);
+  const [runtimeRepairProposal, setRuntimeRepairProposal] = useState<CustomAppRepairProposal | null>(null);
 
   const loadRuntimeEvents = useCallback(async (appId = editingAppId) => {
     if (!appId) {
@@ -59,13 +61,15 @@ export function useStudioRuntimeDebug({
         issue: runtimeDebugIssue.trim() || t("studio.runtime.defaultDebugIssue"),
       });
       setRefineInstruction(response.suggestedInstruction);
+      setRuntimeRepairProposal(response.repairProposal);
       setRuntimeDebugIssue("");
       appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.debugInstructionReady"), type: "info" });
       await loadRuntimeEvents(appId);
-      return response.suggestedInstruction;
+      return response;
     } catch (error: any) {
       setRuntimeEventsError(error?.message || t("studio.runtime.requestFailed"));
-      return "";
+      setRuntimeRepairProposal(null);
+      return null;
     } finally {
       setIsRequestingRuntimeDebug(false);
     }
@@ -92,6 +96,7 @@ export function useStudioRuntimeDebug({
     runtimeDebugIssue,
     runtimeEvents,
     runtimeEventsError,
+    runtimeRepairProposal,
     setRuntimeDebugIssue,
   };
 }

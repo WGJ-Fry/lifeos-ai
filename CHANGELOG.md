@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased: 0.1.4-alpha.0 candidate
+
+Source-only work queued for the next public alpha. Do not advertise as released until the tag, packages, Docker image, and release notes are published.
+
+- Expanded Studio problem blueprints with a larger template variant library for ledgers, planners, organizers, habits, calculators, forms, workflows, lookups, and general tasks.
+- Added generated-tool quality scoring, acceptance criteria, failure triggers, and guarded auto-repair/manual-review boundaries before app generation.
+- Added Studio UI and i18n coverage for quality score, automatic repair limits, manual-review signals, and post-repair verification.
+- Added mobile offline queue sync identity with mutation IDs, idempotency keys, client sequence numbers, visible sync stages, and backup metadata for weak-network recovery.
+- Added duplicate-safe chat write-back so replayed offline messages with the same idempotency key return the existing SQLite message instead of creating duplicates.
+- Added release-check and smoke-test guards so README/Release communication cannot claim fully automatic unattended repair, native automation, or calendar write-back before those features ship.
+
 ## 0.1.3-alpha.0
 
 Public alpha aligned to the latest main branch and prepared for a fresh `v0.1.3-alpha` Release.

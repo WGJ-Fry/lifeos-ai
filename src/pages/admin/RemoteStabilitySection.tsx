@@ -3,6 +3,7 @@ import { useI18n } from "../../i18n/I18nProvider";
 import { importRemoteAcceptanceReport, recordRemoteAcceptance, runRemoteAcceptance } from "../../services/lifeosApi";
 import type { NetworkDiagnostics } from "../../services/lifeosApi";
 import RemoteAcceptanceChecklistCard from "./RemoteAcceptanceChecklistCard";
+import RemoteAcceptanceEvidencePackCard from "./RemoteAcceptanceEvidencePackCard";
 import RemoteHealthSummaryCard from "./RemoteHealthSummaryCard";
 
 const emptyRemoteHealthSummary: NetworkDiagnostics["remoteHealthSummary"] = {
@@ -129,6 +130,7 @@ export default function RemoteStabilitySection({
   return (
     <>
       <RemoteHealthSummaryCard monitor={diagnostics.remoteHealthMonitor} recovery={diagnostics.remoteRecoveryReport} summary={remoteHealthSummary} />
+      <RemoteAcceptanceEvidencePackCard evidencePack={diagnostics.remoteAcceptanceEvidencePack} />
       <RemoteAcceptanceChecklistCard
         acceptanceCommand={acceptanceCommand}
         acceptingId={acceptingId}

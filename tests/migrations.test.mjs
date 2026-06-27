@@ -65,7 +65,7 @@ function createLegacyDatabase(dataDir) {
     INSERT INTO client_state (key, value_json, updated_at, updated_by_type, updated_by_id)
     VALUES (
       'lifeos_apps',
-      '[{"id":"legacy-app-1","name":"Legacy Ledger","description":"Old local app /Users/wangguojun/private.csv","visibility":"private","status":"active","createdAt":1,"code":"<script>const token = ''github_pat_legacyCustomAppSecret_1234567890'';</script>"}]',
+      '[{"id":"legacy-app-1","name":"Legacy Ledger","description":"Old local app /Users/example/private.csv","visibility":"private","status":"active","createdAt":1,"code":"<script>const token = ''github_pat_legacyCustomAppSecret_1234567890'';</script>"}]',
       1,
       'device',
       'legacy-device'
@@ -118,7 +118,9 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   const customAppCapabilitiesMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 12").get();
   const customAppCapabilityRequestsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 13").get();
   const customAppRuntimeEventsMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 14").get();
+  const messageOfflineSyncMigration = db.prepare("SELECT version, name FROM schema_migrations WHERE version = 15").get();
   const connectivityColumns = db.prepare("PRAGMA table_info(device_connectivity_reports)").all().map((column) => column.name);
+  const messageColumns = db.prepare("PRAGMA table_info(messages)").all().map((column) => column.name);
   const bindingSessionColumns = db.prepare("PRAGMA table_info(binding_sessions)").all().map((column) => column.name);
   const problemBlueprintColumns = db.prepare("PRAGMA table_info(problem_blueprints)").all().map((column) => column.name);
   const customAppColumns = db.prepare("PRAGMA table_info(custom_apps)").all().map((column) => column.name);
@@ -147,9 +149,15 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.equal(customAppCapabilitiesMigration.name, "custom_app_capability_manifests");
   assert.equal(customAppCapabilityRequestsMigration.name, "custom_app_capability_requests");
   assert.equal(customAppRuntimeEventsMigration.name, "custom_app_runtime_events");
+  assert.equal(messageOfflineSyncMigration.name, "message_offline_sync_identity");
   assert.ok(connectivityColumns.includes("current_base_url"));
   assert.ok(connectivityColumns.includes("mobile_shell_ok"));
   assert.ok(connectivityColumns.includes("websocket_ok"));
+  assert.ok(messageColumns.includes("offline_mutation_id"));
+  assert.ok(messageColumns.includes("idempotency_key"));
+  assert.ok(messageColumns.includes("client_sequence"));
+  assert.ok(messageColumns.includes("source_version"));
+  assert.ok(messageColumns.includes("queued_at"));
   assert.ok(bindingSessionColumns.includes("base_url"));
   assert.ok(problemBlueprintColumns.includes("app_prompt"));
   assert.ok(problemBlueprintColumns.includes("generated_app_id"));
@@ -172,7 +180,7 @@ test("startup migrations upgrade a legacy SQLite schema", async (t) => {
   assert.ok(customAppRuntimeEventColumns.includes("event_type"));
   assert.ok(customAppRuntimeEventColumns.includes("detail_json"));
   assert.equal(legacyCustomApp.name, "Legacy Ledger");
-  assert.equal(legacyCustomApp.description.includes("/Users/wangguojun/private.csv"), false);
+  assert.equal(legacyCustomApp.description.includes("/Users/example/private.csv"), false);
   assert.equal(legacyCustomApp.code.includes("github_pat_legacyCustomAppSecret"), false);
   assert.equal(legacyCustomAppVersion.appId, "legacy-app-1");
   assert.equal(legacyCustomAppVersion.version, 1);

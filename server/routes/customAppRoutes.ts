@@ -3,6 +3,7 @@ import { insertAuditLog } from "../audit";
 import { requireActor } from "../auth";
 import {
   createCustomApp,
+  compareCustomAppVersions,
   createCustomAppActionRequest,
   createCustomAppCapabilityRequest,
   createCustomAppDebugRequest,
@@ -47,6 +48,16 @@ export function registerCustomAppRoutes(app: express.Express) {
     const versions = listCustomAppVersions(req.params.appId, req.query.limit);
     if (!versions) return res.status(404).json({ error: "Custom app not found" });
     res.json({ versions });
+  });
+
+  app.get("/api/v1/custom-apps/:appId/version-compare", requireActor, (req, res) => {
+    try {
+      const comparison = compareCustomAppVersions(req.params.appId, req.query.from, req.query.to);
+      if (!comparison) return res.status(404).json({ error: "Custom app not found" });
+      res.json({ comparison });
+    } catch (error) {
+      handleCustomAppError(res, error);
+    }
   });
 
   app.post("/api/v1/custom-apps/:appId/versions/:version/rollback", requireActor, (req, res) => {
@@ -132,6 +143,9 @@ export function registerCustomAppRoutes(app: express.Express) {
         eventId: result.event?.id,
         suggestedInstructionBytes: Buffer.byteLength(result.suggestedInstruction || "", "utf8"),
         recentEventCount: result.recentEvents.length,
+        repairRisk: result.repairProposal.risk,
+        suspectedArea: result.repairProposal.suspectedArea,
+        repairStepCount: result.repairProposal.repairSteps.length,
       }, actor(req)?.type, actor(req)?.id);
       broadcastRealtime({ type: "custom_app.debug_requested", appId: req.params.appId, event: result.event, timestamp: result.event?.createdAt || Date.now() });
       res.json(result);

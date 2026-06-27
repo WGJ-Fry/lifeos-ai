@@ -24,21 +24,13 @@ import { useStudioConnectionSettings } from "./studio/useStudioConnectionSetting
 import { useStudioProblemBlueprintHistory } from "./studio/useStudioProblemBlueprintHistory";
 import { useStudioRuntimeDebug } from "./studio/useStudioRuntimeDebug";
 import StudioWorkshopTab from "./studio/StudioWorkshopTab";
-
-export default function StudioApp({ 
-  customApps, 
-  onClose,
-  onUpdateCode,
-  onDeleteApp,
-  onOpenApp,
-  onAddApp
-}: { 
-  customApps: CustomApp[], 
-  onClose: () => void,
-  onUpdateCode: (id: string, code: string) => void,
-  onDeleteApp?: (id: string) => void,
-  onOpenApp?: (id: string) => void,
-  onAddApp?: (app: CustomApp) => void
+export default function StudioApp({ customApps, onClose, onUpdateCode, onDeleteApp, onOpenApp, onAddApp }: {
+  customApps: CustomApp[];
+  onClose: () => void;
+  onUpdateCode: (id: string, code: string) => void;
+  onDeleteApp?: (id: string) => void;
+  onOpenApp?: (id: string) => void;
+  onAddApp?: (app: CustomApp) => void;
 }) {
   const { t } = useI18n();
   const [editingAppId, setEditingAppId] = useState<string | null>(null);
@@ -83,8 +75,7 @@ export default function StudioApp({
     requestRuntimeDebug,
     runtimeDebugIssue,
     runtimeEvents,
-    runtimeEventsError,
-    setRuntimeDebugIssue,
+    runtimeEventsError, runtimeRepairProposal, setRuntimeDebugIssue,
   } = useStudioRuntimeDebug({
     editingAppId,
     t,
@@ -282,9 +273,14 @@ export default function StudioApp({
   const handleApplyRuntimeRepair = async (appId: string) => {
     setIsApplyingRuntimeRepair(true);
     try {
-      const instruction = await requestRuntimeDebug(appId);
-      if (instruction) {
-        await handleRefineCode(instruction, true);
+      const response = await requestRuntimeDebug(appId);
+      if (response?.suggestedInstruction) {
+        if (!response.repairProposal.executionPlan.canAutoApply) {
+          setRefineInstruction(response.suggestedInstruction);
+          appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.manualReviewRequired"), type: "warning" });
+          return;
+        }
+        await handleRefineCode(response.suggestedInstruction, true);
         appendSimulatorLog({ time: "DEBUG", text: t("studio.runtime.debugAppliedAndSaved"), type: "info" });
       }
     } catch (err: any) {
@@ -632,6 +628,8 @@ export default function StudioApp({
                {!showRawEditor ? (
                  <>
                     <StudioRefinePanel
+                      appId={activeAppToEdit.id}
+                      currentCode={localCode}
                       instruction={refineInstruction}
                       isRefining={isRefining}
                       refineError={refineError}
@@ -639,7 +637,7 @@ export default function StudioApp({
                       runtimeEvents={runtimeEvents}
                       isLoadingRuntimeEvents={isLoadingRuntimeEvents}
                       runtimeEventsError={runtimeEventsError}
-                      runtimeDebugIssue={runtimeDebugIssue}
+                      runtimeDebugIssue={runtimeDebugIssue} runtimeRepairProposal={runtimeRepairProposal}
                       isRequestingRuntimeDebug={isRequestingRuntimeDebug}
                       isApplyingRuntimeRepair={isApplyingRuntimeRepair}
                       onInstructionChange={setRefineInstruction}
@@ -653,6 +651,7 @@ export default function StudioApp({
                       onRefreshRuntimeEvents={() => void loadRuntimeEvents(activeAppToEdit.id)}
                       onRequestRuntimeDebug={() => void requestRuntimeDebug(activeAppToEdit.id)}
                       onApplyRuntimeRepair={() => void handleApplyRuntimeRepair(activeAppToEdit.id)}
+                      onApplyStoredVersionRepair={(instruction) => void handleRefineCode(instruction, true)}
                     />
 
                     <StudioResponsivePreview

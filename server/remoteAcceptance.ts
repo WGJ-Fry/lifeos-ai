@@ -6,6 +6,8 @@ const REMOTE_ACCEPTANCE_STATE_KEY = "lifeos_remote_acceptance_records";
 const REMOTE_ACCEPTANCE_RUNBOOK_STATE_KEY = "lifeos_remote_acceptance_runbook_reports";
 const MANUAL_ACCEPTANCE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MANUAL_ACCEPTANCE_MIN_NOTE_CHARS = 24;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const realWorldAcceptanceIds = ["restart-restore", "cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"] as const;
 const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"]);
 const runbookEntryKinds = new Set(["temporary-cloudflare", "tailscale-https", "local", "stable-https", "insecure-http"]);
 const runbookManualSteps = [
@@ -66,6 +68,39 @@ export type RemoteAcceptanceSummary = {
   hasLongTermEntry: boolean;
   hasRealWorldEvidence: boolean;
   blockingItems: Array<Pick<RemoteAcceptanceItem, "id" | "status" | "action" | "command">>;
+};
+
+export type RemoteAcceptanceEvidenceScenario = {
+  id: RemoteAcceptanceItem["id"];
+  status: "passed" | "missing" | "expired";
+  titleKey: string;
+  proofKey: string;
+  evidence: string;
+  nextAction: "record-evidence" | "refresh-evidence" | "keep-record";
+  acceptedAt?: number;
+  expiresAt?: number;
+  ageDays?: number;
+};
+
+export type RemoteAcceptanceEvidencePack = {
+  ready: boolean;
+  generatedAt: number;
+  baseUrl: string;
+  longTermEntryReady: boolean;
+  automatedReady: boolean;
+  realWorldReady: boolean;
+  realWorldPassed: number;
+  realWorldTotal: number;
+  missingCount: number;
+  expiredCount: number;
+  missingRealWorldIds: RemoteAcceptanceItem["id"][];
+  expiredRealWorldIds: RemoteAcceptanceItem["id"][];
+  nextReviewAt?: number;
+  latestAcceptedAt?: number;
+  latestRunbookImportedAt?: number;
+  recommendedAction: "save-long-term-entry" | "run-remote-smoke" | "complete-real-world-checks" | "refresh-expired-evidence" | "export-diagnostics" | "ready";
+  scenarioMatrix: RemoteAcceptanceEvidenceScenario[];
+  coverage: Array<Pick<RemoteAcceptanceItem, "id" | "status" | "acceptedAt" | "expiresAt" | "evidence">>;
 };
 
 export type RemoteAcceptanceRecord = {
@@ -518,6 +553,89 @@ export function summarizeRemoteAcceptanceChecklist(checklist: RemoteAcceptanceIt
         status: item.status,
         action: item.action,
         command: item.command,
-      })),
+    })),
+  };
+}
+
+function remoteAcceptanceScenarioKey(id: RemoteAcceptanceItem["id"]) {
+  return id.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
+}
+
+function buildRemoteAcceptanceEvidenceScenario(item: RemoteAcceptanceItem, now: number): RemoteAcceptanceEvidenceScenario {
+  const expired = item.expiresAt !== undefined && item.expiresAt <= now;
+  const status: RemoteAcceptanceEvidenceScenario["status"] = expired
+    ? "expired"
+    : item.status === "passed"
+      ? "passed"
+      : "missing";
+  const scenarioKey = remoteAcceptanceScenarioKey(item.id);
+  return {
+    id: item.id,
+    status,
+    titleKey: `connection.evidencePack.scenario.${scenarioKey}.title`,
+    proofKey: `connection.evidencePack.scenario.${scenarioKey}.proof`,
+    evidence: item.evidence,
+    nextAction: status === "expired" ? "refresh-evidence" : status === "passed" ? "keep-record" : "record-evidence",
+    acceptedAt: item.acceptedAt,
+    expiresAt: item.expiresAt,
+    ageDays: item.acceptedAt ? Math.max(0, Math.floor((now - item.acceptedAt) / DAY_MS)) : undefined,
+  };
+}
+
+export function buildRemoteAcceptanceEvidencePack(input: {
+  checklist: RemoteAcceptanceItem[];
+  summary?: RemoteAcceptanceSummary;
+  baseUrl?: string;
+  runbooks?: RemoteAcceptanceRunbookRecord[];
+  now?: number;
+}): RemoteAcceptanceEvidencePack {
+  const summary = input.summary || summarizeRemoteAcceptanceChecklist(input.checklist);
+  const now = input.now || Date.now();
+  const realWorldItems = input.checklist.filter((item) => (realWorldAcceptanceIds as readonly RemoteAcceptanceItem["id"][]).includes(item.id));
+  const scenarioMatrix = realWorldItems.map((item) => buildRemoteAcceptanceEvidenceScenario(item, now));
+  const missingRealWorldIds = scenarioMatrix.filter((scenario) => scenario.status === "missing").map((scenario) => scenario.id);
+  const expiredRealWorldIds = scenarioMatrix.filter((scenario) => scenario.status === "expired").map((scenario) => scenario.id);
+  const acceptedTimes = realWorldItems.map((item) => item.acceptedAt).filter((value): value is number => Number.isFinite(value));
+  const reviewTimes = realWorldItems.map((item) => item.expiresAt).filter((value): value is number => Number.isFinite(value) && value > now).sort((a, b) => a - b);
+  const automatedReady = input.checklist.find((item) => item.id === "remote-smoke")?.status === "passed";
+  const realWorldReady = missingRealWorldIds.length === 0 && expiredRealWorldIds.length === 0 && realWorldItems.every((item) => item.status === "passed");
+  const latestRunbookImportedAt = [...(input.runbooks || [])].sort((left, right) => right.importedAt - left.importedAt)[0]?.importedAt;
+  const diagnosticMissing = input.checklist.find((item) => item.id === "diagnostic-export")?.status !== "passed";
+  const recommendedAction: RemoteAcceptanceEvidencePack["recommendedAction"] = !summary.hasLongTermEntry
+    ? "save-long-term-entry"
+    : !automatedReady
+      ? "run-remote-smoke"
+      : expiredRealWorldIds.length > 0
+        ? "refresh-expired-evidence"
+        : missingRealWorldIds.length > 0
+          ? diagnosticMissing && missingRealWorldIds.length === 1
+            ? "export-diagnostics"
+            : "complete-real-world-checks"
+          : "ready";
+  return {
+    ready: summary.ready && realWorldReady,
+    generatedAt: now,
+    baseUrl: input.baseUrl || "",
+    longTermEntryReady: summary.hasLongTermEntry,
+    automatedReady,
+    realWorldReady,
+    realWorldPassed: realWorldItems.filter((item) => item.status === "passed").length,
+    realWorldTotal: realWorldItems.length,
+    missingCount: missingRealWorldIds.length,
+    expiredCount: expiredRealWorldIds.length,
+    missingRealWorldIds,
+    expiredRealWorldIds,
+    nextReviewAt: reviewTimes[0],
+    latestAcceptedAt: acceptedTimes.sort((a, b) => b - a)[0],
+    latestRunbookImportedAt,
+    recommendedAction,
+    scenarioMatrix,
+    coverage: realWorldItems.map((item) => ({
+      id: item.id,
+      status: item.status,
+      acceptedAt: item.acceptedAt,
+      expiresAt: item.expiresAt,
+      evidence: item.evidence,
+    })),
   };
 }

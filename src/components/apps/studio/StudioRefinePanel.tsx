@@ -1,7 +1,9 @@
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
-import type { StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
+import type { CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
 import StudioRuntimeEventsPanel from "./StudioRuntimeEventsPanel";
+import StudioRefineVersionCompareCard from "./StudioRefineVersionCompareCard";
+import StudioStoredVersionCompareCard from "./StudioStoredVersionCompareCard";
 
 export type StudioRefineHistoryItem = {
   id: string;
@@ -12,6 +14,8 @@ export type StudioRefineHistoryItem = {
 };
 
 type StudioRefinePanelProps = {
+  appId?: string | null;
+  currentCode: string;
   instruction: string;
   isRefining: boolean;
   refineError: string | null;
@@ -20,6 +24,7 @@ type StudioRefinePanelProps = {
   isLoadingRuntimeEvents: boolean;
   runtimeEventsError: string | null;
   runtimeDebugIssue: string;
+  runtimeRepairProposal: CustomAppRepairProposal | null;
   isRequestingRuntimeDebug: boolean;
   isApplyingRuntimeRepair: boolean;
   onInstructionChange: (value: string) => void;
@@ -29,9 +34,12 @@ type StudioRefinePanelProps = {
   onRefreshRuntimeEvents: () => void;
   onRequestRuntimeDebug: () => void;
   onApplyRuntimeRepair: () => void;
+  onApplyStoredVersionRepair: (instruction: string) => void;
 };
 
 export default function StudioRefinePanel({
+  appId,
+  currentCode,
   instruction,
   isRefining,
   refineError,
@@ -40,6 +48,7 @@ export default function StudioRefinePanel({
   isLoadingRuntimeEvents,
   runtimeEventsError,
   runtimeDebugIssue,
+  runtimeRepairProposal,
   isRequestingRuntimeDebug,
   isApplyingRuntimeRepair,
   onInstructionChange,
@@ -49,6 +58,7 @@ export default function StudioRefinePanel({
   onRefreshRuntimeEvents,
   onRequestRuntimeDebug,
   onApplyRuntimeRepair,
+  onApplyStoredVersionRepair,
 }: StudioRefinePanelProps) {
   const { t } = useI18n();
   const presetInstructions = [
@@ -163,6 +173,9 @@ export default function StudioRefinePanel({
         )}
       </div>
 
+      <StudioRefineVersionCompareCard currentCode={currentCode} refineHistory={refineHistory} />
+      <StudioStoredVersionCompareCard appId={appId} isApplyingRepair={isRefining} onApplyRepair={onApplyStoredVersionRepair} />
+
       {refineError && (
         <div className="text-xs text-red-500 bg-red-500/5 border border-red-500/10 p-3 rounded-xl flex items-start gap-2">
           <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500 mt-0.5" />
@@ -178,6 +191,7 @@ export default function StudioRefinePanel({
         isLoading={isLoadingRuntimeEvents}
         error={runtimeEventsError}
         issue={runtimeDebugIssue}
+        repairProposal={runtimeRepairProposal}
         isRequestingDebug={isRequestingRuntimeDebug}
         isApplyingRepair={isApplyingRuntimeRepair}
         onIssueChange={onRuntimeDebugIssueChange}

@@ -137,13 +137,21 @@ test("offline message queue deduplicates and persists retry state", async () => 
   queueModule.markOfflineMessageSyncing(firstId);
   let [item] = queueModule.getOfflineMessageQueue();
   assert.equal(item.status, "syncing");
+  assert.equal(item.syncStage, "syncing");
   assert.equal(item.attempts, 1);
   assert.ok(item.lastAttemptAt);
+  assert.match(item.mutationId, /^[0-9a-f-]{36}$|^legacy-/);
+  assert.match(item.idempotencyKey, /^lifeos-offline:/);
+  assert.equal(item.clientSequence >= 1, true);
+  assert.equal(item.sourceVersion, 1);
 
   queueModule.markOfflineMessageFailed(firstId, new Error("network down"));
   let summary = queueModule.getOfflineMessageQueueSummary();
   assert.equal(summary.count, 1);
   assert.equal(summary.failed, 1);
+  assert.equal(summary.readyToSync, 0);
+  assert.equal(summary.identityReady, 1);
+  assert.equal(summary.missingIdentity, 0);
   assert.equal(summary.conflicts, 0);
   assert.equal(summary.lastError, "network down");
   assert.equal(typeof summary.nextRetryAt, "number");
@@ -151,6 +159,7 @@ test("offline message queue deduplicates and persists retry state", async () => 
   queueModule.retryOfflineMessage(firstId);
   [item] = queueModule.getOfflineMessageQueue();
   assert.equal(item.status, "pending");
+  assert.equal(item.syncStage, "retry-ready");
   assert.equal(item.lastError, undefined);
   assert.equal(item.manualRetryCount, 1);
   assert.equal(typeof item.lastManualRetryAt, "number");
@@ -205,6 +214,7 @@ test("offline message queue recovers interrupted sync and backs off failed retri
   queueModule.recoverStaleOfflineMessages(syncingBeforeRecovery.lastAttemptAt + 3 * 60 * 1000);
   const recovered = queueModule.getOfflineMessageQueue().find((item) => item.id === firstId);
   assert.equal(recovered.status, "pending");
+  assert.equal(recovered.syncStage, "retry-ready");
   assert.match(recovered.lastError, /sync was interrupted/);
 
   const failed = queueModule.getOfflineMessageQueue().find((item) => item.id === secondId);
@@ -280,10 +290,162 @@ test("offline message queue surfaces duplicate fingerprint conflict risk", async
   const summary = queueModule.getOfflineMessageQueueSummary();
   const queue = queueModule.getOfflineMessageQueue();
   const backup = buildOfflineQueueBackupText(summary, queue);
+  const conflictGroups = queueModule.getOfflineMessageConflictGroups();
 
   assert.equal(summary.count, 2);
   assert.equal(summary.conflicts, 1);
+  assert.equal(conflictGroups.length, 1);
+  assert.equal(conflictGroups[0].kind, "duplicate");
+  assert.equal(conflictGroups[0].canAutoResolve, true);
+  assert.equal(conflictGroups[0].reviewRequired, false);
+  assert.equal(conflictGroups[0].reasonKey, "offlineQueue.conflictReason.duplicate");
+  assert.equal(conflictGroups[0].count, 2);
+  assert.equal(conflictGroups[0].keepId, "legacy-b");
+  assert.deepEqual(conflictGroups[0].duplicateIds, ["legacy-a"]);
+  assert.equal(conflictGroups[0].resolutionOptions.some((option) => option.id === "keep-latest" && option.recommended), true);
+  assert.equal(conflictGroups[0].resolutionOptions.some((option) => option.id === "keep-oldest"), true);
+  assert.match(conflictGroups[0].preview, /same message restored twice/);
   assert.match(backup, /Conflict-risk duplicates: 1/);
+  const recovery = queueModule.getOfflineMessageQueueRecoverySummary(queue, { online: true, networkQuality: "poor", remoteOk: true });
+  assert.equal(recovery.titleKey, "offlineQueue.recoveryConflictTitle");
+  assert.equal(recovery.nextAction, "resolve-conflicts");
+  assert.equal(recovery.canAutoSync, false);
+  assert.equal(recovery.syncPlan.mode, "manual-review");
+  assert.equal(recovery.syncPlan.manualReviewRequired, true);
+  assert.equal(recovery.syncPlan.canUseBackgroundSync, false);
+  assert.equal(recovery.syncPlan.reasonKey, "offlineQueue.syncPlan.reason.manualReview");
+  assert.equal(recovery.conflictGroupCount, 1);
+  assert.equal(recovery.weakNetworkSensitive, true);
+  assert.equal(recovery.steps.some((step) => step.id === "copy-backup" && step.status === "current"), true);
+  assert.equal(recovery.steps.some((step) => step.id === "resolve-conflicts" && step.status === "current" && step.itemCount === 1), true);
+
+  const resolved = queueModule.resolveOfflineMessageConflictGroup(fingerprint);
+  assert.deepEqual(resolved.removedIds, ["legacy-a"]);
+  assert.deepEqual(queueModule.getOfflineMessageQueue().map((item) => item.id), ["legacy-b"]);
+  assert.equal(queueModule.getOfflineMessageQueueSummary().conflicts, 0);
+  assert.deepEqual(queueModule.getOfflineMessageConflictGroups(), []);
+});
+
+test("offline queue flags similar multi-device messages for manual review only", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=similar-conflict-${Date.now()}`);
+
+  const firstId = queueModule.enqueueOfflineMessage(
+    { role: "user", parts: [{ text: "Submit travel reimbursement before Friday" }] },
+    { source: { client: "mobile", deviceName: "iPhone", deviceIdHint: "phone-a", path: "/mobile/chat", online: false, networkQuality: "poor" } },
+  );
+  const secondId = queueModule.enqueueOfflineMessage(
+    { role: "user", parts: [{ text: "submit travel reimbursement before friday!" }] },
+    { source: { client: "mobile", deviceName: "Travel Phone", deviceIdHint: "phone-b", path: "/mobile/chat", online: true, networkQuality: "poor" } },
+  );
+
+  assert.notEqual(firstId, secondId);
+  const queue = queueModule.getOfflineMessageQueue();
+  const groups = queueModule.getOfflineMessageConflictGroups(queue);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].kind, "similar-window");
+  assert.equal(groups[0].canAutoResolve, false);
+  assert.equal(groups[0].reviewRequired, true);
+  assert.equal(groups[0].reasonKey, "offlineQueue.conflictReason.similarWindow");
+  assert.deepEqual(groups[0].duplicateIds, []);
+  assert.deepEqual(groups[0].itemIds.sort(), [firstId, secondId].sort());
+  assert.equal(groups[0].sourceDeviceCount, 2);
+  assert.equal(groups[0].sourceEntryCount, 1);
+  assert.equal(groups[0].resolutionOptions.some((option) => option.id === "keep-all" && option.recommended && option.requiresBackup), true);
+  assert.equal(groups[0].resolutionOptions.some((option) => option.id === "keep-latest" && option.destructive), true);
+  assert.equal(queueModule.getOfflineMessageQueueSummary().conflicts, 1);
+
+  const recovery = queueModule.getOfflineMessageQueueRecoverySummary(queue, { online: true, networkQuality: "poor", remoteOk: true });
+  assert.equal(recovery.nextAction, "resolve-conflicts");
+  assert.equal(recovery.conflictGroupCount, 1);
+  assert.equal(recovery.canAutoSync, false);
+  assert.equal(recovery.syncPlan.mode, "manual-review");
+  assert.equal(recovery.syncPlan.manualReviewRequired, true);
+  assert.equal(recovery.steps.some((step) => step.id === "resolve-conflicts" && step.status === "current"), true);
+
+  const resolved = queueModule.resolveOfflineMessageConflictGroup(groups[0].fingerprint);
+  assert.equal(resolved, null);
+  assert.deepEqual(queueModule.getOfflineMessageQueue().map((item) => item.id).sort(), [firstId, secondId].sort());
+
+  const reviewed = queueModule.resolveOfflineMessageConflictGroup(groups[0].fingerprint, undefined, "keep-all");
+  assert.equal(reviewed.decision, "keep-all");
+  assert.deepEqual(reviewed.removedIds, []);
+  assert.deepEqual(queueModule.getOfflineMessageQueue().map((item) => item.id).sort(), [firstId, secondId].sort());
+  assert.equal(queueModule.getOfflineMessageQueueSummary().conflicts, 0);
+  assert.deepEqual(queueModule.getOfflineMessageConflictGroups(), []);
+  const reviewedRecovery = queueModule.getOfflineMessageQueueRecoverySummary(queueModule.getOfflineMessageQueue(), { online: true, networkQuality: "ok", remoteOk: true });
+  assert.equal(reviewedRecovery.nextAction, "open-chat");
+  assert.equal(reviewedRecovery.canAutoSync, true);
+  assert.equal(reviewedRecovery.syncPlan.mode, "background-ready");
+});
+
+test("offline queue can resolve reviewed similar conflicts by keeping a selected item", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=similar-conflict-selected-${Date.now()}`);
+
+  const firstId = queueModule.enqueueOfflineMessage(
+    { role: "user", parts: [{ text: "Plan the quarterly roadmap review today" }] },
+    { source: { client: "mobile", deviceName: "iPhone", deviceIdHint: "phone-a", path: "/mobile/chat", online: false, networkQuality: "poor" } },
+  );
+  const secondId = queueModule.enqueueOfflineMessage(
+    { role: "user", parts: [{ text: "plan the quarterly roadmap review today!" }] },
+    { source: { client: "mobile", deviceName: "Travel Phone", deviceIdHint: "phone-b", path: "/mobile/chat", online: true, networkQuality: "poor" } },
+  );
+  const [group] = queueModule.getOfflineMessageConflictGroups();
+  const resolved = queueModule.resolveOfflineMessageConflictGroup(group.fingerprint, firstId, "keep-selected");
+
+  assert.equal(resolved.decision, "keep-selected");
+  assert.equal(resolved.keepId, firstId);
+  assert.deepEqual(resolved.removedIds, [secondId]);
+  assert.deepEqual(queueModule.getOfflineMessageQueue().map((item) => item.id), [firstId]);
+  assert.equal(queueModule.getOfflineMessageQueueSummary().conflicts, 0);
+});
+
+test("offline queue stores source snapshots and flags multi-source recovery risk", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=source-snapshot-${Date.now()}`);
+  const { buildOfflineQueueBackupText } = await import(`../src/services/offlineQueueBackup.ts?case=source-backup-${Date.now()}`);
+
+  const firstId = queueModule.enqueueOfflineMessage(
+    { role: "user", parts: [{ text: "from phone one" }] },
+    { source: { client: "mobile", deviceName: "iPhone", deviceIdHint: "device-one", authMethod: "signature", path: "/mobile/chat?token=secret#hash", online: false, networkQuality: "offline", effectiveType: "4g" } },
+  );
+  const secondId = queueModule.enqueueOfflineMessage(
+    { role: "user", parts: [{ text: "from phone two" }] },
+    { source: { client: "mobile", deviceName: "Travel Phone", deviceIdHint: "device-two", path: "/mobile/chat", online: true, networkQuality: "poor" } },
+  );
+  const queue = queueModule.getOfflineMessageQueue();
+  assert.deepEqual(queue.map((item) => item.id).sort(), [firstId, secondId].sort());
+  assert.equal(queue[0].source.path, "/mobile/chat");
+  assert.equal(queue[0].source.deviceIdHint, "device-one");
+  assert.equal(queue[0].source.networkQuality, "offline");
+
+  const recovery = queueModule.getOfflineMessageQueueRecoverySummary(queue, { online: true, networkQuality: "ok", remoteOk: true });
+  assert.equal(recovery.state, "needs-review");
+  assert.equal(recovery.titleKey, "offlineQueue.recoveryMultiSourceTitle");
+  assert.equal(recovery.nextAction, "review-sources");
+  assert.equal(recovery.sourceDeviceCount, 2);
+  assert.equal(recovery.sourceEntryCount, 1);
+  assert.equal(recovery.sourceSnapshotMissing, 0);
+  assert.equal(recovery.multiSourceRisk, true);
+  assert.equal(recovery.syncPlan.mode, "manual-review");
+  assert.equal(recovery.syncPlan.reasonKey, "offlineQueue.syncPlan.reason.manualReview");
+  assert.equal(recovery.steps.some((step) => step.id === "review-sources" && step.status === "current"), true);
+
+  const backup = buildOfflineQueueBackupText(queueModule.getOfflineMessageQueueSummary(), queue);
+  assert.match(backup, /Source: mobile \/ iPhone \/ offline \/ \/mobile\/chat/);
+  assert.match(backup, /Source: mobile \/ Travel Phone \/ poor \/ \/mobile\/chat/);
+  assert.equal(backup.includes("secret"), false);
+  assert.equal(backup.includes("#hash"), false);
 });
 
 test("single offline message retry and remove only change the selected queue item", async () => {
@@ -332,6 +494,94 @@ test("single offline message retry and remove only change the selected queue ite
   assert.ok(dispatchedEvents.some((event) => event.type === "lifeos-offline-message-queue-changed" && event.detail.count === 0));
 });
 
+test("offline queue recovery summary supports bulk failed retry and removal", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=recovery-summary-${Date.now()}`);
+
+  const firstId = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "retry failed batch one" }] });
+  const secondId = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "retry failed batch two" }] });
+  const thirdId = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "still waiting" }] });
+  queueModule.markOfflineMessageFailed(firstId, new Error("Failed to fetch"));
+  queueModule.markOfflineMessageFailed(secondId, new Error("503 service unavailable"));
+
+  const queue = queueModule.getOfflineMessageQueue();
+  const failed = queue.filter((item) => item.status === "failed");
+  const afterBackoff = Math.max(...failed.map((item) => item.lastAttemptAt)) + 15_000;
+  const recovery = queueModule.getOfflineMessageQueueRecoverySummary(queue, { online: true, networkQuality: "ok", remoteOk: true, now: afterBackoff });
+  assert.equal(recovery.state, "needs-review");
+  assert.equal(recovery.titleKey, "offlineQueue.recoveryFailedTitle");
+  assert.deepEqual(recovery.failedIds.sort(), [firstId, secondId].sort());
+  assert.deepEqual(recovery.retryableFailedIds.sort(), [firstId, secondId].sort());
+  assert.equal(recovery.waitingCount, 3);
+
+  const blockedRecovery = queueModule.getOfflineMessageQueueRecoverySummary(queue, { online: true, networkQuality: "ok", remoteOk: false, now: afterBackoff });
+  assert.equal(blockedRecovery.state, "blocked");
+  assert.equal(blockedRecovery.titleKey, "offlineQueue.recoveryRemoteBlockedTitle");
+  assert.equal(blockedRecovery.nextAction, "fix-remote");
+  assert.equal(blockedRecovery.syncPlan.mode, "blocked");
+  assert.equal(blockedRecovery.syncPlan.canUseBackgroundSync, false);
+  assert.equal(blockedRecovery.syncPlan.reasonKey, "offlineQueue.syncPlan.reason.remoteBlocked");
+  assert.equal(blockedRecovery.steps.some((step) => step.id === "fix-remote" && step.status === "blocked"), true);
+
+  const retried = queueModule.retryFailedOfflineMessages();
+  assert.deepEqual(retried.retriedIds.sort(), [firstId, secondId].sort());
+  const afterRetry = queueModule.getOfflineMessageQueue();
+  assert.equal(afterRetry.every((item) => item.status === "pending"), true);
+  assert.equal(afterRetry.find((item) => item.id === firstId)?.manualRetryCount, 1);
+  assert.equal(afterRetry.find((item) => item.id === secondId)?.manualRetryCount, 1);
+  assert.equal(afterRetry.find((item) => item.id === thirdId)?.manualRetryCount, undefined);
+  const weakRecovery = queueModule.getOfflineMessageQueueRecoverySummary(afterRetry, { online: true, networkQuality: "poor", remoteOk: true });
+  assert.equal(weakRecovery.titleKey, "offlineQueue.recoveryWeakNetworkTitle");
+  assert.equal(weakRecovery.nextAction, "wait-stable-network");
+  assert.equal(weakRecovery.canAutoSync, false);
+  assert.equal(weakRecovery.syncPlan.mode, "waiting-stable-network");
+  assert.equal(weakRecovery.syncPlan.reasonKey, "offlineQueue.syncPlan.reason.waitStableNetwork");
+  assert.equal(weakRecovery.steps.some((step) => step.id === "wait-stable-network" && step.status === "current"), true);
+
+  const readyRecovery = queueModule.getOfflineMessageQueueRecoverySummary(afterRetry, { online: true, networkQuality: "ok", remoteOk: true });
+  assert.equal(readyRecovery.nextAction, "open-chat");
+  assert.equal(readyRecovery.canAutoSync, true);
+  assert.equal(readyRecovery.syncPlan.mode, "background-ready");
+  assert.equal(readyRecovery.syncPlan.canUseBackgroundSync, true);
+  assert.equal(readyRecovery.syncPlan.manualReviewRequired, false);
+  assert.equal(readyRecovery.syncPlan.reasonKey, "offlineQueue.syncPlan.reason.backgroundReady");
+  assert.equal(readyRecovery.steps.some((step) => step.id === "open-chat" && step.status === "current"), true);
+
+  queueModule.markOfflineMessageFailed(firstId, new Error("manually handled"));
+  const removed = queueModule.removeFailedOfflineMessages();
+  assert.deepEqual(removed.removedIds, [firstId]);
+  assert.deepEqual(queueModule.getOfflineMessageQueue().map((item) => item.id).sort(), [secondId, thirdId].sort());
+});
+
+test("offline queue sync plan blocks background recovery while offline and returns idle when clear", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=sync-plan-${Date.now()}`);
+
+  queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "wait until phone is online" }] });
+  const offlineRecovery = queueModule.getOfflineMessageQueueRecoverySummary(
+    queueModule.getOfflineMessageQueue(),
+    { online: false, networkQuality: "offline", remoteOk: true },
+  );
+  assert.equal(offlineRecovery.state, "waiting");
+  assert.equal(offlineRecovery.nextAction, "wait-online");
+  assert.equal(offlineRecovery.syncPlan.mode, "waiting-network");
+  assert.equal(offlineRecovery.syncPlan.canUseBackgroundSync, false);
+  assert.equal(offlineRecovery.syncPlan.manualReviewRequired, false);
+  assert.equal(offlineRecovery.syncPlan.detailKey, "offlineQueue.syncPlan.detail.waitOnline");
+
+  await queueModule.clearOfflineMessageQueue();
+  const healthyRecovery = queueModule.getOfflineMessageQueueRecoverySummary(queueModule.getOfflineMessageQueue(), { online: true, networkQuality: "ok", remoteOk: true });
+  assert.equal(healthyRecovery.state, "healthy");
+  assert.equal(healthyRecovery.syncPlan.mode, "idle");
+  assert.equal(healthyRecovery.syncPlan.reasonKey, "offlineQueue.syncPlan.reason.idle");
+});
+
 test("offline message queue records successful write-back metadata and clears it with the queue", async () => {
   storage.clear();
   dispatchedEvents = [];
@@ -349,9 +599,13 @@ test("offline message queue records successful write-back metadata and clears it
   assert.equal(summary.count, 1);
   assert.equal(summary.lastSyncedCount, 1);
   assert.equal(typeof summary.lastSyncedAt, "number");
+  assert.equal(summary.lastAckedMutationIds.length, 1);
+  assert.equal(summary.lastAckedIdempotencyKeys.length, 1);
+  assert.match(summary.lastAckedIdempotencyKeys[0], /^lifeos-offline:/);
   const syncMetaRaw = storage.get("lifeos_offline_message_queue_sync_meta");
   assert.ok(syncMetaRaw);
   assert.equal(syncMetaRaw.includes("write me back"), false);
+  assert.equal(syncMetaRaw.includes("lifeos-offline:"), true);
 
   await queueModule.clearOfflineMessageQueue();
   const afterClear = queueModule.getOfflineMessageQueueSummary();
@@ -381,6 +635,8 @@ test("offline message queue records only actually synced items", async () => {
   assert.equal(summary.count, 1);
   assert.equal(summary.lastSyncedCount, 1);
   assert.equal(typeof summary.lastSyncedAt, "number");
+  assert.equal(summary.lastAckedMutationIds.length, 1);
+  assert.equal(summary.lastAckedIdempotencyKeys.length, 1);
 });
 
 test("offline message queue can request persistent browser storage", async () => {
@@ -511,6 +767,7 @@ test("offline queue backup text preserves queued messages before clearing", asyn
   assert.match(text, /Last error: WebSocket offline/);
   assert.match(text, /#1 PENDING/);
   assert.match(text, /#2 FAILED/);
+  assert.match(text, /Sync identity: mutation=- idempotency=- sequence=0 sourceVersion=1 stage=pending/);
   assert.match(text, /Failure reason: Tunnel failed/);
   assert.match(text, /Remember this offline task/);
   assert.match(text, /Retry this failed message/);

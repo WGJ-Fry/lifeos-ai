@@ -96,6 +96,11 @@ db.exec(`
     role TEXT NOT NULL,
     content_json TEXT NOT NULL,
     source_device_id TEXT,
+    offline_mutation_id TEXT,
+    idempotency_key TEXT,
+    client_sequence INTEGER,
+    source_version INTEGER,
+    queued_at INTEGER,
     created_at INTEGER NOT NULL,
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
   );
@@ -175,6 +180,36 @@ db.exec(`
     applied_at INTEGER NOT NULL
   );
 `);
+
+function tableColumns(tableName: string) {
+  return new Set(db.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => String(column.name)));
+}
+
+function ensureMessageOfflineSyncSchema() {
+  const columns = tableColumns("messages");
+  const additions = [
+    ["offline_mutation_id", "TEXT"],
+    ["idempotency_key", "TEXT"],
+    ["client_sequence", "INTEGER"],
+    ["source_version", "INTEGER"],
+    ["queued_at", "INTEGER"],
+  ] as const;
+
+  for (const [name, type] of additions) {
+    if (!columns.has(name)) db.exec(`ALTER TABLE messages ADD COLUMN ${name} ${type}`);
+  }
+
+  const updatedColumns = tableColumns("messages");
+  if (updatedColumns.has("session_id") && updatedColumns.has("idempotency_key")) {
+    db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_session_idempotency_key
+        ON messages (session_id, idempotency_key)
+        WHERE idempotency_key IS NOT NULL
+    `);
+  }
+}
+
+ensureMessageOfflineSyncSchema();
 
 export function applyMigration(version: number, name: string, sql: string) {
   const existing = db.prepare("SELECT version FROM schema_migrations WHERE version = ?").get(version);

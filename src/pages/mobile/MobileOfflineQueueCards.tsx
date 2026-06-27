@@ -66,6 +66,19 @@ export function QueueStorageCard({ storage, onRequestPersistence }: { storage: O
 export function QueueItem({ item, onRetry, onRemove, onCopy }: { item: OfflineQueuedMessage; onRetry: () => void; onRemove: () => void; onCopy?: () => void }) {
   const { t } = useI18n();
   const preview = item.message.parts.find((part) => part.text)?.text || t("offlineQueue.attachmentMessage");
+  const source = item.source;
+  const sourceLabel = source
+    ? t("offlineQueue.sourceMeta", {
+      client: t(`offlineQueue.sourceClient.${source.client}` as any),
+      device: source.deviceName || source.deviceIdHint || t("offlineQueue.sourceUnknown"),
+      network: t(`offlineQueue.sourceNetwork.${source.networkQuality || "unknown"}` as any),
+    })
+    : t("offlineQueue.sourceLegacy");
+  const identityLabel = t("offlineQueue.syncIdentity", {
+    sequence: item.clientSequence || 0,
+    mutation: item.mutationId.slice(0, 8),
+    stage: t(`offlineQueue.syncStage.${item.syncStage || "queued"}` as any),
+  });
   const nextRetryAt = getOfflineMessageNextRetryAt(item);
   const retryReady = typeof nextRetryAt === "number" && nextRetryAt <= Date.now();
   const statusLabel = item.status === "failed" ? t("offlineQueue.status.failed") : item.status === "syncing" ? t("offlineQueue.status.syncing") : t("offlineQueue.status.pending");
@@ -83,6 +96,8 @@ export function QueueItem({ item, onRetry, onRemove, onCopy }: { item: OfflineQu
           <div className="mt-1 text-zinc-500">
             {new Date(item.queuedAt).toLocaleString()} · {t("offlineQueue.attempted", { count: item.attempts })}
           </div>
+          <div className="mt-1 truncate text-zinc-500">{sourceLabel}</div>
+          <div className="mt-1 truncate text-zinc-500">{identityLabel}</div>
         </div>
         <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusClass}`}>{statusLabel}</span>
       </div>

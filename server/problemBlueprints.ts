@@ -60,7 +60,17 @@ function parseJsonArray(value: string) {
 function rowToProblemBlueprint(row: any): StoredProblemBlueprint {
   const derived = deriveProblemBlueprint(row.problem || row.normalizedProblem || "");
   const storedPrompt = String(row.appPrompt || "");
-  const hasCurrentPromptGuardrails = storedPrompt.includes("Versioning plan") || storedPrompt.includes("版本计划");
+  const hasCurrentPromptGuardrails = (
+    storedPrompt.includes("Versioning plan") || storedPrompt.includes("版本计划")
+  ) && (
+    storedPrompt.includes("Template inputs") || storedPrompt.includes("模板输入")
+  ) && (
+    storedPrompt.includes("Template library candidates") || storedPrompt.includes("候选模板库")
+  ) && (
+    storedPrompt.includes("Quality score") || storedPrompt.includes("质量评分")
+  ) && (
+    storedPrompt.includes("Auto-repair loop") || storedPrompt.includes("自动修复闭环")
+  );
 
   return {
     id: row.id,
@@ -71,8 +81,16 @@ function rowToProblemBlueprint(row: any): StoredProblemBlueprint {
     category: row.category,
     templateId: derived.templateId,
     templateName: derived.templateName,
+    templateLibrary: derived.templateLibrary,
     templateFit: derived.templateFit,
     templateChecklist: derived.templateChecklist,
+    templateInputs: derived.templateInputs,
+    templateOutputs: derived.templateOutputs,
+    templateQualityGates: derived.templateQualityGates,
+    templateDangerousActions: derived.templateDangerousActions,
+    templateReadiness: derived.templateReadiness,
+    qualityScore: derived.qualityScore,
+    autoRepairLoop: derived.autoRepairLoop,
     categoryLabel: row.categoryLabel,
     suggestedAppName: row.suggestedAppName,
     summary: row.summary,
@@ -82,7 +100,9 @@ function rowToProblemBlueprint(row: any): StoredProblemBlueprint {
     versionDiffChecklist: derived.versionDiffChecklist,
     confirmationChecklist: derived.confirmationChecklist,
     permissionNotes: derived.permissionNotes,
+    capabilityReview: derived.capabilityReview,
     failureRecovery: derived.failureRecovery,
+    repairLoop: derived.repairLoop,
     repairPrompts: derived.repairPrompts,
     riskNotes: parseJsonArray(row.riskNotesJson),
     appPrompt: hasCurrentPromptGuardrails ? storedPrompt : derived.appPrompt || storedPrompt,

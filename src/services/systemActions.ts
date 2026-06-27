@@ -1,10 +1,46 @@
 export type ActionRisk = "low" | "medium" | "high";
 export type SystemActionCapabilityStatus = "browser" | "url-scheme" | "shortcut-bridge";
+export type NativeSystemActionKind = "file" | "calendar" | "reminder" | "clipboard" | "shell";
+export type SystemActionPlanKind = "url-scheme" | NativeSystemActionKind;
+export type SystemActionPlanStatus = "executable" | "needs-confirmation" | "blocked-preview";
 export type SystemActionCapability = {
   id: "web" | "navigation" | "phone" | "sms" | "email" | "shortcuts";
   schemes: string[];
   status: SystemActionCapabilityStatus;
   requiresConfirmation: boolean;
+};
+export type NativeSystemActionCapability = {
+  id: NativeSystemActionKind;
+  status: "blocked-preview";
+  risk: ActionRisk;
+  requiresNativeBridge: true;
+  requiresExplicitConsent: true;
+  requiresAuditLog: true;
+  supportedNow: false;
+};
+export type SystemActionPlanInput = {
+  url?: string;
+  nativeKind?: NativeSystemActionKind;
+  title?: string;
+  target?: string;
+  source?: string;
+};
+export type SystemActionPlan = {
+  id: string;
+  kind: SystemActionPlanKind;
+  status: SystemActionPlanStatus;
+  risk: ActionRisk;
+  title: string;
+  sanitizedTarget: string;
+  sanitizedSource: string;
+  scheme?: string;
+  allowed: boolean;
+  supportedNow: boolean;
+  writesExternalSystem: boolean;
+  requiresNativeBridge: boolean;
+  requiresExplicitConsent: boolean;
+  requiresAuditLog: boolean;
+  requirements: Array<"native-bridge" | "explicit-consent" | "audit-log" | "url-whitelist" | "danger-confirmation">;
 };
 
 export const DEFAULT_ALLOWED_SCHEMES = ["http", "https", "tel", "sms", "mailto", "geo", "maps", "shortcuts", "iosamap", "androidamap", "comgooglemaps"];
@@ -17,6 +53,13 @@ export const SYSTEM_ACTION_CAPABILITIES: SystemActionCapability[] = [
   { id: "sms", schemes: ["sms"], status: "url-scheme", requiresConfirmation: true },
   { id: "email", schemes: ["mailto"], status: "url-scheme", requiresConfirmation: false },
   { id: "shortcuts", schemes: ["shortcuts"], status: "shortcut-bridge", requiresConfirmation: true },
+];
+export const NATIVE_SYSTEM_ACTION_CAPABILITIES: NativeSystemActionCapability[] = [
+  { id: "file", status: "blocked-preview", risk: "high", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
+  { id: "calendar", status: "blocked-preview", risk: "high", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
+  { id: "reminder", status: "blocked-preview", risk: "high", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
+  { id: "clipboard", status: "blocked-preview", risk: "medium", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
+  { id: "shell", status: "blocked-preview", risk: "high", requiresNativeBridge: true, requiresExplicitConsent: true, requiresAuditLog: true, supportedNow: false },
 ];
 
 export function getUrlScheme(url: string) {
@@ -63,6 +106,14 @@ export function getSystemActionCapabilitySummary(allowedSchemes: string[]) {
   });
 }
 
+export function getNativeSystemActionPlanSummary() {
+  return NATIVE_SYSTEM_ACTION_CAPABILITIES.map((capability) => ({
+    ...capability,
+    writesExternalSystem: false,
+    requirements: ["native-bridge", "explicit-consent", "audit-log"] as SystemActionPlan["requirements"],
+  }));
+}
+
 export function summarizeActionParams(url: string) {
   try {
     const parsed = new URL(url);
@@ -106,6 +157,8 @@ export function redactSensitiveActionText(value: unknown) {
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi, "$1 [redacted]")
     .replace(/\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,})\b/g, "[redacted-token]")
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted-email]")
+    .replace(/\/Users\/[^/\s]+/g, "/Users/[redacted]")
+    .replace(/[A-Z]:\\Users\\[^\\\s]+/gi, "C:\\Users\\[redacted]")
     .replace(/(?:\+?\d[\d\s().-]{6,}\d)/g, "[redacted-phone]")
     .replace(/(bearer|token|key|secret|password)=\S+/gi, "$1=[redacted]");
 }
@@ -157,4 +210,68 @@ export function buildShortcutUrl(name: string, input: string) {
     params.set("text", input.trim());
   }
   return `shortcuts://run-shortcut?${params.toString()}`;
+}
+
+function nativeRisk(kind: NativeSystemActionKind): ActionRisk {
+  return kind === "clipboard" ? "medium" : "high";
+}
+
+function compactPlanTitle(value: unknown, fallback: string) {
+  const redacted = redactSensitiveActionText(typeof value === "string" ? value : "");
+  return (redacted || fallback).slice(0, 80);
+}
+
+export function buildSystemActionPlan(input: SystemActionPlanInput, allowedSchemes = DEFAULT_ALLOWED_SCHEMES): SystemActionPlan {
+  const normalizedAllowedSchemes = normalizeAllowedUrlSchemes(allowedSchemes);
+  const url = typeof input.url === "string" ? input.url.trim() : "";
+  const source = redactActionSource(input.source || "Action Plan");
+
+  if (url) {
+    const scheme = getUrlScheme(url);
+    const schemeAllowed = Boolean(scheme && normalizedAllowedSchemes.includes(scheme) && !BLOCKED_URL_SCHEMES.has(scheme));
+    const risk = scheme ? riskForScheme(scheme) : "high";
+    const needsConfirmation = Boolean(scheme && (DANGEROUS_SCHEMES.has(scheme) || risk !== "low"));
+    const status: SystemActionPlanStatus = !schemeAllowed ? "blocked-preview" : needsConfirmation ? "needs-confirmation" : "executable";
+    const target = input.target || url;
+    const requirements: SystemActionPlan["requirements"] = ["audit-log"];
+    if (!schemeAllowed) requirements.push("url-whitelist");
+    if (needsConfirmation || !schemeAllowed) requirements.push("explicit-consent");
+    if (needsConfirmation) requirements.push("danger-confirmation");
+
+    return {
+      id: `url-${scheme || "unknown"}`,
+      kind: "url-scheme",
+      status,
+      risk,
+      title: compactPlanTitle(input.title || url, "URL action"),
+      sanitizedTarget: scheme ? redactActionTarget(target, scheme) : redactSensitiveActionText(target).slice(0, 160) || "[invalid-url]",
+      sanitizedSource: source,
+      scheme: scheme || "unknown",
+      allowed: schemeAllowed,
+      supportedNow: schemeAllowed,
+      writesExternalSystem: Boolean(scheme && !["http", "https"].includes(scheme)),
+      requiresNativeBridge: false,
+      requiresExplicitConsent: requirements.includes("explicit-consent"),
+      requiresAuditLog: true,
+      requirements,
+    };
+  }
+
+  const kind = input.nativeKind || "shell";
+  return {
+    id: `native-${kind}`,
+    kind,
+    status: "blocked-preview",
+    risk: nativeRisk(kind),
+    title: compactPlanTitle(input.title, `${kind} action`),
+    sanitizedTarget: redactSensitiveActionText(input.target || "").slice(0, 160) || "[redacted]",
+    sanitizedSource: source,
+    allowed: false,
+    supportedNow: false,
+    writesExternalSystem: false,
+    requiresNativeBridge: true,
+    requiresExplicitConsent: true,
+    requiresAuditLog: true,
+    requirements: ["native-bridge", "explicit-consent", "audit-log"],
+  };
 }

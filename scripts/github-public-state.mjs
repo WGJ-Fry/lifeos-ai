@@ -2,7 +2,7 @@ import fs from "node:fs";
 
 const owner = "WGJ-Fry";
 const repo = "lifeos-ai";
-const baseUrl = `https://api.github.com/repos/${owner}/${repo}`;
+const baseUrl = process.env.LIFEOS_GITHUB_API_BASE_URL || `https://api.github.com/repos/${owner}/${repo}`;
 const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
 const currentPublicVersion = packageJson.version.includes("-") && packageJson.version.endsWith(".0")
   ? packageJson.version.slice(0, -2)
@@ -19,6 +19,34 @@ const args = new Set(process.argv.slice(2));
 const shouldFix = args.has("--fix");
 const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || "";
 const checks = [];
+
+function parseReleaseTag(tag) {
+  const match = String(tag || "").match(/^v(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/);
+  if (!match) return null;
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: match[4] || "",
+  };
+}
+
+function compareReleaseTags(leftTag, rightTag) {
+  const left = parseReleaseTag(leftTag);
+  const right = parseReleaseTag(rightTag);
+  if (!left || !right) return 0;
+  for (const key of ["major", "minor", "patch"]) {
+    if (left[key] !== right[key]) return left[key] - right[key];
+  }
+  if (left.prerelease === right.prerelease) return 0;
+  if (!left.prerelease) return 1;
+  if (!right.prerelease) return -1;
+  return left.prerelease.localeCompare(right.prerelease);
+}
+
+function isOlderReleaseTag(tag) {
+  return Boolean(parseReleaseTag(tag)) && compareReleaseTags(tag, currentTag) < 0;
+}
 
 function record(ok, message, detail = "") {
   checks.push({ ok, message, detail });
@@ -213,17 +241,24 @@ async function main() {
     }
   }
 
-  if (oldStableRelease) {
-    if (oldStableRelease.prerelease) {
-      record(true, `${oldStableTag} no longer competes for GitHub Latest`);
-    } else {
-      record(false, `${oldStableTag} is still a stable release`, "It can steal GitHub Latest from the current alpha.");
-      await safePatch(`${oldStableTag} prerelease flag`, oldStableRelease.url, {
+  const staleStableReleases = releases.filter((release) =>
+    release.tag_name !== currentTag &&
+    isOlderReleaseTag(release.tag_name) &&
+    !release.prerelease
+  );
+  if (staleStableReleases.length === 0) {
+    record(true, "no older stable release can steal GitHub Latest");
+  } else {
+    for (const release of staleStableReleases) {
+      record(false, `${release.tag_name} is still a stable release older than ${currentTag}`, "Mark it as prerelease or publish a newer stable replacement before promotion.");
+      await safePatch(`${release.tag_name} prerelease flag`, release.url, {
         prerelease: true,
         make_latest: "false",
       });
     }
   }
+
+  if (oldStableRelease?.prerelease) record(true, `${oldStableTag} no longer competes for GitHub Latest`);
 
   if (deprecatedRelease) {
     const deprecated = deprecatedRelease.prerelease && /Deprecated|已废弃/.test(`${deprecatedRelease.name}\n${deprecatedRelease.body || ""}`);
@@ -242,10 +277,10 @@ async function main() {
 
   try {
     const latest = await requestJson(`${baseUrl}/releases/latest`);
-    if (latest.tag_name === oldStableTag) {
-      record(false, "GitHub Latest still points to old v0.1.0", "Mark v0.1.0 as prerelease or publish a stable replacement.");
+    if (latest.tag_name === oldStableTag || isOlderReleaseTag(latest.tag_name)) {
+      record(false, `GitHub Latest points to stale stable release ${latest.tag_name}`, `Mark ${latest.tag_name} as prerelease or publish a stable replacement.`);
     } else {
-      record(true, `GitHub Latest is not the stale ${oldStableTag}`, latest.tag_name);
+      record(true, `GitHub Latest is not stale`, latest.tag_name);
     }
   } catch (error) {
     if (error.status === 404) {

@@ -274,12 +274,17 @@ LOCAL_MODEL_BASE_URL=http://ollama:11434/v1
 
 LifeOS 仍是 alpha 软件。Docker quickstart 是目前最稳定的演示路径；桌面端、手机端、远程访问和 Studio 都是可用的 alpha 路径，但变量更多。
 
+- 默认不启用自动更新；升级需要从 GitHub Releases 手动下载，并校验 `SHA256SUMS`。
+- 当前公开桌面包仍是 unsigned alpha。macOS Developer ID 签名/公证 和 Windows Authenticode 签名不在本版本内，所以 Gatekeeper 或 SmartScreen 可能提示。
+- 远程诊断可以验证配置，但长期稳定性仍需要用户自己完成真实设备长测：手机蜂窝网络、Wi-Fi 切换、电脑重启恢复、旧二维码修复和隧道断开恢复。
 - Docker/local 路径可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件。
-- 还没有接入 Apple Calendar、Google Calendar 或系统提醒事项的账号同步/写回。
+- Apple Calendar、Google Calendar、系统提醒事项的账号同步/写回还没发布。
+- `.ics` 只是本地只读读取，不是双向日历/任务管理。
 - 还不会写回日历或任务系统。
 - 它不是完美的截止日期检测器。
 - 为了速度和上下文长度，只读取有限数量的文件。
-- 当前本地动作主要是 URL Scheme 和权限中心流程，不是完整日历/任务自动执行。
+- Studio 生成程序仍是 alpha：已有蓝图、模板、权限说明、日志、状态、修复提示和回滚，但不宣传完全无人值守自动修复。
+- 本地动作仍基于 URL Scheme / 浏览器 / 快捷指令桥，不是完整原生系统自动化。
 - 桌面端、手机端、远程访问和 Studio 生成程序，公开演示前应按 Release 说明重新验证。
 
 ## 常见排查

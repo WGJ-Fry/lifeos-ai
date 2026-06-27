@@ -264,11 +264,42 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof diagnostics.release.checksumAvailable, "boolean");
   assert.equal(typeof diagnostics.release.artifactCount, "number");
   assert.equal(Array.isArray(diagnostics.release.artifacts), true);
+  assert.equal(diagnostics.calendarSync.mode, "preview-only");
+  assert.equal(diagnostics.calendarSync.externalWritesEnabled, false);
+  assert.equal(diagnostics.calendarSync.writeBackSupported, false);
+  assert.equal(diagnostics.calendarSync.summary.providersReadyForWrite, 0);
+  assert.equal(Array.isArray(diagnostics.calendarSync.providers), true);
+  assert.equal(diagnostics.calendarSync.providers.some((provider) => provider.id === "apple-calendar" && provider.writeSupported === false), true);
   assert.equal(JSON.stringify(diagnostics.release).includes(dataDir), false);
   assert.equal(JSON.stringify(diagnostics).includes(dataDir), false);
   assert.equal(diagnostics.securityCheck.overall, "warning");
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "backup" && item.status === "warning"), true);
   assert.equal(diagnostics.securityCheck.items.some((item) => item.id === "backupSchedule" && item.status === "warning"), true);
+
+  const blockedCalendarSyncPreview = await request(port, "/api/v1/admin/calendar-sync/preview");
+  assert.equal(blockedCalendarSyncPreview.status, 401);
+  const calendarSyncPreview = await request(port, "/api/v1/admin/calendar-sync/preview", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(calendarSyncPreview.mode, "preview-only");
+  assert.equal(calendarSyncPreview.externalWritesEnabled, false);
+  assert.equal(calendarSyncPreview.safety.requiresAuditLogBeforeWrite, true);
+  const proposedCalendarSyncPreview = await request(port, "/api/v1/admin/calendar-sync/preview", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      proposedItems: [
+        {
+          providerId: "google-calendar",
+          kind: "event",
+          action: "create",
+          title: "Follow up with Ada",
+          startsAt: "2026-07-03T09:00:00.000Z",
+        },
+      ],
+    }),
+  }).then((res) => res.json());
+  assert.equal(proposedCalendarSyncPreview.summary.blockedWrites, 1);
+  assert.equal(proposedCalendarSyncPreview.operations.some((operation) => operation.providerId === "google-calendar" && operation.status === "blocked"), true);
+  assert.equal(JSON.stringify(proposedCalendarSyncPreview).includes(dataDir), false);
 
   const blockedPasswordChange = await request(port, "/api/v1/admin/password", {
     method: "PUT",
@@ -847,6 +878,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const diagnosticBundle = await diagnosticBundleResponse.json();
   assert.deepEqual(Object.keys(diagnosticBundle).sort(), [
     "ai",
+    "calendarSync",
     "database",
     "devices",
     "environment",
@@ -860,6 +892,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     "systemActions",
   ]);
   assert.equal(typeof diagnosticBundle.systemActions.totalLogs, "number");
+  assert.equal(diagnosticBundle.calendarSync.mode, "preview-only");
+  assert.equal(diagnosticBundle.calendarSync.externalWritesEnabled, false);
+  assert.equal(diagnosticBundle.calendarSync.summary.providersReadyForWrite, 0);
   assert.equal(typeof diagnosticBundle.systemActions.topSource, "string");
   assert.equal(Array.isArray(diagnosticBundle.systemActions.recent), true);
   assert.deepEqual(Object.keys(diagnosticBundle.database.tables).sort(), [
@@ -888,6 +923,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(diagnosticBundle.remote.recoveryReport === null || typeof diagnosticBundle.remote.recoveryReport.restored === "boolean", true);
   assert.equal(diagnosticBundle.remote.validationReport === null || typeof diagnosticBundle.remote.validationReport.ok === "boolean", true);
   assert.equal(Array.isArray(diagnosticBundle.remote.acceptanceChecklist), true);
+  assert.equal(typeof diagnosticBundle.remote.acceptanceEvidencePack.ready, "boolean");
+  assert.equal(typeof diagnosticBundle.remote.acceptanceEvidencePack.recommendedAction, "string");
+  assert.equal(Array.isArray(diagnosticBundle.remote.acceptanceEvidencePack.missingRealWorldIds), true);
+  assert.equal(Array.isArray(diagnosticBundle.remote.acceptanceEvidencePack.coverage), true);
   assert.equal(typeof diagnosticBundle.remote.acceptanceRecords.total, "number");
   assert.equal(typeof diagnosticBundle.remote.acceptanceRunbooks.total, "number");
   assert.equal(diagnosticBundle.remote.acceptanceRunbooks.total, 1);
@@ -1456,14 +1495,47 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const chatMessage = await request(port, `/api/v1/chat/sessions/${chatSession.session.id}/messages`, {
     method: "POST",
     headers: deviceHeaders,
-    body: JSON.stringify({ role: "user", content: "Hello from mobile", sourceDeviceId: credential.device.id }),
+    body: JSON.stringify({
+      role: "user",
+      content: "Hello from mobile",
+      sourceDeviceId: credential.device.id,
+      metadata: {
+        mutationId: "offline-mutation-1",
+        idempotencyKey: "lifeos-offline:test-device:hello:offline-mutation-1",
+        clientSequence: 7,
+        sourceVersion: 1,
+        queuedAt: Date.now() - 1000,
+      },
+    }),
   }).then((res) => res.json());
   assert.equal(chatMessage.message.contentJson, "Hello from mobile");
+  assert.equal(chatMessage.message.offlineMutationId, "offline-mutation-1");
+  assert.equal(chatMessage.message.idempotencyKey, "lifeos-offline:test-device:hello:offline-mutation-1");
+  assert.equal(chatMessage.message.clientSequence, 7);
+
+  const duplicateChatMessage = await request(port, `/api/v1/chat/sessions/${chatSession.session.id}/messages`, {
+    method: "POST",
+    headers: deviceHeaders,
+    body: JSON.stringify({
+      role: "user",
+      content: "Hello from mobile duplicate retry",
+      sourceDeviceId: credential.device.id,
+      metadata: {
+        mutationId: "offline-mutation-1",
+        idempotencyKey: "lifeos-offline:test-device:hello:offline-mutation-1",
+        clientSequence: 7,
+        sourceVersion: 1,
+      },
+    }),
+  }).then((res) => res.json());
+  assert.equal(duplicateChatMessage.message.id, chatMessage.message.id);
+  assert.equal(duplicateChatMessage.message.contentJson, "Hello from mobile");
 
   const loadedMessages = await request(port, `/api/v1/chat/sessions/${chatSession.session.id}/messages`, { headers: adminHeaders }).then((res) => res.json());
   assert.equal(loadedMessages.messages.length, 1);
   assert.equal(loadedMessages.messages[0].role, "user");
   assert.equal(loadedMessages.messages[0].contentJson, "Hello from mobile");
+  assert.equal(loadedMessages.messages[0].idempotencyKey, "lifeos-offline:test-device:hello:offline-mutation-1");
 
   const createdMemory = await request(port, "/api/v1/memories", {
     method: "POST",
@@ -1492,6 +1564,8 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(unauthCustomApps.status, 401);
   const unauthCustomAppVersions = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions");
   assert.equal(unauthCustomAppVersions.status, 401);
+  const unauthCustomAppVersionCompare = await request(port, "/api/v1/custom-apps/custom-ledger-1/version-compare?from=1&to=2");
+  assert.equal(unauthCustomAppVersionCompare.status, 401);
   const unauthCustomAppState = await request(port, "/api/v1/custom-apps/custom-ledger-1/state");
   assert.equal(unauthCustomAppState.status, 401);
   const unauthCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities");
@@ -1509,7 +1583,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     method: "POST",
     headers: adminHeaders,
     body: JSON.stringify({
-      problem: "帮我做一个本月支出记账、预算提醒和分类汇总面板 github_pat_problemSecret_1234567890 /Users/wangguojun/private-ledger.csv",
+      problem: "帮我做一个本月支出记账、预算提醒和分类汇总面板 github_pat_problemSecret_1234567890 /Users/example/private-ledger.csv",
       source: "studio",
     }),
   }).then((res) => res.json());
@@ -1518,7 +1592,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(createdProblemBlueprint.blueprint.source, "studio");
   assert.match(createdProblemBlueprint.blueprint.appPrompt, /生成一个可运行的解决程序/);
   assert.equal(JSON.stringify(createdProblemBlueprint).includes("github_pat_problemSecret"), false);
-  assert.equal(JSON.stringify(createdProblemBlueprint).includes("/Users/wangguojun/private-ledger.csv"), false);
+  assert.equal(JSON.stringify(createdProblemBlueprint).includes("/Users/example/private-ledger.csv"), false);
 
   const problemBlueprintHistory = await request(port, "/api/v1/problem-blueprints?limit=5", {
     headers: adminHeaders,
@@ -1532,18 +1606,18 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: JSON.stringify({
       id: "custom-ledger-1",
       name: "本月预算提醒面板",
-      description: "Personal ledger helper /Users/wangguojun/private-ledger.csv",
+      description: "Personal ledger helper /Users/example/private-ledger.csv",
       visibility: "private",
       status: "active",
       source: "studio",
-      code: "<script>const token='github_pat_customAppSecret_1234567890'; const path='/Users/wangguojun/private-app.html';</script>",
+      code: "<script>const token='github_pat_customAppSecret_1234567890'; const path='/Users/example/private-app.html';</script>",
     }),
   }).then((res) => res.json());
   assert.equal(createdCustomApp.app.id, "custom-ledger-1");
   assert.equal(createdCustomApp.app.source, "studio");
   assert.equal(createdCustomApp.app.code.includes("github_pat_customAppSecret"), false);
-  assert.equal(createdCustomApp.app.code.includes("/Users/wangguojun/private-app.html"), false);
-  assert.equal(createdCustomApp.app.description.includes("/Users/wangguojun/private-ledger.csv"), false);
+  assert.equal(createdCustomApp.app.code.includes("/Users/example/private-app.html"), false);
+  assert.equal(createdCustomApp.app.description.includes("/Users/example/private-ledger.csv"), false);
 
   const customAppVersionsAfterCreate = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions", {
     headers: adminHeaders,
@@ -1552,7 +1626,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(customAppVersionsAfterCreate.versions[0].version, 1);
   assert.equal(customAppVersionsAfterCreate.versions[0].note, "Initial version");
   assert.equal(customAppVersionsAfterCreate.versions[0].code.includes("github_pat_customAppSecret"), false);
-  assert.equal(customAppVersionsAfterCreate.versions[0].code.includes("/Users/wangguojun/private-app.html"), false);
+  assert.equal(customAppVersionsAfterCreate.versions[0].code.includes("/Users/example/private-app.html"), false);
 
   const initialCustomAppState = await request(port, "/api/v1/custom-apps/custom-ledger-1/state", { headers: adminHeaders }).then((res) => res.json());
   assert.deepEqual(initialCustomAppState.state.state, {});
@@ -1563,13 +1637,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     headers: adminHeaders,
     body: JSON.stringify({
       state: {
-        rows: [{ note: "safe", source: "/Users/wangguojun/private-state.csv" }],
+        rows: [{ note: "safe", source: "/Users/example/private-state.csv" }],
         token: "github_pat_customStateSecret_1234567890",
       },
     }),
   }).then((res) => res.json());
   assert.equal(JSON.stringify(savedCustomAppState).includes("github_pat_customStateSecret"), false);
-  assert.equal(JSON.stringify(savedCustomAppState).includes("/Users/wangguojun/private-state.csv"), false);
+  assert.equal(JSON.stringify(savedCustomAppState).includes("/Users/example/private-state.csv"), false);
 
   const customAppRuntimeEvent = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events", {
     method: "POST",
@@ -1578,10 +1652,10 @@ test("admin auth protects APIs and device binding enables mobile access", async 
       eventType: "error",
       severity: "error",
       label: "Runtime failed with secret",
-      message: "Unhandled github_pat_runtimeEventSecret_1234567890 from /Users/wangguojun/runtime.log",
+      message: "Unhandled github_pat_runtimeEventSecret_1234567890 from /Users/example/runtime.log",
       detail: {
         token: "github_pat_runtimeEventDetailSecret_1234567890",
-        localPath: "/Users/wangguojun/detail.log",
+        localPath: "/Users/example/detail.log",
         safe: "kept",
       },
     }),
@@ -1590,24 +1664,52 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(customAppRuntimeEvent.event.severity, "error");
   assert.equal(JSON.stringify(customAppRuntimeEvent).includes("github_pat_runtimeEventSecret"), false);
   assert.equal(JSON.stringify(customAppRuntimeEvent).includes("github_pat_runtimeEventDetailSecret"), false);
-  assert.equal(JSON.stringify(customAppRuntimeEvent).includes("/Users/wangguojun/runtime.log"), false);
+  assert.equal(JSON.stringify(customAppRuntimeEvent).includes("/Users/example/runtime.log"), false);
 
   const customAppDebugRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/debug-requests", {
     method: "POST",
     headers: adminHeaders,
     body: JSON.stringify({
-      issue: "Fix the ledger crash with github_pat_debugRequestSecret_1234567890 and /Users/wangguojun/debug.txt",
+      issue: "Fix the ledger crash with github_pat_debugRequestSecret_1234567890 and /Users/example/debug.txt",
     }),
   }).then((res) => res.json());
   assert.match(customAppDebugRequest.suggestedInstruction, /本月预算提醒面板|LifeOS/);
+  assert.equal(customAppDebugRequest.repairProposal.appId, "custom-ledger-1");
+  assert.equal(customAppDebugRequest.repairProposal.suspectedArea, "runtime-error");
+  assert.equal(customAppDebugRequest.repairProposal.risk, "medium");
+  assert.equal(customAppDebugRequest.repairProposal.repairSteps.length >= 3, true);
+  assert.equal(customAppDebugRequest.repairProposal.permissionReview.some((item) => item.includes("capability manifest")), true);
+  assert.equal(customAppDebugRequest.repairProposal.versionSafety.some((item) => item.includes("Compare")), true);
+  assert.equal(customAppDebugRequest.repairProposal.executionPlan.mode, "auto-save");
+  assert.equal(customAppDebugRequest.repairProposal.executionPlan.canAutoApply, true);
+  assert.equal(customAppDebugRequest.repairProposal.executionPlan.reasonKey, "low-risk-runtime");
+  assert.equal(customAppDebugRequest.repairProposal.executionPlan.checks.some((item) => item.includes("rollback")), true);
+  assert.equal(customAppDebugRequest.repairProposal.suggestedInstruction, customAppDebugRequest.suggestedInstruction);
   assert.equal(JSON.stringify(customAppDebugRequest).includes("github_pat_debugRequestSecret"), false);
-  assert.equal(JSON.stringify(customAppDebugRequest).includes("/Users/wangguojun/debug.txt"), false);
+  assert.equal(JSON.stringify(customAppDebugRequest).includes("/Users/example/debug.txt"), false);
+
+  const highRiskCustomAppDebugRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/debug-requests", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      issue: "Fix SMS and Shortcuts launch permissions before the generated app opens external actions",
+    }),
+  }).then((res) => res.json());
+  assert.equal(highRiskCustomAppDebugRequest.repairProposal.risk, "high");
+  assert.equal(highRiskCustomAppDebugRequest.repairProposal.executionPlan.mode, "manual-review");
+  assert.equal(highRiskCustomAppDebugRequest.repairProposal.executionPlan.canAutoApply, false);
+  assert.equal(highRiskCustomAppDebugRequest.repairProposal.executionPlan.reasonKey, "high-risk-action");
+  assert.equal(highRiskCustomAppDebugRequest.repairProposal.executionPlan.nextSteps.some((item) => item.includes("permission")), true);
 
   const customAppRuntimeEvents = await request(port, "/api/v1/custom-apps/custom-ledger-1/runtime-events?limit=5", {
     headers: adminHeaders,
   }).then((res) => res.json());
   assert.equal(customAppRuntimeEvents.events.length >= 2, true);
   assert.equal(customAppRuntimeEvents.events.some((event) => event.eventType === "debug_requested"), true);
+  const debugRuntimeEvent = customAppRuntimeEvents.events.find((event) => event.eventType === "debug_requested");
+  assert.equal(debugRuntimeEvent.detail.repairProposal.suspectedArea, "runtime-error");
+  assert.equal(debugRuntimeEvent.detail.repairProposal.versionSafety.length >= 2, true);
+  assert.equal(typeof debugRuntimeEvent.detail.repairProposal.executionPlan.canAutoApply, "boolean");
 
   const defaultCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
     headers: adminHeaders,
@@ -1842,14 +1944,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const rawCustomAppActions = rawBlueprintDb.prepare("SELECT target_url as targetUrl, reason FROM custom_app_action_requests WHERE app_id = ?").all("custom-ledger-1");
   rawBlueprintDb.close();
   assert.equal(rawBlueprint.problem.includes("github_pat_problemSecret"), false);
-  assert.equal(rawBlueprint.problem.includes("/Users/wangguojun/private-ledger.csv"), false);
+  assert.equal(rawBlueprint.problem.includes("/Users/example/private-ledger.csv"), false);
   assert.equal(rawBlueprint.appPrompt.includes("github_pat_problemSecret"), false);
   assert.equal(rawCustomApp.code.includes("github_pat_customAppSecret"), false);
-  assert.equal(rawCustomApp.code.includes("/Users/wangguojun/private-app.html"), false);
-  assert.equal(rawCustomApp.description.includes("/Users/wangguojun/private-ledger.csv"), false);
+  assert.equal(rawCustomApp.code.includes("/Users/example/private-app.html"), false);
+  assert.equal(rawCustomApp.description.includes("/Users/example/private-ledger.csv"), false);
   assert.equal(rawCustomAppVersion.code.includes("github_pat_customAppSecret"), false);
   assert.equal(rawCustomAppState.stateJson.includes("github_pat_customStateSecret"), false);
-  assert.equal(rawCustomAppState.stateJson.includes("/Users/wangguojun/private-state.csv"), false);
+  assert.equal(rawCustomAppState.stateJson.includes("/Users/example/private-state.csv"), false);
   assert.equal(JSON.stringify(rawCustomAppActions).includes("custom-action-secret"), false);
   assert.equal(JSON.stringify(rawCustomAppActions).includes("+15550001111"), false);
   assert.equal(JSON.stringify(rawCustomAppActions).includes("+15550002222"), false);
@@ -1870,6 +1972,24 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(customAppVersionsAfterUpdate.versions[0].version, 2);
   assert.equal(customAppVersionsAfterUpdate.versions[0].code, "<div>safe updated code</div>");
+  const customAppVersionComparison = await request(port, "/api/v1/custom-apps/custom-ledger-1/version-compare?from=1&to=2", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(customAppVersionComparison.comparison.appId, "custom-ledger-1");
+  assert.equal(customAppVersionComparison.comparison.fromVersion, 1);
+  assert.equal(customAppVersionComparison.comparison.toVersion, 2);
+  assert.equal(customAppVersionComparison.comparison.totalChangedLines >= 1, true);
+  assert.equal(customAppVersionComparison.comparison.risk, "low");
+  assert.equal(customAppVersionComparison.comparison.riskNotes.some((note) => note.includes("No high-risk")), true);
+  assert.equal(customAppVersionComparison.comparison.reviewChecklist.length >= 3, true);
+  assert.equal(customAppVersionComparison.comparison.repairHints.some((hint) => hint.includes("roll back to v1")), true);
+  assert.equal(JSON.stringify(customAppVersionComparison).includes("github_pat_customAppSecret"), false);
+  assert.equal(JSON.stringify(customAppVersionComparison).includes("/Users/example/private-app.html"), false);
+  const defaultCustomAppVersionComparison = await request(port, "/api/v1/custom-apps/custom-ledger-1/version-compare", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.equal(defaultCustomAppVersionComparison.comparison.fromVersion, 1);
+  assert.equal(defaultCustomAppVersionComparison.comparison.toVersion, 2);
   const rollbackCustomApp = await request(port, "/api/v1/custom-apps/custom-ledger-1/versions/1/rollback", {
     method: "POST",
     headers: adminHeaders,
@@ -2223,8 +2343,16 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(approvedCustomAppCapabilityAudit.metadata.status, "approved");
   const runtimeEventAudit = finalAudit.logs.find((log) => log.action === "custom_app_runtime_event_recorded" && log.metadata.eventId === customAppRuntimeEvent.event.id);
   assert.equal(runtimeEventAudit.metadata.severity, "error");
-  const debugRequestAudit = finalAudit.logs.find((log) => log.action === "custom_app_debug_requested" && log.targetId === "custom-ledger-1");
+  const debugRequestAudit = finalAudit.logs.find((log) =>
+    log.action === "custom_app_debug_requested" &&
+    log.targetId === "custom-ledger-1" &&
+    log.metadata.repairRisk === "medium" &&
+    log.metadata.suspectedArea === "runtime-error"
+  );
   assert.equal(debugRequestAudit.metadata.recentEventCount >= 1, true);
+  assert.equal(debugRequestAudit.metadata.repairRisk, "medium");
+  assert.equal(debugRequestAudit.metadata.suspectedArea, "runtime-error");
+  assert.equal(debugRequestAudit.metadata.repairStepCount >= 3, true);
   const mobileCustomAppActionCancelledAudit = finalAudit.logs.find((log) => log.action === "custom_app_action_cancelled" && log.metadata.requestId === mobilePendingCustomAppAction.request.id);
   assert.equal(mobileCustomAppActionCancelledAudit.actorType, "device");
   assert.equal(mobileCustomAppActionCancelledAudit.metadata.targetUrl, "mailto:[redacted]?[redacted]");
@@ -2355,16 +2483,16 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assertSecretNotLeaked(publicResponses, "Z2l0aHViOnN0YXRl");
   assertSecretNotLeaked(publicResponses, "github_pat_stateSecret");
   assertSecretNotLeaked(publicResponses, "github_pat_problemSecret");
-  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/private-ledger.csv");
+  assertSecretNotLeaked(publicResponses, "/Users/example/private-ledger.csv");
   assertSecretNotLeaked(publicResponses, "github_pat_customAppSecret");
   assertSecretNotLeaked(publicResponses, "github_pat_runtimeCapabilitySecret");
   assertSecretNotLeaked(publicResponses, "github_pat_runtimeEventSecret");
   assertSecretNotLeaked(publicResponses, "github_pat_runtimeEventDetailSecret");
   assertSecretNotLeaked(publicResponses, "github_pat_debugRequestSecret");
-  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/private-app.html");
-  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/runtime.log");
-  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/detail.log");
-  assertSecretNotLeaked(publicResponses, "/Users/wangguojun/debug.txt");
+  assertSecretNotLeaked(publicResponses, "/Users/example/private-app.html");
+  assertSecretNotLeaked(publicResponses, "/Users/example/runtime.log");
+  assertSecretNotLeaked(publicResponses, "/Users/example/detail.log");
+  assertSecretNotLeaked(publicResponses, "/Users/example/debug.txt");
   assertSecretNotLeaked(publicResponses, "AIzaSy-state-secret-value-should-not-leak");
   assertSecretNotLeaked(publicResponses, "test-key");
   assertSecretNotLeaked(publicResponses, "correct horse battery staple");

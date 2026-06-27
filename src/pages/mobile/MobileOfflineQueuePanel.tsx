@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { Copy, RefreshCw, Trash2, Wifi } from "lucide-react";
 import type { NetworkStatus } from "../../services/networkStatus";
-import type { OfflineMessageQueueStorageStatus, OfflineMessageQueueSummary, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
+import type { OfflineMessageConflictGroup, OfflineMessageConflictResolutionOption, OfflineMessageQueueStorageStatus, OfflineMessageQueueSummary, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { buildOfflineQueueBackupText } from "../../services/offlineQueueBackup";
 import { buildOfflineQueueHealth } from "../../services/offlineQueueHealth";
 import type { RemoteEntryStatus } from "../../services/pwaCapabilities";
 import { useI18n } from "../../i18n/I18nProvider";
 import { Metric } from "./MobileDeviceStatusCards";
 import { MobileOfflineQueueHealthCard } from "./MobileOfflineQueueHealthCard";
+import MobileOfflineQueueConflictCard from "./MobileOfflineQueueConflictCard";
 import { QueueItem, QueueStorageCard } from "./MobileOfflineQueueCards";
 
 type MobileOfflineQueuePanelProps = {
   network: NetworkStatus;
   queueSummary: OfflineMessageQueueSummary;
   queueItems: OfflineQueuedMessage[];
+  conflictGroups: OfflineMessageConflictGroup[];
   queueStorage: OfflineMessageQueueStorageStatus | null;
   currentEntry: RemoteEntryStatus;
   currentEntryGuidance: string[];
@@ -25,12 +27,14 @@ type MobileOfflineQueuePanelProps = {
   onRetryItem: (item: OfflineQueuedMessage) => void;
   onCopyItem: (item: OfflineQueuedMessage) => void;
   onRemoveItem: (item: OfflineQueuedMessage) => void;
+  onResolveConflictGroup: (group: OfflineMessageConflictGroup, option: OfflineMessageConflictResolutionOption) => void;
 };
 
 export default function MobileOfflineQueuePanel({
   network,
   queueSummary,
   queueItems,
+  conflictGroups,
   queueStorage,
   currentEntry,
   currentEntryGuidance,
@@ -42,6 +46,7 @@ export default function MobileOfflineQueuePanel({
   onRetryItem,
   onCopyItem,
   onRemoveItem,
+  onResolveConflictGroup,
 }: MobileOfflineQueuePanelProps) {
   const { t } = useI18n();
   const [copiedQueueBackup, setCopiedQueueBackup] = useState(false);
@@ -76,7 +81,7 @@ export default function MobileOfflineQueuePanel({
         <Metric label={t("mobileDevice.failed")} value={queueSummary.failed} tone="text-red-200" />
         <Metric label={t("mobileDevice.conflicts")} value={queueSummary.conflicts} tone="text-orange-200" />
       </div>
-      <MobileOfflineQueueHealthCard health={queueHealth} />
+      <MobileOfflineQueueHealthCard health={queueHealth} /><MobileOfflineQueueConflictCard groups={conflictGroups} onResolveGroup={onResolveConflictGroup} />
       {queueSummary.oldestQueuedAt ? (
         <div className="mt-4 rounded-2xl border border-white/[0.08] bg-white/[0.03] p-3 text-xs leading-relaxed text-zinc-300">
           <div className="font-bold text-zinc-100">{t("offlineQueue.waitingSinceTitle")}</div>

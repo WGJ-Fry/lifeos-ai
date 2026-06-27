@@ -85,7 +85,20 @@ export type StoredChatMessage = {
   role: "user" | "assistant" | "system" | "tool";
   contentJson: Message;
   sourceDeviceId?: string | null;
+  offlineMutationId?: string | null;
+  idempotencyKey?: string | null;
+  clientSequence?: number | null;
+  sourceVersion?: number | null;
+  queuedAt?: number | null;
   createdAt: number;
+};
+
+export type ChatMessageSaveMetadata = {
+  mutationId?: string;
+  idempotencyKey?: string;
+  clientSequence?: number;
+  sourceVersion?: number;
+  queuedAt?: number;
 };
 
 export type MemoryRecord = {
@@ -157,6 +170,52 @@ export type BackupSchedule = {
   updatedAt?: number;
 };
 
+export type CalendarSyncPreview = {
+  generatedAt: string;
+  mode: "preview-only";
+  externalWritesEnabled: false;
+  writeBackSupported: false;
+  providers: Array<{
+    id: "ics-local" | "apple-calendar" | "google-calendar" | "system-reminders";
+    label: string;
+    configured: boolean;
+    readSupported: boolean;
+    writeSupported: boolean;
+    requiresPermission: boolean;
+    status: "ready-readonly" | "not-configured" | "future-connector";
+    recommendations: string[];
+  }>;
+  operations: Array<{
+    id: string;
+    providerId: "ics-local" | "apple-calendar" | "google-calendar" | "system-reminders";
+    providerLabel: string;
+    kind: "event" | "task";
+    action: "read-only-import" | "create" | "update" | "complete" | "delete";
+    status: "ready" | "blocked" | "needs-review";
+    title: string;
+    scheduledAt?: string;
+    source: string;
+    writesExternalSystem: false;
+    risk: "low" | "medium" | "high";
+    reason: string;
+  }>;
+  safety: {
+    dryRunOnly: true;
+    requiresExplicitConsentBeforeWrite: true;
+    requiresConnectorAuthBeforeWrite: true;
+    requiresAuditLogBeforeWrite: true;
+    requiresRollbackPlanBeforeWrite: true;
+  };
+  summary: {
+    readOnlyItems: number;
+    blockedWrites: number;
+    providersReadyForRead: number;
+    providersReadyForWrite: 0;
+    warnings: string[];
+  };
+  recommendations: string[];
+};
+
 export type ConfigDiagnostics = {
   ai: {
     configured: boolean;
@@ -217,6 +276,7 @@ export type ConfigDiagnostics = {
     }>;
     recommendations: string[];
   };
+  calendarSync: CalendarSyncPreview;
   securityCheck: {
     publicMode: boolean;
     overall: "ok" | "warning" | "critical";
@@ -378,6 +438,42 @@ export type NetworkDiagnostics = {
       status: "needs-action" | "manual-required";
       action: string;
       command?: string;
+    }>;
+  };
+  remoteAcceptanceEvidencePack: {
+    ready: boolean;
+    generatedAt: number;
+    baseUrl: string;
+    longTermEntryReady: boolean;
+    automatedReady: boolean;
+    realWorldReady: boolean;
+    realWorldPassed: number;
+    realWorldTotal: number;
+    missingCount: number;
+    expiredCount: number;
+    missingRealWorldIds: Array<NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]>;
+    expiredRealWorldIds: Array<NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"]>;
+    nextReviewAt?: number;
+    latestAcceptedAt?: number;
+    latestRunbookImportedAt?: number;
+    recommendedAction: "save-long-term-entry" | "run-remote-smoke" | "complete-real-world-checks" | "refresh-expired-evidence" | "export-diagnostics" | "ready";
+    scenarioMatrix: Array<{
+      id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"];
+      status: "passed" | "missing" | "expired";
+      titleKey: string;
+      proofKey: string;
+      evidence: string;
+      nextAction: "record-evidence" | "refresh-evidence" | "keep-record";
+      acceptedAt?: number;
+      expiresAt?: number;
+      ageDays?: number;
+    }>;
+    coverage: Array<{
+      id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"];
+      status: "passed" | "needs-action" | "manual-required";
+      acceptedAt?: number;
+      expiresAt?: number;
+      evidence: string;
     }>;
   };
   remoteAcceptanceRunbooks: {
@@ -555,6 +651,56 @@ export type StoredCustomAppVersion = {
   createdByType?: string | null;
   createdById?: string | null;
   createdAt: number;
+};
+
+export type CustomAppVersionComparison = {
+  appId: string;
+  fromVersion: number;
+  toVersion: number;
+  fromCreatedAt: number;
+  toCreatedAt: number;
+  fromNote?: string | null;
+  toNote?: string | null;
+  fromBytes: number;
+  toBytes: number;
+  addedLines: number;
+  removedLines: number;
+  changedLines: number;
+  unchangedLines: number;
+  totalChangedLines: number;
+  risk: "low" | "medium" | "high";
+  riskNotes: string[];
+  reviewChecklist: string[];
+  repairHints: string[];
+  preview: {
+    added: string[];
+    removed: string[];
+    changed: Array<{ before: string; after: string }>;
+  };
+};
+
+export type CustomAppRepairProposal = {
+  appId: string;
+  appName: string;
+  issue: string;
+  risk: "low" | "medium" | "high";
+  suspectedArea: "runtime-error" | "state" | "capability" | "action-policy" | "unknown";
+  summary: string;
+  evidence: string[];
+  repairSteps: string[];
+  permissionReview: string[];
+  versionSafety: string[];
+  executionPlan: CustomAppRepairExecutionPlan;
+  suggestedInstruction: string;
+  generatedAt: number;
+};
+
+export type CustomAppRepairExecutionPlan = {
+  mode: "auto-save" | "manual-review" | "blocked";
+  canAutoApply: boolean;
+  reasonKey: "low-risk-runtime" | "needs-permission-review" | "high-risk-action" | "unknown-area";
+  checks: string[];
+  nextSteps: string[];
 };
 
 export type StoredCustomAppState = {
@@ -814,6 +960,25 @@ export function completeOnboarding() {
 
 export function getConfigDiagnostics() {
   return requestJson<ConfigDiagnostics>("/api/v1/admin/config-diagnostics");
+}
+
+export function getCalendarSyncPreview() {
+  return requestJson<CalendarSyncPreview>("/api/v1/admin/calendar-sync/preview");
+}
+
+export function previewCalendarSync(proposedItems: Array<{
+  providerId?: CalendarSyncPreview["providers"][number]["id"];
+  kind?: "event" | "task";
+  action?: "create" | "update" | "complete" | "delete";
+  title?: string;
+  startsAt?: string;
+  dueAt?: string;
+  source?: string;
+}>) {
+  return requestJson<CalendarSyncPreview>("/api/v1/admin/calendar-sync/preview", {
+    method: "POST",
+    body: JSON.stringify({ proposedItems }),
+  });
 }
 
 export function getNetworkDiagnostics() {
@@ -1347,7 +1512,7 @@ export function getChatSessionMessages(sessionId: string) {
   return requestJson<{ session: ChatSession; messages: StoredChatMessage[] }>(`/api/v1/chat/sessions/${sessionId}/messages`);
 }
 
-export async function saveChatMessage(sessionId: string, message: Message) {
+export async function saveChatMessage(sessionId: string, message: Message, metadata?: ChatMessageSaveMetadata) {
   const credential = await getStoredDeviceCredentialAsync();
   return requestJson<{ message: StoredChatMessage }>(`/api/v1/chat/sessions/${sessionId}/messages`, {
     method: "POST",
@@ -1355,6 +1520,7 @@ export async function saveChatMessage(sessionId: string, message: Message) {
       role: message.role === "model" ? "assistant" : message.role,
       content: message,
       sourceDeviceId: credential?.device.id,
+      metadata,
     }),
   });
 }
@@ -1407,6 +1573,14 @@ export function listCustomAppVersions(appId: string, limit = 20) {
   return requestJson<{ versions: StoredCustomAppVersion[] }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/versions?limit=${encodeURIComponent(String(limit))}`);
 }
 
+export function compareCustomAppVersions(appId: string, fromVersion?: number, toVersion?: number) {
+  const params = new URLSearchParams();
+  if (fromVersion !== undefined) params.set("from", String(fromVersion));
+  if (toVersion !== undefined) params.set("to", String(toVersion));
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  return requestJson<{ comparison: CustomAppVersionComparison }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/version-compare${suffix}`);
+}
+
 export function rollbackCustomAppVersion(appId: string, version: number) {
   return requestJson<{ app: StoredCustomApp; version: StoredCustomAppVersion }>(`/api/v1/custom-apps/${encodeURIComponent(appId)}/versions/${encodeURIComponent(String(version))}/rollback`, {
     method: "POST",
@@ -1439,7 +1613,7 @@ export function createCustomAppRuntimeEvent(
 }
 
 export function createCustomAppDebugRequest(appId: string, input: { issue?: string; message?: string }) {
-  return requestJson<{ event: StoredCustomAppRuntimeEvent | null; suggestedInstruction: string; recentEvents: StoredCustomAppRuntimeEvent[] }>(
+  return requestJson<{ event: StoredCustomAppRuntimeEvent | null; repairProposal: CustomAppRepairProposal; suggestedInstruction: string; recentEvents: StoredCustomAppRuntimeEvent[] }>(
     `/api/v1/custom-apps/${encodeURIComponent(appId)}/debug-requests`,
     {
       method: "POST",

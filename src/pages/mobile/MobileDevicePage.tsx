@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, Download, KeyRound, LogOut, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
 import { clearStoredDeviceCredential, getHealth, getLatestMobileConnectivityReport, getStoredDeviceCredential, getStoredDeviceCredentialAsync, getStoredDeviceCredentialExpiryStatus, getStoredDeviceCredentialStorageStatus, reportMobileConnectivity, revokeCurrentDeviceBinding, rotateDeviceToken } from "../../services/lifeosApi";
 import type { DeviceConnectivityReport, DeviceCredentialStorageStatus } from "../../services/lifeosApi";
-import { clearOfflineMessageQueue, getOfflineMessageQueue, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeOfflineMessages, requestOfflineMessageQueuePersistentStorage, resetFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
-import type { OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
+import { clearOfflineMessageQueue, getOfflineMessageConflictGroups, getOfflineMessageQueue, getOfflineMessageQueueRecoverySummary, getOfflineMessageQueueStorageStatus, getOfflineMessageQueueSummary, removeFailedOfflineMessages, removeOfflineMessages, requestOfflineMessageQueuePersistentStorage, resolveOfflineMessageConflictGroup, retryFailedOfflineMessages, retryOfflineMessage, subscribeOfflineMessageQueue } from "../../services/offlineMessageQueue";
+import type { OfflineMessageConflictGroup, OfflineMessageConflictResolutionOption, OfflineMessageQueueStorageStatus, OfflineQueuedMessage } from "../../services/offlineMessageQueue";
 import { getNetworkStatus } from "../../services/networkStatus";
 import { extractPairingToken, pairingInstallPath } from "../../services/mobilePairingIntent";
 import { getMobileConnectivityIssue, getMobileRecoveryHints, getPwaCapabilityStatus, getRemoteEntryGuidance, getRemoteEntryStatus, mobileConnectivityResultFromReport, testMobileRemoteConnectivity } from "../../services/pwaCapabilities";
@@ -12,6 +12,7 @@ import { getPwaServiceWorkerLifecycleStatus, subscribePwaServiceWorkerLifecycle 
 import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceWorkerLifecycle";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
+import MobileOfflineQueueRecoveryCard from "./MobileOfflineQueueRecoveryCard";
 import MobileOfflineQueuePanel from "./MobileOfflineQueuePanel";
 import MobileRemoteEntryCard from "./MobileRemoteEntryCard";
 import { CapabilityRow, CredentialExpiryCard, CredentialStorageCard, PairingLinkPanel, Row } from "./MobileDeviceStatusCards";
@@ -54,6 +55,8 @@ export default function MobileDevicePage() {
   const lastConnectivityResult = useMemo(() => lastConnectivityReport ? mobileConnectivityResultFromReport(lastConnectivityReport) : null, [lastConnectivityReport]);
   const lastConnectivityIssue = useMemo(() => lastConnectivityResult ? getMobileConnectivityIssue(lastConnectivityResult, currentEntry.kind, queueSummary) : null, [currentEntry.kind, lastConnectivityResult, queueSummary]);
   const lastConnectivityHints = useMemo(() => lastConnectivityResult ? getMobileRecoveryHints(lastConnectivityResult, currentEntry.kind, queueSummary) : [], [currentEntry.kind, lastConnectivityResult, queueSummary]);
+  const conflictGroups = useMemo(() => getOfflineMessageConflictGroups(queueItems), [queueItems]);
+  const queueRecovery = useMemo(() => getOfflineMessageQueueRecoverySummary(queueItems, { online: network.online, networkQuality: network.quality, remoteOk: currentEntry.okForRemote }), [currentEntry.okForRemote, network.online, network.quality, queueItems]);
   const connectivityReportStale = Boolean(lastConnectivityReport && Date.now() - lastConnectivityReport.createdAt > 6 * 60 * 60 * 1000);
 
   const refreshCredentialStorage = async () => {
@@ -188,9 +191,16 @@ export default function MobileDevicePage() {
   };
 
   const handleRetryQueue = () => {
-    resetFailedOfflineMessages();
+    const result = retryFailedOfflineMessages();
     refreshQueue();
-    setStatus(t("mobileDevice.failedReset"));
+    setStatus(t("mobileDevice.failedResetDetailed", { count: result.retriedIds.length }));
+  };
+
+  const handleRemoveFailedQueue = () => {
+    if (!window.confirm(t("mobileDevice.confirmRemoveFailedQueueDetailed", { count: queueSummary.failed }))) return;
+    const result = removeFailedOfflineMessages();
+    refreshQueue();
+    setStatus(t("mobileDevice.failedRemoved", { count: result.removedIds.length }));
   };
 
   const handleRetryItem = (item: OfflineQueuedMessage) => {
@@ -204,6 +214,20 @@ export default function MobileDevicePage() {
     removeOfflineMessages([item.id]);
     refreshQueue();
     setStatus(t("mobileDevice.itemRemoved"));
+  };
+
+  const handleResolveConflictGroup = (group: OfflineMessageConflictGroup, option: OfflineMessageConflictResolutionOption) => {
+    const result = resolveOfflineMessageConflictGroup(group.fingerprint, option.keepId || group.keepId, option.id);
+    refreshQueue();
+    if (!result) {
+      setStatus(t("mobileDevice.conflictAlreadyResolved"));
+      return;
+    }
+    if (result.removedIds.length === 0) {
+      setStatus(t("mobileDevice.conflictReviewed"));
+      return;
+    }
+    setStatus(t("mobileDevice.conflictResolved", { count: result.removedIds.length }));
   };
 
   const handleCopyItem = async (item: OfflineQueuedMessage) => {
@@ -438,10 +462,16 @@ export default function MobileDevicePage() {
           onConnectivityTest={handleConnectivityTest}
           onRefreshServer={() => refreshServerState({ announce: true })}
         />
+        <MobileOfflineQueueRecoveryCard
+          recovery={queueRecovery}
+          onRetryFailed={handleRetryQueue}
+          onRemoveFailed={handleRemoveFailedQueue}
+        />
         <MobileOfflineQueuePanel
           network={network}
           queueSummary={queueSummary}
           queueItems={queueItems}
+          conflictGroups={conflictGroups}
           queueStorage={queueStorage}
           currentEntry={currentEntry}
           currentEntryGuidance={currentEntryGuidance}
@@ -453,6 +483,7 @@ export default function MobileDevicePage() {
           onRetryItem={handleRetryItem}
           onCopyItem={handleCopyItem}
           onRemoveItem={handleRemoveItem}
+          onResolveConflictGroup={handleResolveConflictGroup}
         />
       </main>
     </div>

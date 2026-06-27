@@ -1,12 +1,13 @@
 import { AlertCircle, Bug, RefreshCw, WandSparkles } from "lucide-react";
 import { useI18n } from "../../../i18n/I18nProvider";
-import type { StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
+import type { CustomAppRepairProposal, StoredCustomAppRuntimeEvent } from "../../../services/lifeosApi";
 
 type StudioRuntimeEventsPanelProps = {
   events: StoredCustomAppRuntimeEvent[];
   isLoading: boolean;
   error: string | null;
   issue: string;
+  repairProposal: CustomAppRepairProposal | null;
   isRequestingDebug: boolean;
   isApplyingRepair: boolean;
   onIssueChange: (value: string) => void;
@@ -26,11 +27,18 @@ function formatEventTime(createdAt: number) {
   return new Date(createdAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
+function proposalRiskClass(risk: CustomAppRepairProposal["risk"]) {
+  if (risk === "high") return "border-red-500/20 bg-red-500/[0.06] text-red-200";
+  if (risk === "medium") return "border-amber-500/20 bg-amber-500/[0.06] text-amber-200";
+  return "border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-200";
+}
+
 export default function StudioRuntimeEventsPanel({
   events,
   isLoading,
   error,
   issue,
+  repairProposal,
   isRequestingDebug,
   isApplyingRepair,
   onIssueChange,
@@ -39,6 +47,7 @@ export default function StudioRuntimeEventsPanel({
   onApplyRepair,
 }: StudioRuntimeEventsPanelProps) {
   const { t } = useI18n();
+  const autoApplyBlocked = Boolean(repairProposal && !repairProposal.executionPlan.canAutoApply);
 
   return (
     <div className="space-y-3 mt-2">
@@ -84,6 +93,38 @@ export default function StudioRuntimeEventsPanel({
         )}
       </div>
 
+      {repairProposal && (
+        <div className={`rounded-xl border p-3 text-[10px] leading-relaxed ${proposalRiskClass(repairProposal.risk)}`}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-xs font-black text-current">{t("studio.runtime.proposalTitle")}</div>
+              <div className="mt-1 text-current/75">
+                {t("studio.runtime.proposalMeta", {
+                  risk: t(`studio.runtime.proposalRisk.${repairProposal.risk}` as any),
+                  area: t(`studio.runtime.proposalArea.${repairProposal.suspectedArea}` as any),
+                })}
+              </div>
+            </div>
+            <span className="shrink-0 rounded-full border border-current/15 bg-black/10 px-2 py-0.5 font-bold uppercase">
+              {t(`studio.runtime.proposalRisk.${repairProposal.risk}` as any)}
+            </span>
+          </div>
+          <div className="mt-3 space-y-2">
+            <ProposalList title={t("studio.runtime.proposalSteps")} items={repairProposal.repairSteps.slice(0, 3)} />
+            <ProposalList title={t("studio.runtime.proposalPermissionReview")} items={repairProposal.permissionReview.slice(0, 2)} />
+            <ProposalList title={t("studio.runtime.proposalVersionSafety")} items={repairProposal.versionSafety.slice(0, 2)} />
+            <ProposalList
+              title={t("studio.runtime.executionPlan")}
+              items={[
+                t(`studio.runtime.executionMode.${repairProposal.executionPlan.mode}` as any),
+                t(`studio.runtime.executionReason.${repairProposal.executionPlan.reasonKey}` as any),
+                ...repairProposal.executionPlan.checks.slice(0, 2),
+              ]}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="space-y-2 pt-2 border-t border-white/[0.04]">
         <textarea
           value={issue}
@@ -114,13 +155,18 @@ export default function StudioRuntimeEventsPanel({
           <button
             type="button"
             onClick={onApplyRepair}
-            disabled={isRequestingDebug || isApplyingRepair}
+            disabled={isRequestingDebug || isApplyingRepair || autoApplyBlocked}
             className="bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 text-emerald-300 disabled:text-zinc-600 disabled:border-white/[0.04] disabled:bg-white/[0.02] py-2 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1.5"
           >
             {isApplyingRepair ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                 {t("studio.runtime.applyingRepair")}
+              </>
+            ) : autoApplyBlocked ? (
+              <>
+                <WandSparkles className="w-3.5 h-3.5" />
+                {t("studio.runtime.manualReviewButton")}
               </>
             ) : (
               <>
@@ -131,6 +177,19 @@ export default function StudioRuntimeEventsPanel({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ProposalList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div>
+      <div className="font-bold text-current/85">{title}</div>
+      <ul className="mt-1 space-y-0.5 text-current/70">
+        {items.map((item) => (
+          <li key={item}>- {item}</li>
+        ))}
+      </ul>
     </div>
   );
 }

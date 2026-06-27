@@ -159,9 +159,23 @@ function checkSourceSizeBudgets() {
 }
 
 function checkScripts() {
-  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix"]) {
+  for (const script of ["build", "desktop", "desktop:pack", "desktop:pack:unsigned", "desktop:zip:unsigned", "desktop:dist", "desktop:dist:mac", "desktop:dist:win", "desktop:dist:linux", "desktop:artifact:smoke", "desktop:artifact:smoke:launch", "desktop:release:smoke", "remote:smoke", "remote:acceptance", "remote:mock-smoke", "test", "test:e2e", "test:desktop", "quality:gate", "release:check", "release:check:unsigned", "release:artifacts:check", "release:artifacts:fix", "release:feed", "check:cold-launch", "github:public:check", "github:public:fix", "version:truth:check", "version:truth:release"]) {
     if (hasScript(script)) pass(`package script exists: ${script}`);
     else fail(`missing package script: ${script}`);
+  }
+
+  if (exists("scripts/check-version-truth.mjs")) {
+    const versionTruthCheck = spawnSync(process.execPath, ["scripts/check-version-truth.mjs"], {
+      cwd: rootDir,
+      encoding: "utf8",
+    });
+    if (versionTruthCheck.status === 0 && versionTruthCheck.stdout.includes(`Version truth passed for ${currentReleaseTag}`)) {
+      pass("version truth check verifies README, release notes, Docker image, asset names, and alpha limits");
+    } else {
+      fail(`version truth check failed: ${(versionTruthCheck.stderr || versionTruthCheck.stdout || "").trim()}`);
+    }
+  } else {
+    fail("missing version truth checker: scripts/check-version-truth.mjs");
   }
 
   if (exists("scripts/check-cold-launch-readiness.mjs")) {
@@ -186,7 +200,9 @@ function checkScripts() {
       githubPublicState.includes("has_discussions") &&
       githubPublicState.includes("v0.1.0") &&
       githubPublicState.includes("v0.0.0") &&
-      githubPublicState.includes("Deprecated / 已废弃")
+      githubPublicState.includes("Deprecated / 已废弃") &&
+      githubPublicState.includes("staleStableReleases") &&
+      githubPublicState.includes("LIFEOS_GITHUB_API_BASE_URL")
     ) pass("GitHub public state checker covers description, Discussions, stale Latest, and deprecated releases");
     else fail("GitHub public state checker must cover repository description, Discussions, stale Latest release, and deprecated old releases");
   } else {
@@ -643,6 +659,7 @@ function checkAssets() {
   const remoteStabilitySectionSource = exists("src/pages/admin/RemoteStabilitySection.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteStabilitySection.tsx"), "utf8") : "";
   const remoteHealthSummaryCardSource = exists("src/pages/admin/RemoteHealthSummaryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteHealthSummaryCard.tsx"), "utf8") : "";
   const remoteAcceptanceChecklistSource = exists("src/pages/admin/RemoteAcceptanceChecklistCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteAcceptanceChecklistCard.tsx"), "utf8") : "";
+  const remoteAcceptanceEvidencePackSource = exists("src/pages/admin/RemoteAcceptanceEvidencePackCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/admin/RemoteAcceptanceEvidencePackCard.tsx"), "utf8") : "";
   const remoteAcceptanceSource = exists("server/remoteAcceptance.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteAcceptance.ts"), "utf8") : "";
   const remoteValidationReportSource = exists("server/remoteValidationReport.ts") ? fs.readFileSync(path.join(rootDir, "server/remoteValidationReport.ts"), "utf8") : "";
   const remoteValidationReportTestSource = exists("tests/remote-validation-report.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/remote-validation-report.test.mjs"), "utf8") : "";
@@ -733,8 +750,18 @@ function checkAssets() {
     connectionGuideSource.includes("remoteValidationReport") &&
     connectionGuideSource.includes("RemoteStabilitySection") &&
     remoteStabilitySectionSource.includes("RemoteHealthSummaryCard") &&
+    remoteStabilitySectionSource.includes("RemoteAcceptanceEvidencePackCard") &&
     remoteStabilitySectionSource.includes("RemoteAcceptanceChecklistCard") &&
     remoteStabilitySectionSource.includes("remoteHealthSummary") &&
+    remoteStabilitySectionSource.includes("remoteAcceptanceEvidencePack") &&
+    remoteAcceptanceEvidencePackSource.includes("connection.evidencePack.title") &&
+    remoteAcceptanceEvidencePackSource.includes("recommendedAction") &&
+    remoteAcceptanceEvidencePackSource.includes("missingRealWorldIds") &&
+    remoteAcceptanceEvidencePackSource.includes("expiredRealWorldIds") &&
+    remoteAcceptanceEvidencePackSource.includes("scenarioMatrix") &&
+    remoteAcceptanceEvidencePackSource.includes("scenario.nextAction") &&
+    remoteAcceptanceEvidencePackSource.includes("connection.evidencePack.scenarioStatus.") &&
+    remoteAcceptanceEvidencePackSource.includes("connection.evidencePack.action.") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.title") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.smokeTitle") &&
     remoteAcceptanceChecklistSource.includes("connection.acceptance.copySmokeCommand") &&
@@ -808,6 +835,13 @@ function checkAssets() {
     remoteAcceptanceSource.includes("getRemoteAcceptanceRunbookRecords") &&
     remoteAcceptanceSource.includes("getRemoteAcceptanceRecords") &&
     remoteAcceptanceSource.includes("summarizeRemoteAcceptanceChecklist") &&
+    remoteAcceptanceSource.includes("buildRemoteAcceptanceEvidencePack") &&
+    remoteAcceptanceSource.includes("RemoteAcceptanceEvidenceScenario") &&
+    remoteAcceptanceSource.includes("scenarioMatrix") &&
+    remoteAcceptanceSource.includes("realWorldAcceptanceIds") &&
+    remoteAcceptanceSource.includes("missingRealWorldIds") &&
+    remoteAcceptanceSource.includes("expiredRealWorldIds") &&
+    remoteAcceptanceSource.includes("recommendedAction") &&
     remoteAcceptanceSource.includes("blockingItems") &&
     remoteAcceptanceSource.includes("hasRealWorldEvidence") &&
     remoteAcceptanceSource.includes("MANUAL_ACCEPTANCE_MAX_AGE_MS") &&
@@ -842,6 +876,11 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("connection.acceptance.httpsStatus") &&
     translationsSource.includes("connection.acceptance.httpsStatus") &&
     remoteValidationReportTestSource.includes("remote acceptance checklist expires stale real-world manual evidence") &&
+    remoteValidationReportTestSource.includes("scenarioMatrix.length, 6") &&
+    remoteValidationReportTestSource.includes('scenario.nextAction === "refresh-evidence"') &&
+    remoteValidationReportTestSource.includes("connection.evidencePack.scenario.cellularMobileChat.proof") &&
+    translationsSource.includes("connection.evidencePack.scenarioMatrix") &&
+    translationsSource.includes("connection.evidencePack.scenario.cellularMobileChat.proof") &&
     remoteValidationReportTestSource.includes("freshItem.expiresAt") &&
     remoteValidationReportTestSource.includes("older than 7 days") &&
     remoteValidationReportTestSource.includes("github_pat_remoteSecret") &&
@@ -1286,11 +1325,108 @@ function checkAssets() {
   const studioConnectionSource = exists("src/components/apps/studio/useStudioConnectionSettings.ts") ? fs.readFileSync(path.join(rootDir, "src/components/apps/studio/useStudioConnectionSettings.ts"), "utf8") : "";
   const sensitiveMainSource = exists("src/main.tsx") ? fs.readFileSync(path.join(rootDir, "src/main.tsx"), "utf8") : "";
   const appSource = exists("src/App.tsx") ? fs.readFileSync(path.join(rootDir, "src/App.tsx"), "utf8") : "";
+  const customAppsSource = exists("server/customApps.ts") ? fs.readFileSync(path.join(rootDir, "server/customApps.ts"), "utf8") : "";
+  const customAppRoutesSource = exists("server/routes/customAppRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/customAppRoutes.ts"), "utf8") : "";
+  const studioAppSource = exists("src/components/apps/StudioApp.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/apps/StudioApp.tsx"), "utf8") : "";
+  const studioRuntimeDebugHookSource = exists("src/components/apps/studio/useStudioRuntimeDebug.ts") ? fs.readFileSync(path.join(rootDir, "src/components/apps/studio/useStudioRuntimeDebug.ts"), "utf8") : "";
+  const studioRuntimeEventsPanelSource = exists("src/components/apps/studio/StudioRuntimeEventsPanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/apps/studio/StudioRuntimeEventsPanel.tsx"), "utf8") : "";
+  const problemBlueprintSource = exists("src/services/problemBlueprint.ts") ? fs.readFileSync(path.join(rootDir, "src/services/problemBlueprint.ts"), "utf8") : "";
+  const problemBlueprintServerSource = exists("server/problemBlueprints.ts") ? fs.readFileSync(path.join(rootDir, "server/problemBlueprints.ts"), "utf8") : "";
+  const problemBlueprintTestSource = exists("tests/problem-blueprint.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/problem-blueprint.test.mjs"), "utf8") : "";
+  const studioProblemSolverCardSource = exists("src/components/apps/studio/StudioProblemSolverCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/apps/studio/StudioProblemSolverCard.tsx"), "utf8") : "";
+  const studioBlueprintReadinessCardSource = exists("src/components/apps/studio/StudioBlueprintReadinessCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/components/apps/studio/StudioBlueprintReadinessCard.tsx"), "utf8") : "";
+  const studioFrontendSmokeSource = exists("tests/frontend-smoke.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/frontend-smoke.test.mjs"), "utf8") : "";
   const chatPersistenceSource = exists("src/hooks/useChatPersistence.ts") ? fs.readFileSync(path.join(rootDir, "src/hooks/useChatPersistence.ts"), "utf8") : "";
   const chatSessionStorageSource = exists("src/services/chatSessionStorage.ts") ? fs.readFileSync(path.join(rootDir, "src/services/chatSessionStorage.ts"), "utf8") : "";
   const chatSessionStorageTestSource = exists("tests/chat-session-storage.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/chat-session-storage.test.mjs"), "utf8") : "";
   const chatMessageStorageSource = exists("src/services/chatMessageStorage.ts") ? fs.readFileSync(path.join(rootDir, "src/services/chatMessageStorage.ts"), "utf8") : "";
   const chatMessageStorageTestSource = exists("tests/chat-message-storage.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/chat-message-storage.test.mjs"), "utf8") : "";
+  if (
+    problemBlueprintSource.includes("ProblemBlueprintReadiness") &&
+    problemBlueprintSource.includes("ProblemBlueprintQualityScore") &&
+    problemBlueprintSource.includes("ProblemBlueprintAutoRepairLoop") &&
+    problemBlueprintSource.includes("ProblemBlueprintTemplateOption") &&
+    problemBlueprintSource.includes("templateVariants") &&
+    problemBlueprintSource.includes("buildTemplateLibrary") &&
+    problemBlueprintSource.includes("buildTemplateReadiness") &&
+    problemBlueprintSource.includes("buildQualityScore") &&
+    problemBlueprintSource.includes("buildAutoRepairLoop") &&
+    problemBlueprintSource.includes("templateLibrary") &&
+    problemBlueprintSource.includes("templateReadiness") &&
+    problemBlueprintSource.includes("qualityScore") &&
+    problemBlueprintSource.includes("autoRepairLoop") &&
+    problemBlueprintSource.includes("capabilityReview") &&
+    problemBlueprintSource.includes("repairLoop") &&
+    problemBlueprintSource.includes("requestAction or requestCapability") &&
+    problemBlueprintServerSource.includes("templateReadiness: derived.templateReadiness") &&
+    problemBlueprintServerSource.includes("qualityScore: derived.qualityScore") &&
+    problemBlueprintServerSource.includes("autoRepairLoop: derived.autoRepairLoop") &&
+    problemBlueprintServerSource.includes("capabilityReview: derived.capabilityReview") &&
+    problemBlueprintServerSource.includes("repairLoop: derived.repairLoop") &&
+    studioProblemSolverCardSource.includes("StudioBlueprintReadinessCard") &&
+    studioProblemSolverCardSource.includes("blueprint.templateLibrary") &&
+    studioProblemSolverCardSource.includes("studio.problemSolver.templateLibrary") &&
+    studioProblemSolverCardSource.includes("template.matchScore") &&
+    studioProblemSolverCardSource.includes("template.useCases") &&
+    studioBlueprintReadinessCardSource.includes("blueprint.templateReadiness") &&
+    studioBlueprintReadinessCardSource.includes("blueprint.qualityScore") &&
+    studioBlueprintReadinessCardSource.includes("blueprint.autoRepairLoop") &&
+    studioBlueprintReadinessCardSource.includes("blueprint.capabilityReview") &&
+    studioBlueprintReadinessCardSource.includes("blueprint.repairLoop") &&
+    studioBlueprintReadinessCardSource.includes("studio.problemSolver.readiness") &&
+    studioBlueprintReadinessCardSource.includes("studio.problemSolver.qualityScore") &&
+    studioBlueprintReadinessCardSource.includes("studio.problemSolver.autoRepairLoop") &&
+    translationsSource.includes("studio.problemSolver.templateRole.primary") &&
+    translationsSource.includes("studio.problemSolver.templateRisk.medium") &&
+    translationsSource.includes("studio.problemSolver.readinessLevel.ready") &&
+    translationsSource.includes("studio.problemSolver.qualityLevel.usable") &&
+    translationsSource.includes("studio.problemSolver.autoRepairSignals") &&
+    translationsSource.includes("studio.problemSolver.capabilityReview") &&
+    translationsSource.includes("studio.problemSolver.repairLoop") &&
+    problemBlueprintTestSource.includes("templateReadiness.level") &&
+    problemBlueprintTestSource.includes("qualityScore.level") &&
+    problemBlueprintTestSource.includes("autoRepairLoop.mode") &&
+    problemBlueprintTestSource.includes("templateLibrary.length") &&
+    problemBlueprintTestSource.includes("role === \"alternative\"") &&
+    problemBlueprintTestSource.includes("capabilityReview.some") &&
+    problemBlueprintTestSource.includes("repairLoop.some") &&
+    studioFrontendSmokeSource.includes("StudioBlueprintReadinessCard")
+  ) pass("Studio problem blueprints expose generation readiness, capability review, and repair loop checks");
+  else warn("Studio problem blueprints lack readiness scoring, capability review, repair loop UI, or tests");
+  if (
+    customAppsSource.includes("CustomAppRepairProposal") &&
+    customAppsSource.includes("CustomAppRepairExecutionPlan") &&
+    customAppsSource.includes("buildRepairProposal") &&
+    customAppsSource.includes("buildRepairExecutionPlan") &&
+    customAppsSource.includes("repairProposal") &&
+    customAppsSource.includes("permissionReview") &&
+    customAppsSource.includes("versionSafety") &&
+    customAppsSource.includes("canAutoApply") &&
+    customAppRoutesSource.includes("repairRisk") &&
+    customAppRoutesSource.includes("suspectedArea") &&
+    customAppRoutesSource.includes("repairStepCount") &&
+    lifeosApiSource.includes("CustomAppRepairProposal") &&
+    lifeosApiSource.includes("CustomAppRepairExecutionPlan") &&
+    lifeosApiSource.includes("repairProposal: CustomAppRepairProposal") &&
+    studioRuntimeDebugHookSource.includes("runtimeRepairProposal") &&
+    studioRuntimeDebugHookSource.includes("response.repairProposal") &&
+    studioRuntimeDebugHookSource.includes("return response") &&
+    studioRuntimeEventsPanelSource.includes("studio.runtime.proposalTitle") &&
+    studioRuntimeEventsPanelSource.includes("proposalPermissionReview") &&
+    studioRuntimeEventsPanelSource.includes("proposalVersionSafety") &&
+    studioRuntimeEventsPanelSource.includes("repairProposal.executionPlan") &&
+    studioRuntimeEventsPanelSource.includes("autoApplyBlocked") &&
+    studioRuntimeEventsPanelSource.includes("studio.runtime.executionPlan") &&
+    studioAppSource.includes("executionPlan.canAutoApply") &&
+    studioAppSource.includes("studio.runtime.manualReviewRequired") &&
+    studioAppSource.includes("runtimeRepairProposal={runtimeRepairProposal}") &&
+    apiAuthTestSource.includes("executionPlan.canAutoApply") &&
+    apiAuthTestSource.includes("reasonKey, \"high-risk-action\"") &&
+    apiAuthTestSource.includes("customAppDebugRequest.repairProposal") &&
+    apiAuthTestSource.includes("debugRuntimeEvent.detail.repairProposal") &&
+    studioFrontendSmokeSource.includes("Structured Repair Proposal")
+  ) pass("Studio generated app repair flow returns structured proposal, permission review, and version safety checks");
+  else warn("Studio generated app repair flow lacks structured repair proposal coverage");
   if (
     sensitiveLocalStorageSource.includes("lifeos_byok_key") &&
     sensitiveLocalStorageSource.includes("lifeos_proxy_url") &&
@@ -1356,8 +1492,13 @@ function checkAssets() {
   const mobileOfflineQueueCardsSource = exists("src/pages/mobile/MobileOfflineQueueCards.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueueCards.tsx"), "utf8") : "";
   const mobileOfflineQueueHealthCardSource = exists("src/pages/mobile/MobileOfflineQueueHealthCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueueHealthCard.tsx"), "utf8") : "";
   const mobileOfflineQueuePanelSource = exists("src/pages/mobile/MobileOfflineQueuePanel.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueuePanel.tsx"), "utf8") : "";
+  const mobileOfflineQueueConflictCardSource = exists("src/pages/mobile/MobileOfflineQueueConflictCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueueConflictCard.tsx"), "utf8") : "";
+  const mobileOfflineQueueRecoveryCardSource = exists("src/pages/mobile/MobileOfflineQueueRecoveryCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileOfflineQueueRecoveryCard.tsx"), "utf8") : "";
   const offlineQueueSyncHookSource = exists("src/hooks/useOfflineQueueSync.ts") ? fs.readFileSync(path.join(rootDir, "src/hooks/useOfflineQueueSync.ts"), "utf8") : "";
   const offlineQueueTestSource = exists("tests/offline-queue.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/offline-queue.test.mjs"), "utf8") : "";
+  const chatSource = exists("server/chat.ts") ? fs.readFileSync(path.join(rootDir, "server/chat.ts"), "utf8") : "";
+  const chatRoutesSource = exists("server/routes/chatRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/chatRoutes.ts"), "utf8") : "";
+  const chatMigrationSource = exists("server/migrations/015_message_offline_sync_identity.sql") ? fs.readFileSync(path.join(rootDir, "server/migrations/015_message_offline_sync_identity.sql"), "utf8") : "";
   const pwaCapabilitiesSource = exists("src/services/pwaCapabilities.ts") ? fs.readFileSync(path.join(rootDir, "src/services/pwaCapabilities.ts"), "utf8") : "";
   const pwaCapabilitiesTestSource = exists("tests/pwa-capabilities.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/pwa-capabilities.test.mjs"), "utf8") : "";
   const mobileConnectivityCardSource = exists("src/pages/mobile/MobileConnectivityCard.tsx") ? fs.readFileSync(path.join(rootDir, "src/pages/mobile/MobileConnectivityCard.tsx"), "utf8") : "";
@@ -1568,6 +1709,32 @@ function checkAssets() {
     mobileOfflineQueueHealthCardSource.includes("health.titleKey") &&
     mobileOfflineQueueHealthCardSource.includes("health.bodyKey") &&
     mobileOfflineQueueHealthCardSource.includes("health.actionKey") &&
+    mobileOfflineQueueRecoveryCardSource.includes("recovery.steps") &&
+    mobileOfflineQueueRecoveryCardSource.includes("offlineQueue.recoveryStepStatus") &&
+    mobileOfflineQueueRecoveryCardSource.includes("recovery.syncPlan.mode") &&
+    mobileOfflineQueueRecoveryCardSource.includes("offlineQueue.syncPlanTitle") &&
+    mobileOfflineQueueRecoveryCardSource.includes("offlineQueue.syncPlan.mode.") &&
+    offlineQueueSource.includes("nextAction") &&
+    offlineQueueSource.includes("canAutoSync") &&
+    offlineQueueSource.includes("idempotencyKey") &&
+    offlineQueueSource.includes("clientSequence") &&
+    offlineQueueSource.includes("QUEUE_CLIENT_SEQUENCE_KEY") &&
+    offlineQueueSource.includes("buildOfflineMessageIdempotencyKey") &&
+    offlineQueueSource.includes("lastAckedIdempotencyKeys") &&
+    offlineQueueSource.includes("OfflineMessageQueueSyncPlan") &&
+    offlineQueueSource.includes("buildOfflineQueueSyncPlan") &&
+    offlineQueueSource.includes("syncPlan") &&
+    offlineQueueSource.includes("QUEUE_CONFLICT_REVIEW_KEY") &&
+    offlineQueueSource.includes("OfflineMessageConflictResolutionOption") &&
+    offlineQueueSource.includes("buildResolutionOptions") &&
+    offlineQueueSource.includes("decision === \"keep-all\"") &&
+    offlineQueueSource.includes("buildReviewedItemIdSet") &&
+    offlineQueueSource.includes("similar-window") &&
+    offlineQueueSource.includes("SIMILAR_CONFLICT_WINDOW_MS") &&
+    offlineQueueSource.includes("conflictTextSimilarity") &&
+    offlineQueueSource.includes("canAutoResolve") &&
+    offlineQueueSource.includes("buildOfflineQueueRecoverySteps") &&
+    offlineQueueSource.includes("getOfflineQueueRecoveryAction") &&
     offlineQueueHealthSource.includes("healthStorageBlockedTitle") &&
     offlineQueueHealthSource.includes("healthStorageRiskTitle") &&
     offlineQueueHealthSource.includes("healthFailedTitle") &&
@@ -1595,9 +1762,18 @@ function checkAssets() {
     mobileOfflineQueueCardsSource.includes("offlineQueue.failureReason") &&
     mobileOfflineQueueCardsSource.includes("classifyOfflineMessageFailure") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.failureKind.") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.syncIdentity") &&
+    mobileOfflineQueueCardsSource.includes("offlineQueue.syncStage.") &&
     mobileOfflineQueueCardsSource.includes("recommendationKey") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.recommendation.browserStorage") &&
     mobileOfflineQueueCardsSource.includes("offlineQueue.recommendation.persistentStorage") &&
+    mobileOfflineQueueConflictCardSource.includes("offlineQueue.conflictKind") &&
+    mobileOfflineQueueConflictCardSource.includes("group.reviewRequired") &&
+    mobileOfflineQueueConflictCardSource.includes("group.resolutionOptions") &&
+    mobileOfflineQueueConflictCardSource.includes("option.requiresBackup") &&
+    mobileOfflineQueueConflictCardSource.includes("offlineQueue.conflictManualReview") &&
+    mobileDeviceSource.includes("option.keepId || group.keepId") &&
+    mobileDeviceSource.includes("mobileDevice.conflictReviewed") &&
     translationsSource.includes("offlineQueue.storageTitle") &&
     translationsSource.includes("offlineQueue.storageIndexedDb") &&
     translationsSource.includes("offlineQueue.storageLocalStorage") &&
@@ -1625,6 +1801,22 @@ function checkAssets() {
     translationsSource.includes("offlineQueue.recommendation.empty") &&
     translationsSource.includes("offlineQueue.healthStorageBlockedTitle") &&
     translationsSource.includes("offlineQueue.healthReadyTitle") &&
+    translationsSource.includes("offlineQueue.recoveryStep.copyBackup.title") &&
+    translationsSource.includes("offlineQueue.recoveryStep.openChat.title") &&
+    translationsSource.includes("offlineQueue.recoveryStepStatus.blocked") &&
+    translationsSource.includes("offlineQueue.syncPlanTitle") &&
+    translationsSource.includes("offlineQueue.syncPlan.mode.background-ready") &&
+    translationsSource.includes("offlineQueue.syncPlan.reason.waitStableNetwork") &&
+    translationsSource.includes("offlineQueue.syncPlan.detail.remoteBlocked") &&
+    translationsSource.includes("offlineQueue.syncIdentity") &&
+    translationsSource.includes("offlineQueue.syncStage.retry-ready") &&
+    translationsSource.includes("offlineQueue.conflictKind.similar-window") &&
+    translationsSource.includes("offlineQueue.conflictReason.similarWindow") &&
+    translationsSource.includes("offlineQueue.conflictManualReview") &&
+    translationsSource.includes("offlineQueue.conflictOption.keepAll") &&
+    translationsSource.includes("offlineQueue.conflictOption.keepLatestReviewed") &&
+    translationsSource.includes("offlineQueue.conflictBackupRequired") &&
+    translationsSource.includes("mobileDevice.conflictReviewed") &&
     translationsSource.includes("network.offline") &&
     translationsSource.includes("network.weak") &&
     offlineQueueTestSource.includes("getOfflineMessageStatusLabel") &&
@@ -1635,10 +1827,28 @@ function checkAssets() {
     offlineQueueTestSource.includes("getOfflineMessageQueueUsageLabel") &&
     offlineQueueBackupSource.includes("LifeOS AI offline queue backup") &&
     offlineQueueBackupSource.includes("Failure reason") &&
+    offlineQueueBackupSource.includes("Sync identity") &&
+    lifeosApiSource.includes("ChatMessageSaveMetadata") &&
+    chatPersistenceSource.includes("idempotencyKey: item.idempotencyKey") &&
+    chatRoutesSource.includes("metadata") &&
+    chatSource.includes("getMessageByIdempotencyKey") &&
+    chatSource.includes("idempotency_key") &&
+    chatMigrationSource.includes("idx_messages_session_idempotency_key") &&
     offlineQueueTestSource.includes("offline queue backup text preserves queued messages before clearing") &&
+    offlineQueueTestSource.includes("lastAckedIdempotencyKeys") &&
     offlineQueueTestSource.includes("getOfflineMessageQueueStorageStatus") &&
     offlineQueueTestSource.includes("offline queue health prioritizes storage, failed sync, remote entry, and network guidance") &&
     offlineQueueTestSource.includes("buildOfflineQueueHealth") &&
+    offlineQueueTestSource.includes("nextAction, \"resolve-conflicts\"") &&
+    offlineQueueTestSource.includes("nextAction, \"open-chat\"") &&
+    offlineQueueTestSource.includes("canAutoSync, true") &&
+    offlineQueueTestSource.includes("syncPlan.mode, \"background-ready\"") &&
+    offlineQueueTestSource.includes("syncPlan.mode, \"waiting-network\"") &&
+    offlineQueueTestSource.includes("offline queue sync plan blocks background recovery while offline and returns idle when clear") &&
+    offlineQueueTestSource.includes("offline queue flags similar multi-device messages for manual review only") &&
+    offlineQueueTestSource.includes("offline queue can resolve reviewed similar conflicts by keeping a selected item") &&
+    offlineQueueTestSource.includes("reviewedRecovery.nextAction, \"open-chat\"") &&
+    offlineQueueTestSource.includes("reviewedRecovery.syncPlan.mode, \"background-ready\"") &&
     offlineQueueTestSource.includes("offlineQueue.healthEntryBlockedTitle") &&
     offlineQueueTestSource.includes("summary.oldestQueuedAt") &&
     offlineQueueSource.includes("oldestQueuedAt") &&
@@ -1742,6 +1952,26 @@ function checkAssets() {
     systemActionsTestSource.includes("shortcuts://run-shortcut?name=[redacted]&text=[redacted]")
   ) pass("mobile action URL scheme whitelist rejects blocked and malformed schemes");
   else warn("mobile action URL scheme whitelist lacks blocked-scheme hardening or tests");
+  if (
+    systemActionsServiceSource.includes("NativeSystemActionKind") &&
+    systemActionsServiceSource.includes("NATIVE_SYSTEM_ACTION_CAPABILITIES") &&
+    systemActionsServiceSource.includes("buildSystemActionPlan") &&
+    systemActionsServiceSource.includes("getNativeSystemActionPlanSummary") &&
+    systemActionsServiceSource.includes("blocked-preview") &&
+    systemActionsServiceSource.includes("requiresNativeBridge") &&
+    systemActionsServiceSource.includes("writesExternalSystem: false") &&
+    systemActionsSource.includes("getNativeSystemActionPlanSummary") &&
+    systemActionsSource.includes("actions.nativeSafetyTitle") &&
+    systemActionsSource.includes("actions.nativeStatus.blockedPreview") &&
+    translationsSource.includes("actions.nativeSafetyTitle") &&
+    translationsSource.includes("actions.nativeCapability.calendar") &&
+    translationsSource.includes("actions.nativeRequirement.native-bridge") &&
+    frontendSmokeTestSource.includes("Native Automation Safety Gate") &&
+    frontendSmokeTestSource.includes("actions\\.nativeStatus\\.blockedPreview") &&
+    systemActionsTestSource.includes("system action plan blocks unsafe URL schemes and native automation preview writes") &&
+    systemActionsTestSource.includes("native system action summary keeps OS automation blocked")
+  ) pass("native local automation remains blocked behind preview, consent, and audit gates");
+  else warn("native local automation lacks blocked-preview safety gates or tests");
 
   const dataLifecycleSource = exists("server/dataLifecycle.ts") ? fs.readFileSync(path.join(rootDir, "server/dataLifecycle.ts"), "utf8") : "";
   const dataExportRedactionTestSource = exists("tests/data-export-redaction.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/data-export-redaction.test.mjs"), "utf8") : "";
@@ -1778,6 +2008,8 @@ function checkAssets() {
     diagnosticBundleSource.includes("recoveryReport") &&
     diagnosticBundleSource.includes("acceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceSummary") &&
+    diagnosticBundleSource.includes("acceptanceEvidencePack") &&
+    diagnosticBundleSource.includes("buildRemoteAcceptanceEvidencePack") &&
     diagnosticBundleSource.includes("summarizeRemoteAcceptanceChecklist") &&
     diagnosticBundleSource.includes("acceptanceRecords") &&
     diagnosticBundleSource.includes("acceptanceRunbooks") &&
@@ -1788,6 +2020,8 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("bundle.release.version, packageJson.version") &&
     diagnosticBundleTestSource.includes("bundle.remote.healthSummary.status") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceSummary.ready") &&
+    diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.ready") &&
+    diagnosticBundleTestSource.includes("bundle.remote.acceptanceEvidencePack.recommendedAction") &&
     diagnosticBundleTestSource.includes("bundle.systemActions.topSource") &&
     diagnosticBundleTestSource.includes("diagnostic-action-secret") &&
     apiAuthTestSource.includes("diagnosticBundle.remote.recoveryReport") &&
@@ -1795,8 +2029,10 @@ function checkAssets() {
     diagnosticBundleTestSource.includes("evidence.requirements") &&
     diagnosticBundleTestSource.includes("bundle.remote.acceptanceRunbooks.total") &&
     apiAuthTestSource.includes("diagnosticBundle.release.artifactCount") &&
+    apiAuthTestSource.includes("diagnosticBundle.remote.acceptanceEvidencePack.ready") &&
     adminRoutesSource.includes("releaseArtifactCount") &&
-    adminRoutesSource.includes("remoteAcceptanceReady")
+    adminRoutesSource.includes("remoteAcceptanceReady") &&
+    adminRoutesSource.includes("remoteAcceptanceEvidencePack")
   ) pass("admin diagnostic bundle includes redacted release, remote health, and acceptance evidence");
   else warn("admin diagnostic bundle lacks release/remote acceptance metadata or coverage");
 
@@ -1844,6 +2080,29 @@ function checkAssets() {
     frontendSmokeTestSource.includes("diagnostics\\.release\\.manifestAvailable")
   ) pass("admin settings diagnostics surfaces release manifest and checksum status");
   else warn("admin settings diagnostics does not surface release manifest/checksum status");
+
+  const calendarSyncPreviewSource = exists("server/calendarSyncPreview.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncPreview.ts"), "utf8") : "";
+  const calendarSyncPreviewTestSource = exists("tests/calendar-sync-preview.test.mjs") ? fs.readFileSync(path.join(rootDir, "tests/calendar-sync-preview.test.mjs"), "utf8") : "";
+  if (
+    (packageJson.scripts?.test || "").includes("tests/calendar-sync-preview.test.mjs") &&
+    calendarSyncPreviewSource.includes("buildCalendarSyncPreview") &&
+    calendarSyncPreviewSource.includes("externalWritesEnabled: false") &&
+    calendarSyncPreviewSource.includes("requiresExplicitConsentBeforeWrite") &&
+    calendarSyncPreviewSource.includes("requiresAuditLogBeforeWrite") &&
+    calendarSyncPreviewSource.includes("Do not advertise two-way calendar/task sync") &&
+    adminRoutesSource.includes("/api/v1/admin/calendar-sync/preview") &&
+    adminRoutesSource.includes("calendar_sync_preview_created") &&
+    diagnosticBundleSource.includes("calendarSync: buildCalendarSyncPreview()") &&
+    configDiagnosticsPanelSource.includes("diagnostics.calendarSync") &&
+    configDiagnosticsPanelSource.includes("diagnostics.calendarSafetyTitle") &&
+    translationsSource.includes("diagnostics.calendarSafetyBody") &&
+    apiAuthTestSource.includes("blockedCalendarSyncPreview") &&
+    apiAuthTestSource.includes("providerId: \"google-calendar\"") &&
+    diagnosticBundleTestSource.includes("bundle.calendarSync.externalWritesEnabled") &&
+    calendarSyncPreviewTestSource.includes("blocks proposed external writes until connectors are shipped")
+  ) pass("calendar/task sync has a preview-only safety gate before any external write-back connector ships");
+  else warn("calendar/task sync lacks preview-only safety gate, API/auth coverage, diagnostics, or release checks");
+
   const clientStateSource = exists("server/clientState.ts") ? fs.readFileSync(path.join(rootDir, "server/clientState.ts"), "utf8") : "";
   const stateRoutesSource = exists("server/routes/stateRoutes.ts") ? fs.readFileSync(path.join(rootDir, "server/routes/stateRoutes.ts"), "utf8") : "";
   const auditSource = exists("server/audit.ts") ? fs.readFileSync(path.join(rootDir, "server/audit.ts"), "utf8") : "";
@@ -2530,7 +2789,9 @@ function checkReleaseDocs() {
 	    readmeEn.includes("SHA256SUMS") &&
 	    readmeEn.includes("Local memory reads Markdown plus optional read-only `.ics` calendar/task files") &&
 	    readmeEn.includes("supporting `VEVENT` and open `VTODO` items") &&
-	    readmeEn.includes("No Apple Calendar, Google Calendar, or system reminders account sync/write-back yet") &&
+	    readmeEn.includes("Apple Calendar, Google Calendar, and system reminders account sync/write-back are not shipped yet") &&
+	    readmeEn.includes("Automatic updates are not enabled yet") &&
+	    readmeEn.includes("long-term remote stability still needs real-device evidence") &&
 	    readmeEn.includes("blueprint confirmation/template/permission/repair guidance") &&
 	    readmeZh.includes("## 选择你的体验路径") &&
 	    readmeZh.includes("Docker Compose alpha") &&
@@ -2541,7 +2802,9 @@ function checkReleaseDocs() {
 	    readmeZh.includes("SHA256SUMS") &&
 	    readmeZh.includes("可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件") &&
 	    readmeZh.includes("支持 `VEVENT` 和未完成 `VTODO`") &&
-	    readmeZh.includes("还没有接入 Apple Calendar、Google Calendar 或系统提醒事项的账号同步/写回") &&
+	    readmeZh.includes("Apple Calendar、Google Calendar、系统提醒事项的账号同步/写回还没发布") &&
+	    readmeZh.includes("默认不启用自动更新") &&
+	    readmeZh.includes("长期稳定性仍需要用户自己完成真实设备长测") &&
 	    readmeZh.includes("蓝图确认/模板/权限/修复提示")
 	  ) {
     pass("bilingual README exposes the current Docker alpha and all uploaded desktop packages");

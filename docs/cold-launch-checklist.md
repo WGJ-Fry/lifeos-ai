@@ -21,7 +21,7 @@ return passport, proposal, and tax deadline
 - [ ] `package.json` is `0.1.3-alpha.0`, `private: false`, and `MIT`.
 - [ ] GitHub repository description is set.
 - [ ] GitHub Discussions is enabled.
-- [ ] `v0.1.0` does not appear as the stable Latest release.
+- [ ] No older stable Release below the current recommended version appears as GitHub Latest.
 - [ ] `v0.0.0` is deprecated or removed.
 - [ ] `Dockerfile` exists and builds the app.
 - [ ] `docker-compose.yml` points to `ghcr.io/wgj-fry/lifeos-ai:v0.1.3-alpha`.

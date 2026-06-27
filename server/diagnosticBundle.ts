@@ -2,12 +2,13 @@ import fs from "fs";
 import path from "path";
 import { getAiConfigStatus, listAiProviderStatuses } from "./appSecrets";
 import { listAuditLogs, redactAuditMetadata, redactAuditString } from "./audit";
+import { buildCalendarSyncPreview } from "./calendarSyncPreview";
 import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices } from "./devices";
 import { getClientState } from "./clientState";
 import { getNetworkDiagnostics } from "./networkDiagnostics";
 import { getOnlineDeviceCount } from "./realtime";
-import { buildRemoteAcceptanceChecklist, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, summarizeRemoteAcceptanceChecklist } from "./remoteAcceptance";
+import { buildRemoteAcceptanceChecklist, buildRemoteAcceptanceEvidencePack, getRemoteAcceptanceRecords, getRemoteAcceptanceRunbookRecords, summarizeRemoteAcceptanceChecklist } from "./remoteAcceptance";
 import { getRemoteValidationReport, summarizeRemoteHealth } from "./remoteValidationReport";
 import { getRemoteRecoveryReport } from "./remoteHealthMonitor";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
@@ -218,6 +219,7 @@ export function createDiagnosticBundle() {
     report: remoteValidationReport,
     records: remoteAcceptanceRecords,
   });
+  const remoteAcceptanceSummary = summarizeRemoteAcceptanceChecklist(remoteAcceptanceChecklist);
   const bundle = {
     generatedAt: new Date().toISOString(),
     service: {
@@ -254,7 +256,13 @@ export function createDiagnosticBundle() {
       validationReport: remoteValidationReport,
       recoveryReport: getRemoteRecoveryReport(),
       acceptanceChecklist: remoteAcceptanceChecklist,
-      acceptanceSummary: summarizeRemoteAcceptanceChecklist(remoteAcceptanceChecklist),
+      acceptanceSummary: remoteAcceptanceSummary,
+      acceptanceEvidencePack: buildRemoteAcceptanceEvidencePack({
+        checklist: remoteAcceptanceChecklist,
+        summary: remoteAcceptanceSummary,
+        baseUrl: network.desktopRuntimeConfig?.publicBaseUrl || remoteHealthSummary.baseUrl || network.recommendedBaseUrl,
+        runbooks: remoteAcceptanceRunbookRecords,
+      }),
       acceptanceRecords: {
         total: remoteAcceptanceRecords.length,
         latest: remoteAcceptanceRecords.slice(-5),
@@ -265,6 +273,7 @@ export function createDiagnosticBundle() {
       },
     },
     security: getSecurityDiagnostics(),
+    calendarSync: buildCalendarSyncPreview(),
     systemActions: buildSystemActionDiagnostics(),
     release: getReleaseDiagnostics(),
     devices: {

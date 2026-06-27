@@ -274,13 +274,18 @@ The desktop/admin path includes provider settings for local models, Gemini, Open
 
 LifeOS is alpha software. The Docker quickstart is the most stable demo path; desktop, mobile, remote access, and Studio are usable alpha paths with more moving parts.
 
+- Automatic updates are not enabled yet; update manually from GitHub Releases and verify `SHA256SUMS`.
+- The public desktop packages are unsigned alpha builds. macOS Developer ID signing/notarization and Windows Authenticode signing are not part of this release, so Gatekeeper or SmartScreen may warn.
+- Remote diagnostics can verify configuration, but long-term remote stability still needs real-device evidence: cellular data, Wi-Fi switching, desktop restart recovery, stale QR repair, and tunnel interruption recovery.
 - Local memory reads Markdown plus optional read-only `.ics` calendar/task files in the Docker/local path.
-- No Apple Calendar, Google Calendar, or system reminders account sync/write-back yet.
+- Apple Calendar, Google Calendar, and system reminders account sync/write-back are not shipped yet.
+- `.ics` support is read-only local ingestion, not two-way calendar/task management.
 - No calendar/task write-back yet.
 - Not a perfect deadline detector.
 - Reads a limited number of files for speed and context size.
-- Local actions currently mean URL Scheme and permission-center flows, not full calendar/task automation.
-- Desktop, mobile, remote access, and Studio-generated programs should be validated against the release notes before public demos.
+- Studio generated programs remain alpha: blueprints, templates, permission notes, logs, state, repair guidance, and rollback exist, but fully automatic unattended repair is not advertised.
+- Local actions are still URL Scheme / browser / Shortcuts bridge flows, not full native OS automation.
+- Desktop, mobile, remote access, and Studio generated programs should be validated against the release notes before public demos.
 
 ## Troubleshooting
 

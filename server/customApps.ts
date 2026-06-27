@@ -8,6 +8,7 @@ const MAX_APP_DESCRIPTION_LENGTH = 800;
 const MAX_APP_CODE_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_CODE_BYTES || 512 * 1024);
 const MAX_APP_STATE_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_STATE_BYTES || 256 * 1024);
 const MAX_APP_RUNTIME_DETAIL_BYTES = Number(process.env.LIFEOS_MAX_CUSTOM_APP_RUNTIME_DETAIL_BYTES || 8 * 1024);
+const VERSION_COMPARE_PREVIEW_LIMIT = 8;
 const sensitiveStateKey = /api[-_]?key|byok[-_]?key|token|password|passphrase|secret|authorization|cookie|private/i;
 const DEFAULT_ALLOWED_ACTION_SCHEMES = ["http", "https", "tel", "sms", "mailto", "geo", "maps", "shortcuts", "iosamap", "androidamap", "comgooglemaps"];
 const BLOCKED_ACTION_SCHEMES = new Set(["javascript", "data", "file", "blob", "filesystem", "view-source"]);
@@ -81,6 +82,56 @@ export type StoredCustomAppVersion = {
   createdByType?: string | null;
   createdById?: string | null;
   createdAt: number;
+};
+
+export type CustomAppVersionComparison = {
+  appId: string;
+  fromVersion: number;
+  toVersion: number;
+  fromCreatedAt: number;
+  toCreatedAt: number;
+  fromNote?: string | null;
+  toNote?: string | null;
+  fromBytes: number;
+  toBytes: number;
+  addedLines: number;
+  removedLines: number;
+  changedLines: number;
+  unchangedLines: number;
+  totalChangedLines: number;
+  risk: CustomAppActionRisk;
+  riskNotes: string[];
+  reviewChecklist: string[];
+  repairHints: string[];
+  preview: {
+    added: string[];
+    removed: string[];
+    changed: Array<{ before: string; after: string }>;
+  };
+};
+
+export type CustomAppRepairProposal = {
+  appId: string;
+  appName: string;
+  issue: string;
+  risk: CustomAppActionRisk;
+  suspectedArea: "runtime-error" | "state" | "capability" | "action-policy" | "unknown";
+  summary: string;
+  evidence: string[];
+  repairSteps: string[];
+  permissionReview: string[];
+  versionSafety: string[];
+  executionPlan: CustomAppRepairExecutionPlan;
+  suggestedInstruction: string;
+  generatedAt: number;
+};
+
+export type CustomAppRepairExecutionPlan = {
+  mode: "auto-save" | "manual-review" | "blocked";
+  canAutoApply: boolean;
+  reasonKey: "low-risk-runtime" | "needs-permission-review" | "high-risk-action" | "unknown-area";
+  checks: string[];
+  nextSteps: string[];
 };
 
 export type StoredCustomAppState = {
@@ -190,6 +241,64 @@ function sanitizeActionText(value: unknown, maxLength: number, fallback = "") {
   return redactAuditString(String(value ?? fallback).replace(/\s+/g, " ").trim())
     .replace(/\+?\d[\d ().-]{6,}\d/g, "[redacted]")
     .slice(0, maxLength);
+}
+
+function sanitizeCodePreviewLine(value: string) {
+  return redactAuditString(value)
+    .replace(/\+?\d[\d ().-]{6,}\d/g, "[redacted]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 180);
+}
+
+function normalizeVersionNumber(value: unknown, label: string) {
+  const version = Number.parseInt(String(value ?? ""), 10);
+  if (!Number.isFinite(version) || version <= 0) throw statusError(`Invalid ${label} custom app version`);
+  return version;
+}
+
+function splitComparableCode(code: string) {
+  return String(code || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+}
+
+function pushPreviewLine(target: string[], line: string) {
+  if (target.length >= VERSION_COMPARE_PREVIEW_LIMIT) return;
+  const preview = sanitizeCodePreviewLine(line);
+  if (preview) target.push(preview);
+}
+
+function pushPreviewChange(target: Array<{ before: string; after: string }>, before: string, after: string) {
+  if (target.length >= VERSION_COMPARE_PREVIEW_LIMIT) return;
+  target.push({
+    before: sanitizeCodePreviewLine(before) || "(empty)",
+    after: sanitizeCodePreviewLine(after) || "(empty)",
+  });
+}
+
+function analyzeCustomAppVersionRisk(toCode: string, totalChangedLines: number): { risk: CustomAppActionRisk; riskNotes: string[] } {
+  const notes: string[] = [];
+  let risk: CustomAppActionRisk = "low";
+  const mark = (level: CustomAppActionRisk, note: string) => {
+    if (!notes.includes(note)) notes.push(note);
+    if (level === "high" || (level === "medium" && risk === "low")) risk = level;
+  };
+
+  const checks: Array<{ pattern: RegExp; level: CustomAppActionRisk; note: string }> = [
+    { pattern: /\beval\s*\(|\bFunction\s*\(/i, level: "high", note: "Dynamic code execution changed; review for script injection risk." },
+    { pattern: /<script\b|\.innerHTML\s*=|insertAdjacentHTML\s*\(/i, level: "high", note: "HTML/script injection surface changed; review generated markup carefully." },
+    { pattern: /javascript:|data:|file:|blob:/i, level: "high", note: "Blocked or sensitive URL scheme appears in the target version." },
+    { pattern: /\b(?:tel|sms|shortcuts):/i, level: "high", note: "Potential phone, SMS, or Shortcuts action changed; require user confirmation." },
+    { pattern: /\bfetch\s*\(|XMLHttpRequest|WebSocket|EventSource/i, level: "medium", note: "Network access changed; verify destination, data sent, and user consent." },
+    { pattern: /localStorage|sessionStorage|indexedDB|navigator\.clipboard/i, level: "medium", note: "Browser storage or clipboard access changed; verify private data handling." },
+    { pattern: /location\.href|window\.open\s*\(|openExternal|requestAction/i, level: "medium", note: "External navigation/action bridge changed; review permission policy." },
+  ];
+
+  checks.forEach((check) => {
+    if (check.pattern.test(toCode)) mark(check.level, check.note);
+  });
+  if (totalChangedLines >= 120) mark("medium", "Large version delta; run a full smoke test before replacing the active tool.");
+  if (!notes.length) notes.push("No high-risk code pattern detected in the target version.");
+  return { risk, riskNotes: notes.slice(0, 8) };
 }
 
 function sanitizeCode(value: unknown) {
@@ -643,6 +752,96 @@ export function listCustomAppVersions(appId: string, limitInput?: unknown) {
   `).all(appId, limit).map(rowToCustomAppVersion);
 }
 
+export function compareCustomAppVersions(appId: string, fromVersionInput?: unknown, toVersionInput?: unknown): CustomAppVersionComparison | null {
+  const app = getCustomApp(appId);
+  if (!app) return null;
+  const versionRows = db.prepare(`
+    SELECT version
+    FROM custom_app_versions
+    WHERE app_id = ?
+    ORDER BY version ASC
+  `).all(appId) as Array<{ version: number }>;
+  if (versionRows.length < 2) throw statusError("At least two custom app versions are required", 404);
+
+  const hasFrom = fromVersionInput !== undefined && fromVersionInput !== null && String(fromVersionInput).trim() !== "";
+  const hasTo = toVersionInput !== undefined && toVersionInput !== null && String(toVersionInput).trim() !== "";
+  let toVersion = hasTo ? normalizeVersionNumber(toVersionInput, "target") : versionRows[versionRows.length - 1].version;
+  let fromVersion = hasFrom ? normalizeVersionNumber(fromVersionInput, "source") : 0;
+  if (!hasFrom) {
+    const toIndex = versionRows.findIndex((row) => row.version === toVersion);
+    if (toIndex <= 0) throw statusError("A previous custom app version is required", 404);
+    fromVersion = versionRows[toIndex - 1].version;
+  }
+  if (fromVersion === toVersion) throw statusError("Choose two different custom app versions");
+
+  const from = getCustomAppVersion(appId, fromVersion);
+  const to = getCustomAppVersion(appId, toVersion);
+  if (!from || !to) throw statusError("Custom app version not found", 404);
+
+  const fromLines = splitComparableCode(from.code);
+  const toLines = splitComparableCode(to.code);
+  const preview: CustomAppVersionComparison["preview"] = { added: [], removed: [], changed: [] };
+  let addedLines = 0;
+  let removedLines = 0;
+  let changedLines = 0;
+  let unchangedLines = 0;
+  const maxLines = Math.max(fromLines.length, toLines.length);
+  for (let index = 0; index < maxLines; index += 1) {
+    const before = fromLines[index];
+    const after = toLines[index];
+    if (before === after) {
+      unchangedLines += 1;
+      continue;
+    }
+    if (before === undefined) {
+      addedLines += 1;
+      pushPreviewLine(preview.added, after || "");
+      continue;
+    }
+    if (after === undefined) {
+      removedLines += 1;
+      pushPreviewLine(preview.removed, before || "");
+      continue;
+    }
+    changedLines += 1;
+    pushPreviewChange(preview.changed, before, after);
+  }
+
+  const totalChangedLines = addedLines + removedLines + changedLines;
+  const risk = analyzeCustomAppVersionRisk(to.code, totalChangedLines);
+  return {
+    appId,
+    fromVersion,
+    toVersion,
+    fromCreatedAt: from.createdAt,
+    toCreatedAt: to.createdAt,
+    fromNote: from.note,
+    toNote: to.note,
+    fromBytes: Buffer.byteLength(from.code || "", "utf8"),
+    toBytes: Buffer.byteLength(to.code || "", "utf8"),
+    addedLines,
+    removedLines,
+    changedLines,
+    unchangedLines,
+    totalChangedLines,
+    risk: risk.risk,
+    riskNotes: risk.riskNotes,
+    reviewChecklist: [
+      "Review the added and changed preview lines before replacing the active generated tool.",
+      risk.risk === "high"
+        ? "Confirm every phone, SMS, shortcut, script, network, or external app action in the permission center."
+        : "Run the generated tool once in Studio and verify the main workflow still works.",
+      "Keep rollback available until existing saved state, imports, and local actions have been smoke-tested.",
+    ],
+    repairHints: [
+      `If the new version behaves unexpectedly, roll back to v${fromVersion} and compare again after repair.`,
+      "Ask Studio to repair only the changed workflow or permission surface, then create a new version.",
+      "For stateful tools, test with existing saved state before deleting older versions.",
+    ],
+    preview,
+  };
+}
+
 export function listCustomApps(limitInput?: unknown) {
   const limit = normalizeLimit(limitInput);
   return db.prepare(`
@@ -945,23 +1144,144 @@ function buildDebugInstruction(app: StoredCustomApp, issue: string, recentEvents
   );
 }
 
+function buildRepairProposal(
+  app: StoredCustomApp,
+  issue: string,
+  recentEvents: StoredCustomAppRuntimeEvent[],
+  suggestedInstruction: string,
+): CustomAppRepairProposal {
+  const errorEvents = recentEvents.filter((event) => event.severity === "error");
+  const actionEvents = recentEvents.filter((event) => event.eventType === "action_requested");
+  const capabilityEvents = recentEvents.filter((event) => event.eventType === "capability_requested");
+  const stateEvents = recentEvents.filter((event) => event.eventType === "state_saved" || event.eventType === "state_read");
+  const issueText = `${issue} ${recentEvents.map((event) => `${event.label} ${event.message}`).join(" ")}`.toLowerCase();
+  const suspectedArea: CustomAppRepairProposal["suspectedArea"] = capabilityEvents.length
+    ? "capability"
+    : actionEvents.length
+      ? "action-policy"
+      : stateEvents.some((event) => event.severity === "error") || /state|storage|保存|状态/.test(issueText)
+        ? "state"
+        : errorEvents.length
+          ? "runtime-error"
+          : "unknown";
+  const risk: CustomAppActionRisk = suspectedArea === "capability" || suspectedArea === "action-policy" || /phone|sms|shortcut|network|clipboard|file|电话|短信|快捷指令|联网|剪贴板|文件/.test(issueText)
+    ? "high"
+    : errorEvents.length > 0
+      ? "medium"
+      : "low";
+  const evidence = [
+    `${errorEvents.length} recent error event(s)`,
+    `${actionEvents.length} action request event(s)`,
+    `${capabilityEvents.length} capability request event(s)`,
+    ...recentEvents.slice(0, 3).map((event) => `${event.eventType}/${event.severity}: ${event.label} - ${event.message}`),
+  ].map((item) => sanitizeActionText(item, 240)).filter(Boolean);
+  const repairSteps = [
+    "Reproduce the issue with the latest saved app version before editing.",
+    suspectedArea === "state" ? "Patch only state read/write shape, migrations, and empty/corrupt state handling." : "Patch the smallest failing workflow and keep existing user data shape.",
+    suspectedArea === "capability" ? "If a new capability is required, request it with window.lifeosApp.requestCapability and explain why in the UI." : "Do not add new capabilities unless the failing workflow explicitly needs them.",
+    "Run the main user flow once, then save as a new version instead of overwriting history.",
+  ];
+  const permissionReview = [
+    "Do not bypass the LifeOS capability manifest, action policy, URL Scheme whitelist, or confirmation dialogs.",
+    "Keep phone, SMS, Shortcuts, file import, clipboard, and external network actions behind explicit user confirmation.",
+    risk === "high" ? "Review the mobile action permission center before applying this repair." : "Confirm no new high-risk action surface was introduced.",
+  ];
+  const versionSafety = [
+    "Compare the repaired version against the previous saved version before promoting it.",
+    "If the repair fails, roll back to the last working version and generate a narrower proposal.",
+    "Preserve local state keys unless a migration is shown in the UI.",
+  ];
+  const executionPlan = buildRepairExecutionPlan(risk, suspectedArea);
+  return {
+    appId: app.id,
+    appName: app.name,
+    issue,
+    risk,
+    suspectedArea,
+    summary: sanitizeActionText(`Repair ${app.name}: ${suspectedArea} / ${risk}`, 240),
+    evidence,
+    repairSteps,
+    permissionReview,
+    versionSafety,
+    executionPlan,
+    suggestedInstruction,
+    generatedAt: Date.now(),
+  };
+}
+
+function buildRepairExecutionPlan(
+  risk: CustomAppActionRisk,
+  suspectedArea: CustomAppRepairProposal["suspectedArea"],
+): CustomAppRepairExecutionPlan {
+  const checks = [
+    "Keep the previous saved version available for rollback.",
+    "Compare changed code before promoting the repaired version.",
+    "Run the main generated-tool workflow once after repair.",
+  ];
+  if (risk === "high" || suspectedArea === "capability" || suspectedArea === "action-policy") {
+    return {
+      mode: "manual-review",
+      canAutoApply: false,
+      reasonKey: risk === "high" ? "high-risk-action" : "needs-permission-review",
+      checks: [
+        ...checks,
+        "Review capability requests, URL schemes, and user-confirmation copy before saving.",
+        "Use manual refine after confirming the permission boundary.",
+      ],
+      nextSteps: [
+        "Copy the repair instruction into the refine box.",
+        "Review requested capabilities, permission boundaries, and action-policy changes.",
+        "Run version compare before saving or publishing the repaired tool.",
+      ],
+    };
+  }
+  if (suspectedArea === "unknown") {
+    return {
+      mode: "manual-review",
+      canAutoApply: false,
+      reasonKey: "unknown-area",
+      checks: [
+        ...checks,
+        "Add a clearer issue description or reproduce the failure before auto-saving.",
+      ],
+      nextSteps: [
+        "Request a narrower repair proposal with a concrete failure.",
+        "Apply manually only after the changed area is clear.",
+      ],
+    };
+  }
+  return {
+    mode: "auto-save",
+    canAutoApply: true,
+    reasonKey: "low-risk-runtime",
+    checks,
+    nextSteps: [
+      "Auto-apply the generated repair instruction.",
+      "Save the repaired code as a new version.",
+      "Compare with the previous version and roll back if the sample task fails.",
+    ],
+  };
+}
+
 export function createCustomAppDebugRequest(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
   const app = getCustomApp(appId);
   if (!app) return null;
   const recentEvents = listCustomAppRuntimeEvents(appId, 8) || [];
   const issue = sanitizeActionText(input.issue ?? input.message, 500, "请根据最近运行日志修复程序问题");
   const suggestedInstruction = buildDebugInstruction(app, issue, recentEvents);
+  const repairProposal = buildRepairProposal(app, issue, recentEvents, suggestedInstruction);
   const event = createCustomAppRuntimeEvent(appId, {
     eventType: "debug_requested",
     severity: "warning",
     label: "Debug repair requested",
     message: issue,
     detail: {
+      repairProposal,
       suggestedInstruction,
       recentEventIds: recentEvents.map((item) => item.id),
     },
   }, actor);
-  return { event, suggestedInstruction, recentEvents };
+  return { event, repairProposal, suggestedInstruction, recentEvents };
 }
 
 function selectCustomAppCapabilityRequest(appId: string, requestId: string) {

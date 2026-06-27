@@ -1,15 +1,33 @@
 import { useCallback, useRef } from "react";
 import type { Message } from "../types";
-import { createChatSession, getChatSessionMessages, saveChatMessage } from "../services/lifeosApi";
+import { createChatSession, getChatSessionMessages, getStoredDeviceCredentialAsync, saveChatMessage } from "../services/lifeosApi";
 import { loadActiveChatSessionId, saveActiveChatSessionId } from "../services/chatSessionStorage";
 import {
   enqueueOfflineMessage,
+  type EnqueueOfflineMessageOptions,
   getOfflineMessagesReadyToSync,
   markOfflineMessagesSynced,
   markOfflineMessageFailed,
   markOfflineMessageSyncing,
   recoverStaleOfflineMessages,
 } from "../services/offlineMessageQueue";
+import { getNetworkStatus } from "../services/networkStatus";
+
+async function buildOfflineMessageSource(): Promise<EnqueueOfflineMessageOptions["source"]> {
+  const credential = await getStoredDeviceCredentialAsync().catch(() => null);
+  const network = getNetworkStatus();
+  const path = typeof window === "undefined" ? "" : window.location.pathname;
+  return {
+    client: path.startsWith("/mobile") ? "mobile" : path ? "desktop" : "unknown",
+    deviceName: credential?.device.name,
+    deviceIdHint: credential?.device.id ? credential.device.id.slice(-8) : undefined,
+    authMethod: credential?.authMethod || (credential?.accessToken ? "token" : undefined),
+    path,
+    online: network.online,
+    networkQuality: network.quality,
+    effectiveType: network.effectiveType,
+  };
+}
 
 export function useChatPersistence() {
   const chatSessionIdRef = useRef<string | null>(null);
@@ -56,7 +74,7 @@ export function useChatPersistence() {
         await saveChatMessage(sessionId, message);
       } catch (retryError) {
         console.warn("Failed to persist chat message:", retryError);
-        enqueueOfflineMessage(message);
+        enqueueOfflineMessage(message, { source: await buildOfflineMessageSource() });
       }
     }
   }, [createAndUseChatSession, ensureChatSessionId]);
@@ -71,7 +89,13 @@ export function useChatPersistence() {
     for (const item of queue) {
       try {
         markOfflineMessageSyncing(item.id);
-        await saveChatMessage(sessionId, item.message);
+        await saveChatMessage(sessionId, item.message, {
+          mutationId: item.mutationId,
+          idempotencyKey: item.idempotencyKey,
+          clientSequence: item.clientSequence,
+          sourceVersion: item.sourceVersion,
+          queuedAt: item.queuedAt,
+        });
         syncedIds.push(item.id);
       } catch (error) {
         console.warn("Failed to flush offline chat message:", error);

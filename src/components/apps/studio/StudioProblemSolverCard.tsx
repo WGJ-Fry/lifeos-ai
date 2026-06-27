@@ -1,7 +1,8 @@
-import { ArrowRight, BadgeCheck, ClipboardList, GitBranch, Layers3, ShieldAlert, Sparkles, WandSparkles, Wrench } from "lucide-react";
+import { ArrowRight, BadgeCheck, ClipboardList, GitBranch, Layers3, ListChecks, ShieldAlert, Sparkles, WandSparkles, Wrench } from "lucide-react";
 import type { ProblemBlueprint } from "../../../services/problemBlueprint";
 import type { StoredProblemBlueprint } from "../../../services/lifeosApi";
 import { useI18n } from "../../../i18n/I18nProvider";
+import StudioBlueprintReadinessCard from "./StudioBlueprintReadinessCard";
 
 type StudioProblemSolverCardProps = {
   problemInput: string;
@@ -135,6 +136,92 @@ export default function StudioProblemSolverCard({
               </ul>
             </div>
           </div>
+
+          <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-4">
+            <h4 className="text-xs font-black text-zinc-200 flex items-center gap-2 mb-3">
+              <Layers3 className="w-4 h-4 text-emerald-300" />
+              {t("studio.problemSolver.templateLibrary")}
+            </h4>
+            <div className="grid grid-cols-1 gap-2">
+              {(blueprint.templateLibrary || []).map((template) => (
+                <div key={template.id} className="rounded-xl border border-white/[0.05] bg-black/20 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-black text-white">{template.name}</p>
+                      <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                        {template.categoryLabel}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black text-emerald-200">
+                        {template.matchScore}
+                      </span>
+                      <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2 py-0.5 text-[10px] font-bold text-zinc-300">
+                        {t(`studio.problemSolver.templateRole.${template.role}` as any)}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-zinc-400 font-medium">{template.fitSummary}</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-500 font-medium">{template.reason}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {template.useCases.map((item) => (
+                      <span key={item} className="rounded-md border border-white/[0.06] bg-white/[0.035] px-2 py-0.5 text-[10px] font-bold text-zinc-300">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-white/[0.025] border border-white/[0.04] p-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500 mb-1">
+                        {t("studio.problemSolver.templateOutputs")}
+                      </p>
+                      {template.outputs.slice(0, 2).map((item) => (
+                        <p key={item} className="text-[11px] text-zinc-400 leading-relaxed">{item}</p>
+                      ))}
+                    </div>
+                    <div className="rounded-lg bg-white/[0.025] border border-white/[0.04] p-2">
+                      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500 mb-1">
+                        {t("studio.problemSolver.templateQualityGates")}
+                      </p>
+                      {template.qualityGates.slice(0, 2).map((item) => (
+                        <p key={item} className="text-[11px] text-zinc-400 leading-relaxed">{item}</p>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-amber-100/70 font-medium">
+                    {t(`studio.problemSolver.templateRisk.${template.riskLevel}` as any)}
+                    {template.riskNotes.length ? ` · ${template.riskNotes[0]}` : ""}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white/[0.025] border border-white/[0.06] p-4">
+            <h4 className="text-xs font-black text-zinc-200 flex items-center gap-2 mb-3">
+              <ListChecks className="w-4 h-4 text-cyan-300" />
+              {t("studio.problemSolver.templateContract")}
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                [t("studio.problemSolver.templateInputs"), blueprint.templateInputs],
+                [t("studio.problemSolver.templateOutputs"), blueprint.templateOutputs],
+                [t("studio.problemSolver.templateQualityGates"), blueprint.templateQualityGates],
+                [t("studio.problemSolver.templateDangerousActions"), blueprint.templateDangerousActions],
+              ].map(([label, items]) => (
+                <div key={String(label)} className="rounded-xl bg-black/20 border border-white/[0.04] p-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-500 mb-2">{label}</p>
+                  {(items as string[]).map((item) => (
+                    <p key={item} className="text-xs text-zinc-400 leading-relaxed font-medium">
+                      {item}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <StudioBlueprintReadinessCard blueprint={blueprint} />
 
           <div className="rounded-2xl bg-emerald-500/[0.035] border border-emerald-500/15 p-4">
             <h4 className="text-xs font-black text-emerald-100 flex items-center gap-2 mb-2">

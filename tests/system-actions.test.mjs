@@ -4,6 +4,8 @@ import {
   DEFAULT_ALLOWED_SCHEMES,
   buildActionLogSourceSummary,
   buildShortcutUrl,
+  buildSystemActionPlan,
+  getNativeSystemActionPlanSummary,
   getSystemActionCapabilitySummary,
   redactActionLabel,
   redactActionSource,
@@ -103,6 +105,67 @@ test("system action shortcut URL builder encodes name and optional text", () => 
     buildShortcutUrl("LifeOS Bridge", "open sesame"),
     "shortcuts://run-shortcut?name=LifeOS+Bridge&input=text&text=open+sesame",
   );
+});
+
+test("system action plan classifies executable and confirmation-gated URL actions", () => {
+  const webPlan = buildSystemActionPlan({ url: "https://example.test/run?token=secret", source: "AI token=secret" }, ["https", "tel"]);
+  assert.equal(webPlan.kind, "url-scheme");
+  assert.equal(webPlan.status, "executable");
+  assert.equal(webPlan.allowed, true);
+  assert.equal(webPlan.supportedNow, true);
+  assert.equal(webPlan.requiresNativeBridge, false);
+  assert.equal(webPlan.requiresExplicitConsent, false);
+  assert.equal(webPlan.requiresAuditLog, true);
+  assert.equal(webPlan.sanitizedTarget, "https://example.test/run?token=[redacted]");
+  assert.equal(webPlan.sanitizedSource, "AI token=[redacted]");
+
+  const phonePlan = buildSystemActionPlan({ url: "tel:+15551234567", title: "Call +15551234567" }, ["https", "tel"]);
+  assert.equal(phonePlan.status, "needs-confirmation");
+  assert.equal(phonePlan.risk, "high");
+  assert.equal(phonePlan.writesExternalSystem, true);
+  assert.equal(phonePlan.requiresExplicitConsent, true);
+  assert.equal(phonePlan.requirements.includes("danger-confirmation"), true);
+  assert.equal(phonePlan.sanitizedTarget, "[redacted phone]");
+  assert.doesNotMatch(phonePlan.title, /\+15551234567/);
+});
+
+test("system action plan blocks unsafe URL schemes and native automation preview writes", () => {
+  const scriptPlan = buildSystemActionPlan({ url: "javascript:alert(document.cookie)" }, ["https", "javascript"]);
+  assert.equal(scriptPlan.status, "blocked-preview");
+  assert.equal(scriptPlan.allowed, false);
+  assert.equal(scriptPlan.supportedNow, false);
+  assert.equal(scriptPlan.requiresExplicitConsent, true);
+  assert.equal(scriptPlan.requirements.includes("url-whitelist"), true);
+
+  const nativePlan = buildSystemActionPlan({
+    nativeKind: "calendar",
+    title: "Create event for user@example.test token=secret",
+    target: "/Users/example/Calendar/private.ics user@example.test token=secret",
+    source: "AI Agent github_pat_secret",
+  });
+  assert.equal(nativePlan.kind, "calendar");
+  assert.equal(nativePlan.status, "blocked-preview");
+  assert.equal(nativePlan.allowed, false);
+  assert.equal(nativePlan.supportedNow, false);
+  assert.equal(nativePlan.writesExternalSystem, false);
+  assert.equal(nativePlan.requiresNativeBridge, true);
+  assert.equal(nativePlan.requiresExplicitConsent, true);
+  assert.equal(nativePlan.requiresAuditLog, true);
+  assert.deepEqual(nativePlan.requirements, ["native-bridge", "explicit-consent", "audit-log"]);
+  assert.doesNotMatch(nativePlan.title, /user@example|secret/);
+  assert.doesNotMatch(nativePlan.sanitizedTarget, /example|user@example|secret/);
+  assert.doesNotMatch(nativePlan.sanitizedSource, /github_pat|secret/);
+});
+
+test("native system action summary keeps OS automation blocked until a native bridge ships", () => {
+  const summary = getNativeSystemActionPlanSummary();
+  assert.deepEqual(summary.map((item) => item.id), ["file", "calendar", "reminder", "clipboard", "shell"]);
+  assert.equal(summary.every((item) => item.status === "blocked-preview"), true);
+  assert.equal(summary.every((item) => item.supportedNow === false), true);
+  assert.equal(summary.every((item) => item.writesExternalSystem === false), true);
+  assert.equal(summary.every((item) => item.requiresNativeBridge && item.requiresExplicitConsent && item.requiresAuditLog), true);
+  assert.equal(summary.find((item) => item.id === "clipboard").risk, "medium");
+  assert.equal(summary.find((item) => item.id === "shell").risk, "high");
 });
 
 test("system action storage loads safe defaults when local data is corrupt or unavailable", () => {

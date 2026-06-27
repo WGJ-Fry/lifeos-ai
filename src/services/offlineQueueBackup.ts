@@ -5,6 +5,14 @@ function messageText(item: OfflineQueuedMessage) {
   return text || JSON.stringify(item.message);
 }
 
+function sourceText(item: OfflineQueuedMessage) {
+  if (!item.source) return "";
+  const device = item.source.deviceName || item.source.deviceIdHint || "unknown device";
+  const network = item.source.networkQuality || "unknown network";
+  const path = item.source.path || "-";
+  return `Source: ${item.source.client} / ${device} / ${network} / ${path}`;
+}
+
 export function buildOfflineQueueBackupText(summary: OfflineMessageQueueSummary, items: OfflineQueuedMessage[], now = Date.now()) {
   const lines = [
     "LifeOS AI offline queue backup",
@@ -26,6 +34,8 @@ export function buildOfflineQueueBackupText(summary: OfflineMessageQueueSummary,
       "",
       `#${index + 1} ${item.status.toUpperCase()} · attempts=${item.attempts}`,
       `Queued at: ${new Date(item.queuedAt).toISOString()}`,
+      `Sync identity: mutation=${item.mutationId || "-"} idempotency=${item.idempotencyKey || "-"} sequence=${item.clientSequence || 0} sourceVersion=${item.sourceVersion || 1} stage=${item.syncStage || item.status}`,
+      sourceText(item),
       item.lastAttemptAt ? `Last attempt: ${new Date(item.lastAttemptAt).toISOString()}` : "",
       item.lastError ? `Failure reason: ${sanitizeOfflineMessageError(item.lastError)}` : "",
       "Content:",

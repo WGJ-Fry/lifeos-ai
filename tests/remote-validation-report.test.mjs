@@ -19,7 +19,7 @@ test("remote validation report persists sanitized remote smoke results", async (
           status: 200,
           url: "https://user:pass@example.test/lifeos/api/v1/health?token=secret#debug",
           latencyMs: 42,
-          error: "Remote probe failed with Basic Z2l0aHViOnJlbW90ZQ== github_pat_remoteSecret_1234567890 /Users/wangguojun/private.txt",
+          error: "Remote probe failed with Basic Z2l0aHViOnJlbW90ZQ== github_pat_remoteSecret_1234567890 /Users/local-private/private.txt",
           httpsStatus: {
             ok: false,
             protocol: "https",
@@ -28,7 +28,7 @@ test("remote validation report persists sanitized remote smoke results", async (
             error: "TLS probe leaked Basic Z2l0aHViOnJlbW90ZQ== and github_pat_remoteSecret_1234567890",
           },
           steps: [
-            { id: "health", ok: true, status: 200, url: "https://user:pass@example.test/lifeos/api/v1/health?token=secret#debug", latencyMs: 10, error: "Bearer remote-token-value and /Users/wangguojun/.lifeos" },
+            { id: "health", ok: true, status: 200, url: "https://user:pass@example.test/lifeos/api/v1/health?token=secret#debug", latencyMs: 10, error: "Bearer remote-token-value and /Users/local-private/.lifeos" },
             { id: "mobile-shell", ok: true, status: 200, url: "https://example.test/lifeos/mobile/chat?token=secret", latencyMs: 12 },
           ],
         },
@@ -47,7 +47,7 @@ test("remote validation report persists sanitized remote smoke results", async (
     assert.equal(report.baseUrl, "https://example.test/lifeos");
     assert.equal(report.url, "https://example.test/lifeos/api/v1/health");
     assert.equal(report.steps[0].url, "https://example.test/lifeos/api/v1/health");
-    assert.doesNotMatch(output, /user:|:pass|token=secret|#debug|Z2l0aHViOnJlbW90ZQ|github_pat_remoteSecret|remote-token-value|wangguojun/);
+    assert.doesNotMatch(output, /user:|:pass|token=secret|#debug|Z2l0aHViOnJlbW90ZQ|github_pat_remoteSecret|remote-token-value|local-private/);
     assert.match(report.label, /Basic \[redacted\]/);
     assert.match(report.error, /\[local-path\]/);
     assert.match(report.httpsStatus.error, /\[redacted\]/);
@@ -502,7 +502,7 @@ test("remote acceptance checklist separates automated and real-world verificatio
           "Saved remote entry: https://lifeos.tailnet.example.ts.net",
           "Phone Wi-Fi disabled and /mobile/chat verified over cellular data.",
           "secret=hidden",
-          "GitHub token github_pat_acceptSecret_1234567890 and /Users/wangguojun/acceptance.log",
+          "GitHub token github_pat_acceptSecret_1234567890 and /Users/local-private/acceptance.log",
         ],
       },
     }, { type: "admin", id: "owner" });
@@ -547,7 +547,7 @@ test("remote acceptance checklist separates automated and real-world verificatio
   const cellularRecord = records.find((item) => item.id === "cellular-mobile-chat");
   assert.equal(cellularRecord.evidence.entryKind, "tailscale-https");
   assert.match(cellularRecord.evidence.source, /admin-long-term-remote-checklist Basic \[redacted\]/);
-  assert.equal(cellularRecord.evidence.requirements.some((item) => /token=secret|secret=hidden|github_pat_acceptSecret|wangguojun/.test(item)), false);
+  assert.equal(cellularRecord.evidence.requirements.some((item) => /token=secret|secret=hidden|github_pat_acceptSecret|local-private/.test(item)), false);
   assert.equal(JSON.stringify(records).includes("Z2l0aHViOmFjY2VwdA"), false);
   assert.equal(JSON.stringify(records).includes("github_pat_acceptSecret"), false);
   assert.equal(checklist.find((item) => item.id === "tailscale-https-serve").status, "passed");
@@ -981,4 +981,104 @@ test("remote acceptance summary requires a long-term entry and real-world eviden
   assert.equal(complete.hasRealWorldEvidence, true);
   assert.equal(complete.passed, 9);
   assert.deepEqual(complete.blockingItems, []);
+});
+
+test("remote acceptance evidence pack exposes missing, expired, and ready long-test state", async () => {
+  const { buildRemoteAcceptanceEvidencePack, summarizeRemoteAcceptanceChecklist } = await import(`../server/remoteAcceptance.ts?evidencePack=${Date.now()}`);
+  const now = Date.parse("2026-06-20T12:00:00.000Z");
+  const action = "verify remote long-test evidence";
+  const baseChecklist = [
+    { id: "tailscale-https-serve", status: "passed", evidence: "Tailscale HTTPS Serve ready", action },
+    { id: "cloudflare-named-tunnel", status: "needs-action", evidence: "Named tunnel optional", action },
+    { id: "remote-smoke", status: "passed", evidence: "Smoke passed", action },
+    { id: "restart-restore", status: "manual-required", evidence: "Restart not checked", action },
+    { id: "cellular-mobile-chat", status: "manual-required", evidence: "Cellular not checked", action },
+    { id: "network-switch", status: "manual-required", evidence: "Switch not checked", action },
+    { id: "stale-qr-repair", status: "manual-required", evidence: "Stale QR not checked", action },
+    { id: "network-interruption", status: "manual-required", evidence: "Interruption not checked", action },
+    { id: "diagnostic-export", status: "manual-required", evidence: "Diagnostic not exported", action },
+    { id: "ci-remote-mock", status: "passed", evidence: "CI mock passed", action },
+  ];
+
+  const missingPack = buildRemoteAcceptanceEvidencePack({
+    checklist: baseChecklist,
+    summary: summarizeRemoteAcceptanceChecklist(baseChecklist),
+    baseUrl: "https://example.com/lifeos",
+    runbooks: [{ importedAt: now - 10_000 }],
+    now,
+  });
+  assert.equal(missingPack.ready, false);
+  assert.equal(missingPack.longTermEntryReady, true);
+  assert.equal(missingPack.automatedReady, true);
+  assert.equal(missingPack.realWorldPassed, 0);
+  assert.equal(missingPack.realWorldTotal, 6);
+  assert.deepEqual(missingPack.missingRealWorldIds, [
+    "restart-restore",
+    "cellular-mobile-chat",
+    "network-switch",
+    "stale-qr-repair",
+    "network-interruption",
+    "diagnostic-export",
+  ]);
+  assert.equal(missingPack.missingCount, 6);
+  assert.equal(missingPack.expiredCount, 0);
+  assert.equal(missingPack.scenarioMatrix.length, 6);
+  assert.equal(missingPack.scenarioMatrix[0].id, "restart-restore");
+  assert.equal(missingPack.scenarioMatrix[0].status, "missing");
+  assert.equal(missingPack.scenarioMatrix[0].nextAction, "record-evidence");
+  assert.equal(missingPack.scenarioMatrix[0].titleKey, "connection.evidencePack.scenario.restartRestore.title");
+  assert.equal(missingPack.scenarioMatrix[0].proofKey, "connection.evidencePack.scenario.restartRestore.proof");
+  assert.equal(missingPack.recommendedAction, "complete-real-world-checks");
+  assert.equal(missingPack.latestRunbookImportedAt, now - 10_000);
+
+  const expiredChecklist = baseChecklist.map((item) => (
+    item.status === "manual-required"
+      ? { ...item, status: "passed", acceptedAt: now - 8 * 24 * 60 * 60 * 1000, expiresAt: now - 1000, evidence: "Old real-world evidence" }
+      : item
+  ));
+  const expiredPack = buildRemoteAcceptanceEvidencePack({
+    checklist: expiredChecklist,
+    summary: summarizeRemoteAcceptanceChecklist(expiredChecklist),
+    baseUrl: "https://example.com/lifeos",
+    now,
+  });
+  assert.equal(expiredPack.ready, false);
+  assert.equal(expiredPack.recommendedAction, "refresh-expired-evidence");
+  assert.deepEqual(expiredPack.expiredRealWorldIds, [
+    "restart-restore",
+    "cellular-mobile-chat",
+    "network-switch",
+    "stale-qr-repair",
+    "network-interruption",
+    "diagnostic-export",
+  ]);
+  assert.equal(expiredPack.missingCount, 0);
+  assert.equal(expiredPack.expiredCount, 6);
+  assert.equal(expiredPack.scenarioMatrix.every((scenario) => scenario.status === "expired"), true);
+  assert.equal(expiredPack.scenarioMatrix.every((scenario) => scenario.nextAction === "refresh-evidence"), true);
+  assert.equal(expiredPack.scenarioMatrix.every((scenario) => scenario.ageDays === 8), true);
+
+  const readyChecklist = baseChecklist.map((item, index) => (
+    item.status === "manual-required"
+      ? { ...item, status: "passed", acceptedAt: now - index * 1000, expiresAt: now + 6 * 24 * 60 * 60 * 1000, evidence: "Fresh real-world evidence" }
+      : item
+  ));
+  const readyPack = buildRemoteAcceptanceEvidencePack({
+    checklist: readyChecklist,
+    summary: summarizeRemoteAcceptanceChecklist(readyChecklist),
+    baseUrl: "https://example.com/lifeos",
+    now,
+  });
+  assert.equal(readyPack.ready, true);
+  assert.equal(readyPack.realWorldReady, true);
+  assert.equal(readyPack.realWorldPassed, 6);
+  assert.deepEqual(readyPack.missingRealWorldIds, []);
+  assert.deepEqual(readyPack.expiredRealWorldIds, []);
+  assert.equal(readyPack.recommendedAction, "ready");
+  assert.equal(readyPack.nextReviewAt, now + 6 * 24 * 60 * 60 * 1000);
+  assert.equal(readyPack.coverage.length, 6);
+  assert.equal(readyPack.scenarioMatrix.length, 6);
+  assert.equal(readyPack.scenarioMatrix.every((scenario) => scenario.status === "passed"), true);
+  assert.equal(readyPack.scenarioMatrix.every((scenario) => scenario.nextAction === "keep-record"), true);
+  assert.equal(readyPack.scenarioMatrix.some((scenario) => scenario.proofKey === "connection.evidencePack.scenario.cellularMobileChat.proof"), true);
 });

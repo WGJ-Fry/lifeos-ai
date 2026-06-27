@@ -103,7 +103,11 @@ const dockerWorkflow = exists(".github/workflows/docker.yml") ? read(".github/wo
 const releaseNotesPath = `docs/release-notes-${releaseTag}.md`;
 
 check(packageJson.private === false, "package.json is publishable", "package.json must keep private=false for public launch");
-check(version === "0.1.3-alpha.0", "package version is the current alpha package version", `package.json version is ${version}, expected 0.1.3-alpha.0`);
+check(
+  /^0\.\d+\.\d+-alpha\.0$/.test(version),
+  "package version is the current alpha package version",
+  `package.json version is ${version}, expected an alpha package version like 0.x.y-alpha.0`,
+);
 check(exists("Dockerfile"), "Dockerfile exists");
 check(exists("docker-compose.yml"), "docker-compose.yml exists");
 check(Boolean(dockerWorkflow), "Docker image workflow exists", ".github/workflows/docker.yml is missing");
