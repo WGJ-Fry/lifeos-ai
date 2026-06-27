@@ -34,6 +34,15 @@ These are not bugs hidden from users; they are the honest alpha boundary.
 | Native automation | Local actions are mainly URL Scheme / browser / Shortcuts bridge based. | It is safer and reviewable, but not a full native OS automation system yet. |
 | Release hygiene | Checks exist, including a guard that blocks any older stable Release from stealing GitHub Latest, but GitHub Release labels and old releases still require final human review before public promotion. | The maintainer must run public checks before broad announcements. |
 
+## Source-Only Changes After v0.1.4-alpha
+
+These changes are implemented on `main` after the public `v0.1.4-alpha` release line and should not be advertised as public downloads until a new tag, packages, Docker image, checksums, and Release notes are published.
+
+- Native automation bridge can now execute a narrowly guarded Finder "reveal file" action on macOS when all gates pass: bridge enabled, exact `file:reveal` allowlist, allowed file root, explicit consent, exact confirmation phrase, audit logging, and local path redaction.
+- The bridge still blocks shell, calendar, reminder, and broad file write automation by default.
+- Admin UI now shows whether the selected Finder file target is inside the configured allowed roots.
+- Release checks and tests now guard the Finder reveal path, outside-root blocking, local path redaction, and the still-blocked high-risk native writes.
+
 ## Next Planned Alpha: v0.1.5-alpha
 
 `v0.1.5-alpha` should continue turning the alpha into a calmer long-term self-use product without claiming signed packages, automatic updates, full calendar sync, or full native automation before they are verified.
@@ -49,7 +58,7 @@ Scope:
 - Expand the macOS calendar/reminders connector from narrow external writes toward a productized permission review, rollback plan, and conflict preview.
 - Add first Google Calendar event and Google Tasks connectors behind explicit admin setup, external-write opt-in, consent, audit logging, and rollback guidance; keep broad two-way account sync out of scope until real-account evidence exists.
 - Add generated-tool multi-version comparison plus audited auto-repair task planning with risk gates, retry limits, rollback version references, and runtime events so users can inspect what changed before saving.
-- Add the first native automation bridge skeleton: disabled by default, admin-only, exact allowlist, explicit confirmation phrase, audit logging, sensitive-payload blocking, mock execution tests, and narrow clipboard/Shortcut command paths; broad shell/file/calendar/reminder automation remains blocked.
+- Publish and validate the narrow native automation bridge path only if Release assets include it: disabled by default, admin-only, exact allowlist, explicit confirmation phrase, audit logging, sensitive-payload blocking, mock execution tests, clipboard writes, allowlisted Shortcuts, and Finder reveal inside configured file roots; broad shell/file-write/calendar/reminder automation remains blocked.
 - Do not claim signed desktop packages, auto-update, two-way calendar/task sync, native automation, or fully automatic unattended Studio repair until they are actually shipped and verified.
 
 Release gate:
@@ -91,7 +100,7 @@ These capabilities should not be described as current release features until the
 
 | Version | Theme | Planned work |
 | --- | --- | --- |
-| `v0.1.5-alpha` | Mobile reliability and connector hardening | Stronger offline conflict handling, multi-device edit warnings, failed-sync review, weak-network background recovery, safer macOS/calendar connector UX, audited Studio auto-repair task planning, and an opt-in native automation bridge skeleton that remains blocked by default. |
+| `v0.1.5-alpha` | Mobile reliability and connector hardening | Stronger offline conflict handling, multi-device edit warnings, failed-sync review, weak-network background recovery, safer macOS/calendar connector UX, audited Studio auto-repair task planning, and a narrowly guarded native bridge for clipboard, Shortcuts, and Finder reveal while high-risk writes remain blocked. |
 | `v0.2.0-alpha` | Calendar and tasks | Productized Google Calendar/Tasks sync, Apple Calendar / system Reminders sync, explicit permission prompts, write-back audit log, conflict preview, and rollback path. |
 | `v0.3.0-alpha` | Studio product loop | Template marketplace polish, multi-version visual comparison, automatic repair proposal flow, capability review center, and stronger generated-tool quality scoring. |
 | `v0.4.0-alpha` | Native action safety | Safer local automation bridge beyond URL Scheme, OS-level permission explanations, action logs, and per-action revoke controls. |
@@ -132,6 +141,15 @@ These capabilities should not be described as current release features until the
 | 原生自动化 | 本地动作主要还是 URL Scheme / 浏览器 / 快捷指令桥。 | 更安全、更容易审计，但还不是完整系统级自动化。 |
 | Release 卫生 | 已有检查脚本，会阻止低于当前推荐版本的旧 stable Release 抢 GitHub Latest，但 GitHub Release 标签、旧版本和资产仍需发布前人工复核。 | 对外推广前维护者必须跑公开状态检查。 |
 
+### v0.1.4-alpha 之后的源码变更
+
+这些变更已经在 `main` 上实现，但在新 tag、安装包、Docker 镜像、校验文件和 Release notes 发布前，不能当作公开下载版能力宣传。
+
+- 原生自动化桥现在可以执行一个非常窄的 macOS Finder“定位文件”动作；必须同时满足桥开启、精确 `file:reveal` 白名单、文件根目录 allowlist、显式同意、确认短语、审计日志和本地路径脱敏。
+- shell、日历、提醒事项和宽泛文件写入自动化仍默认阻断。
+- 管理端 UI 会显示 Finder 文件目标是否位于允许的根目录内。
+- 测试和 release check 已覆盖 Finder 定位、根目录外拦截、本地路径脱敏和高风险原生写入继续阻断。
+
 ### 下一计划版本：v0.1.5-alpha
 
 `v0.1.5-alpha` 的目标是在不提前宣传签名包、自动更新、完整日历同步和完整原生自动化的前提下，继续把 alpha 打磨成更稳的长期自用版本。
@@ -148,7 +166,7 @@ These capabilities should not be described as current release features until the
 - 将 macOS 日历/提醒事项连接器从窄写入路径推进到产品化权限复核、回滚计划和冲突预览。
 - 增加第一版 Google Calendar 事件和 Google Tasks 连接器候选：必须经过管理员配置、外部写入开关、用户确认、审计日志和回滚提示；宽泛账号双向同步仍不在这一小步范围内。
 - 增加生成程序多版本对比，以及带审计的自动修复任务计划：包含风险闸门、重试上限、回滚版本引用和运行事件，用户保存前能看清变化。
-- 增加第一版原生自动化桥骨架：默认关闭、仅管理员可用、精确白名单、确认短语、审计日志、敏感 payload 阻断、mock 执行测试，以及非常窄的剪贴板/快捷指令命令路径；宽泛 shell/file/calendar/reminder 自动化仍然阻断。
+- 只有在 Release 资产真实包含时，发布并验证窄口径原生自动化桥：默认关闭、仅管理员可用、精确白名单、确认短语、审计日志、敏感 payload 阻断、mock 执行测试、剪贴板写入、白名单快捷指令和允许根目录内 Finder 定位；宽泛 shell/文件写入/日历/提醒事项自动化仍阻断。
 - 未真正发布前，不宣传签名包、自动更新、日历/任务双向同步、原生自动化或完全无人值守 Studio 修复。
 
 ### 尚未发布
