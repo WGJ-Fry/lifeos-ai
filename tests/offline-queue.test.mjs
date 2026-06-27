@@ -318,6 +318,13 @@ test("offline message queue surfaces duplicate fingerprint conflict risk", async
   assert.equal(recovery.weakNetworkSensitive, true);
   assert.equal(recovery.steps.some((step) => step.id === "copy-backup" && step.status === "current"), true);
   assert.equal(recovery.steps.some((step) => step.id === "resolve-conflicts" && step.status === "current" && step.itemCount === 1), true);
+  const conflictGuard = queueModule.getOfflineMessageQueueSyncGuard(queue, { online: true, networkQuality: "ok", remoteOk: true });
+  assert.equal(conflictGuard.allowed, false);
+  assert.equal(conflictGuard.mode, "manual-review");
+  assert.equal(conflictGuard.recovery.conflictGroupCount, 1);
+  const forcedConflictGuard = queueModule.getOfflineMessageQueueSyncGuard(queue, { online: true, networkQuality: "ok", remoteOk: true }, { force: true });
+  assert.equal(forcedConflictGuard.allowed, false);
+  assert.equal(forcedConflictGuard.forced, false);
 
   const resolved = queueModule.resolveOfflineMessageConflictGroup(fingerprint);
   assert.deepEqual(resolved.removedIds, ["legacy-a"]);
@@ -540,6 +547,10 @@ test("offline queue recovery summary supports bulk failed retry and removal", as
   assert.equal(weakRecovery.syncPlan.mode, "waiting-stable-network");
   assert.equal(weakRecovery.syncPlan.reasonKey, "offlineQueue.syncPlan.reason.waitStableNetwork");
   assert.equal(weakRecovery.steps.some((step) => step.id === "wait-stable-network" && step.status === "current"), true);
+  const weakGuard = queueModule.getOfflineMessageQueueSyncGuard(afterRetry, { online: true, networkQuality: "poor", remoteOk: true });
+  assert.equal(weakGuard.allowed, false);
+  assert.equal(weakGuard.mode, "waiting-stable-network");
+  assert.equal(weakGuard.readyCount, 3);
 
   const readyRecovery = queueModule.getOfflineMessageQueueRecoverySummary(afterRetry, { online: true, networkQuality: "ok", remoteOk: true });
   assert.equal(readyRecovery.nextAction, "open-chat");
@@ -549,6 +560,14 @@ test("offline queue recovery summary supports bulk failed retry and removal", as
   assert.equal(readyRecovery.syncPlan.manualReviewRequired, false);
   assert.equal(readyRecovery.syncPlan.reasonKey, "offlineQueue.syncPlan.reason.backgroundReady");
   assert.equal(readyRecovery.steps.some((step) => step.id === "open-chat" && step.status === "current"), true);
+  const readyGuard = queueModule.getOfflineMessageQueueSyncGuard(afterRetry, { online: true, networkQuality: "ok", remoteOk: true });
+  assert.equal(readyGuard.allowed, true);
+  assert.equal(readyGuard.mode, "background-ready");
+  assert.equal(readyGuard.readyCount, 3);
+  const forcedGuard = queueModule.getOfflineMessageQueueSyncGuard(afterRetry, { online: true, networkQuality: "poor", remoteOk: true }, { force: true });
+  assert.equal(forcedGuard.allowed, true);
+  assert.equal(forcedGuard.forced, true);
+  assert.equal(forcedGuard.mode, "manual-force");
 
   queueModule.markOfflineMessageFailed(firstId, new Error("manually handled"));
   const removed = queueModule.removeFailedOfflineMessages();
@@ -580,6 +599,9 @@ test("offline queue sync plan blocks background recovery while offline and retur
   assert.equal(healthyRecovery.state, "healthy");
   assert.equal(healthyRecovery.syncPlan.mode, "idle");
   assert.equal(healthyRecovery.syncPlan.reasonKey, "offlineQueue.syncPlan.reason.idle");
+  const idleGuard = queueModule.getOfflineMessageQueueSyncGuard(queueModule.getOfflineMessageQueue(), { online: true, networkQuality: "ok", remoteOk: true });
+  assert.equal(idleGuard.allowed, false);
+  assert.equal(idleGuard.queueCount, 0);
 });
 
 test("offline message queue records successful write-back metadata and clears it with the queue", async () => {

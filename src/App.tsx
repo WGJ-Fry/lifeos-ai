@@ -49,6 +49,7 @@ export default function App() {
     networkStatus,
     offlineQueueItems,
     offlineQueueSummary,
+    offlineSyncGuard,
     offlineSyncStatus,
     removeQueuedMessage,
     retryQueuedMessage,
@@ -515,6 +516,7 @@ export default function App() {
             items={offlineQueueItems}
             status={offlineSyncStatus}
             summary={offlineQueueSummary}
+            syncGuard={offlineSyncGuard}
             onClear={clearQueuedMessages}
             onRemove={removeQueuedMessage}
             onRetry={(id) => void retryQueuedMessage(id)}

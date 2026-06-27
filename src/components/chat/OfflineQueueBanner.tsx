@@ -16,6 +16,7 @@ type OfflineQueueBannerProps = {
   items: OfflineQueuedMessage[];
   status: "idle" | "syncing" | "error";
   summary: OfflineQueueSummary;
+  syncGuard?: { allowed: boolean; forced: boolean; reasonKey: string; detailKey: string; readyCount: number; mode: string };
   onClear: () => void;
   onRemove: (id: string) => void;
   onRetry: (id: string) => void;
@@ -27,6 +28,7 @@ export default function OfflineQueueBanner({
   items,
   status,
   summary,
+  syncGuard,
   onClear,
   onRemove,
   onRetry,
@@ -56,6 +58,11 @@ export default function OfflineQueueBanner({
           ) : null}
           {summary.nextRetryAt && summary.failed > 0 ? (
             <span className="mt-1 block text-[10px] text-amber-200/70">{t("offlineQueue.nextRetry", { time: new Date(summary.nextRetryAt).toLocaleTimeString() })}</span>
+          ) : null}
+          {syncGuard && summary.count > 0 && !syncGuard.allowed && status === "idle" ? (
+            <span className="mt-1 block text-[10px] text-amber-200/70">
+              {t(syncGuard.reasonKey as any)} {t(syncGuard.detailKey as any)}
+            </span>
           ) : null}
         </span>
         {summary.count > 0 ? (

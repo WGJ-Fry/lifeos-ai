@@ -3,11 +3,13 @@ import {
   clearOfflineMessageQueue,
   getOfflineMessageQueue,
   getOfflineMessageQueueCount,
+  getOfflineMessageQueueSyncGuard,
   getOfflineMessageQueueSummary,
   removeOfflineMessages,
   resetFailedOfflineMessages,
   retryOfflineMessage,
   subscribeOfflineMessageQueue,
+  type OfflineMessageQueueSyncGuard,
   type OfflineMessageQueueSummary,
 } from "../services/offlineMessageQueue";
 import { getNetworkStatus } from "../services/networkStatus";
@@ -21,15 +23,31 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>,
   const [offlineQueueItems, setOfflineQueueItems] = useState(() => getOfflineMessageQueue());
   const [offlineSyncStatus, setOfflineSyncStatus] = useState<"idle" | "syncing" | "error">("idle");
   const [networkStatus, setNetworkStatus] = useState(() => getNetworkStatus());
+  const [offlineSyncGuard, setOfflineSyncGuard] = useState<OfflineMessageQueueSyncGuard>(() => {
+    const network = getNetworkStatus();
+    return getOfflineMessageQueueSyncGuard(getOfflineMessageQueue(), { online: network.online, networkQuality: network.quality });
+  });
 
   const refreshQueueState = useCallback(() => {
+    const queue = getOfflineMessageQueue();
+    const network = getNetworkStatus();
     setOfflineQueueSummary(getOfflineMessageQueueSummary());
-    setOfflineQueueItems(getOfflineMessageQueue());
+    setOfflineQueueItems(queue);
+    setOfflineSyncGuard(getOfflineMessageQueueSyncGuard(queue, { online: network.online, networkQuality: network.quality }));
   }, []);
 
   const syncQueuedMessages = useCallback(async (forceRetryFailed = false) => {
     if (getOfflineMessageQueueCount() === 0) return;
     if (forceRetryFailed) resetFailedOfflineMessages();
+    const network = getNetworkStatus();
+    const guard = getOfflineMessageQueueSyncGuard(getOfflineMessageQueue(), { online: network.online, networkQuality: network.quality }, { force: forceRetryFailed });
+    setNetworkStatus(network);
+    setOfflineSyncGuard(guard);
+    if (!guard.allowed) {
+      refreshQueueState();
+      setOfflineSyncStatus("idle");
+      return;
+    }
     setOfflineSyncStatus("syncing");
     try {
       await flushOfflineMessages();
@@ -111,6 +129,7 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>,
     networkStatus,
     offlineQueueItems,
     offlineQueueSummary,
+    offlineSyncGuard,
     offlineSyncStatus,
     removeQueuedMessage,
     retryQueuedMessage,

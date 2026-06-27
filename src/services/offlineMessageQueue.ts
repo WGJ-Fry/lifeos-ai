@@ -154,6 +154,17 @@ export type OfflineMessageQueueSyncPlan = {
   nextAttemptAt?: number;
 };
 
+export type OfflineMessageQueueSyncGuard = {
+  allowed: boolean;
+  forced: boolean;
+  mode: OfflineMessageQueueSyncPlan["mode"] | "manual-force";
+  reasonKey: string;
+  detailKey: string;
+  readyCount: number;
+  queueCount: number;
+  recovery: OfflineMessageQueueRecoverySummary;
+};
+
 export type OfflineMessageQueueRecoveryAction =
   | "none"
   | "resolve-conflicts"
@@ -713,8 +724,8 @@ export async function requestOfflineMessageQueuePersistentStorage() {
   };
 }
 
-export function getOfflineMessagesReadyToSync(now = Date.now()) {
-  return readQueue().filter((item) => {
+function getQueueItemsReadyToSync(queue: OfflineQueuedMessage[], now = Date.now()) {
+  return queue.filter((item) => {
     if (item.syncStage === "manual-review") return false;
     if (item.status === "pending") return true;
     if (item.status === "syncing") {
@@ -724,6 +735,10 @@ export function getOfflineMessagesReadyToSync(now = Date.now()) {
     const nextRetryAt = getOfflineMessageNextRetryAt(item);
     return typeof nextRetryAt === "number" && nextRetryAt <= now;
   });
+}
+
+export function getOfflineMessagesReadyToSync(now = Date.now()) {
+  return getQueueItemsReadyToSync(readQueue(), now);
 }
 
 export function getOfflineMessageQueueCount() {
@@ -1294,6 +1309,29 @@ export function getOfflineMessageQueueRecoverySummary(queue = readQueue(), conte
     return { ...base, state: "waiting", titleKey: "offlineQueue.recoveryWaitingTitle", bodyKey: "offlineQueue.recoveryWaitingBody", actionKey: "offlineQueue.recoveryWaitingAction" } satisfies OfflineMessageQueueRecoverySummary;
   }
   return { ...base, state: "healthy", titleKey: "offlineQueue.recoveryHealthyTitle", bodyKey: "offlineQueue.recoveryHealthyBody", actionKey: "offlineQueue.recoveryHealthyAction" } satisfies OfflineMessageQueueRecoverySummary;
+}
+
+export function getOfflineMessageQueueSyncGuard(
+  queue = readQueue(),
+  context: OfflineMessageQueueRecoveryContext = {},
+  options: { force?: boolean } = {},
+): OfflineMessageQueueSyncGuard {
+  const now = context.now ?? Date.now();
+  const recovery = getOfflineMessageQueueRecoverySummary(queue, { ...context, now });
+  const readyCount = getQueueItemsReadyToSync(queue, now).length;
+  const hardManualReview = recovery.conflictGroupCount > 0 || recovery.multiSourceRisk;
+  const forced = Boolean(options.force && queue.length > 0 && !hardManualReview);
+  const allowed = forced || (readyCount > 0 && recovery.syncPlan.mode === "background-ready" && recovery.syncPlan.canUseBackgroundSync);
+  return {
+    allowed,
+    forced,
+    mode: forced ? "manual-force" : recovery.syncPlan.mode,
+    reasonKey: recovery.syncPlan.reasonKey,
+    detailKey: recovery.syncPlan.detailKey,
+    readyCount,
+    queueCount: queue.length,
+    recovery,
+  };
 }
 
 export function removeOfflineMessages(ids: string[]) {

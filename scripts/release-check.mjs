@@ -1691,9 +1691,12 @@ function checkAssets() {
     offlineQueueBannerSource.includes("offlineQueue.status.syncing") &&
     offlineQueueBannerSource.includes("offlineQueue.status.failed") &&
     offlineQueueBannerSource.includes("offlineQueue.readyToRetry") &&
+    offlineQueueBannerSource.includes("syncGuard.reasonKey") &&
+    offlineQueueBannerSource.includes("syncGuard.detailKey") &&
     offlineQueueBannerSource.includes("networkLabel") &&
     offlineQueueBannerSource.includes("network.labelKey") &&
     !/network\.label(?!Key)/.test(offlineQueueBannerSource) &&
+    appSource.includes("syncGuard={offlineSyncGuard}") &&
     appSource.includes("clearConfirmMessage: (summary)") &&
     appSource.includes("mobileDevice.confirmClearQueueDetailed") &&
     appSource.includes("pending: summary.pending") &&
@@ -1737,7 +1740,11 @@ function checkAssets() {
     offlineQueueSource.includes("buildOfflineMessageIdempotencyKey") &&
     offlineQueueSource.includes("lastAckedIdempotencyKeys") &&
     offlineQueueSource.includes("OfflineMessageQueueSyncPlan") &&
+    offlineQueueSource.includes("OfflineMessageQueueSyncGuard") &&
     offlineQueueSource.includes("buildOfflineQueueSyncPlan") &&
+    offlineQueueSource.includes("getOfflineMessageQueueSyncGuard") &&
+    offlineQueueSource.includes("getQueueItemsReadyToSync") &&
+    offlineQueueSource.includes("hardManualReview") &&
     offlineQueueSource.includes("syncPlan") &&
     offlineQueueSource.includes("QUEUE_CONFLICT_REVIEW_KEY") &&
     offlineQueueSource.includes("OfflineMessageConflictResolutionOption") &&
@@ -1859,6 +1866,11 @@ function checkAssets() {
     offlineQueueTestSource.includes("canAutoSync, true") &&
     offlineQueueTestSource.includes("syncPlan.mode, \"background-ready\"") &&
     offlineQueueTestSource.includes("syncPlan.mode, \"waiting-network\"") &&
+    offlineQueueTestSource.includes("weakGuard.allowed, false") &&
+    offlineQueueTestSource.includes("readyGuard.allowed, true") &&
+    offlineQueueTestSource.includes("forcedGuard.mode, \"manual-force\"") &&
+    offlineQueueTestSource.includes("conflictGuard.allowed, false") &&
+    offlineQueueTestSource.includes("forcedConflictGuard.allowed, false") &&
     offlineQueueTestSource.includes("offline queue sync plan blocks background recovery while offline and returns idle when clear") &&
     offlineQueueTestSource.includes("offline queue flags similar multi-device messages for manual review only") &&
     offlineQueueTestSource.includes("offline queue can resolve reviewed similar conflicts by keeping a selected item") &&
@@ -1887,6 +1899,9 @@ function checkAssets() {
     offlineQueueSource.includes("sanitizeOfflineMessageError") &&
     offlineQueueBackupSource.includes("sanitizeOfflineMessageError") &&
     offlineQueueTestSource.includes("offline queue failure reasons are redacted before persistence and export") &&
+    offlineQueueSyncHookSource.includes("getOfflineMessageQueueSyncGuard") &&
+    offlineQueueSyncHookSource.includes("setOfflineSyncGuard") &&
+    offlineQueueSyncHookSource.includes("if (!guard.allowed)") &&
     offlineQueueSource.includes("msg_${(hash >>> 0).toString(36)}") &&
     offlineQueueSource.includes("Browser storage is near its limit")
   ) pass("offline queue UI uses localized status, retry timing, and storage budget protection");
