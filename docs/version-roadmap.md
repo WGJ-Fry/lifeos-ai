@@ -14,6 +14,7 @@ It includes:
 - Mobile PWA pairing, WebCrypto device credentials, device status, offline queue, retry/clear controls, background sync hooks, conflict review groups, mutation IDs, idempotency keys, and duplicate-safe chat write-back for replayed offline messages.
 - LAN, Tailscale, Cloudflare Tunnel, and trusted HTTPS reverse-proxy diagnostics with public-exposure warnings.
 - Remote acceptance checklist covering cellular use, Wi-Fi/cellular switching, desktop restart recovery, stale QR repair, tunnel interruption recovery, and diagnostic export evidence.
+- Real-world remote acceptance notes now require scenario-specific proof before a manual item can be marked complete, so weak notes cannot stand in for cellular, restart, network-switch, stale-QR, interruption, or diagnostic-export evidence.
 - Studio generated programs with blueprint confirmation, expanded template variants, readiness scoring, quality scoring, acceptance criteria, permission boundaries, runtime logs, state storage, guarded repair boundaries, and version rollback.
 - Calendar/task sync safety gates with read-only `.ics` ingestion plus an opt-in macOS Apple Calendar/System Reminders connector path for external read previews and explicitly confirmed external writes; Google Calendar remains preview-only until OAuth ships.
 - URL Scheme based local action permission center with dangerous-action confirmation, redacted logs, and preview-only native automation gates for file, calendar, reminder, clipboard, and shell actions.
@@ -138,6 +139,7 @@ These capabilities should not be described as current release features until the
 - 手机 PWA 绑定、WebCrypto 设备凭证、设备状态、离线队列、重试/清空、后台同步钩子、冲突复核组、mutation ID、幂等 key，以及离线消息重放时的 SQLite 去重写入。
 - LAN、Tailscale、Cloudflare Tunnel、可信 HTTPS 反向代理诊断和公网暴露风险提示。
 - 异地长测验收清单：蜂窝网络、Wi-Fi/蜂窝切换、电脑重启、旧二维码修复、隧道断开恢复、诊断包证据。
+- 真实异地验收备注必须包含场景证明关键词，不能只靠一段泛泛备注把蜂窝、重启、换网、旧二维码、隧道中断或诊断导出标为完成。
 - Studio 生成程序：蓝图确认、扩展模板变体、就绪评分、质量评分、验收标准、权限边界、运行日志、状态保存、带护栏的修复边界和版本回滚。
 - 日历/任务同步安全闸门：本地 `.ics` 只读读取，并提供显式开启的 macOS Apple Calendar / 系统提醒事项外部读取预览和确认写入连接器路径；Google Calendar 仍等 OAuth。
 - 基于 URL Scheme 的本地动作权限中心：危险动作确认、脱敏日志，以及文件、日历、提醒事项、剪贴板、脚本动作的阻断预览型原生自动化闸门。

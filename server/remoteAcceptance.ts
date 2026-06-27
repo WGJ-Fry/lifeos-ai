@@ -9,6 +9,32 @@ const MANUAL_ACCEPTANCE_MIN_NOTE_CHARS = 24;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const realWorldAcceptanceIds = ["restart-restore", "cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"] as const;
 const manualAcceptanceIds = new Set(["restart-restore", "cellular-mobile-chat", "network-switch", "stale-qr-repair", "network-interruption", "diagnostic-export"]);
+const scenarioProofRules: Record<typeof realWorldAcceptanceIds[number], { label: string; patterns: RegExp[] }[]> = {
+  "restart-restore": [
+    { label: "desktop restart/reopen", patterns: [/restart|reopen|quit.*open|relaunched|重启|重新打开|退出.*打开/i] },
+    { label: "remote health after restart", patterns: [/remote health|health check|same https|saved entry|健康检查|同一.*入口|保存.*入口/i] },
+  ],
+  "cellular-mobile-chat": [
+    { label: "cellular or mobile data", patterns: [/cellular|mobile data|4g|5g|蜂窝|移动数据/i] },
+    { label: "phone chat over remote entry", patterns: [/wi-?fi.*off|wifi.*off|disabled wi-?fi|\/mobile\/chat|chat message|关闭.*wi-?fi|手机.*聊天|发送.*消息/i] },
+  ],
+  "network-switch": [
+    { label: "Wi-Fi side of the switch", patterns: [/wi-?fi|wifi|无线/i] },
+    { label: "cellular side of the switch", patterns: [/cellular|mobile data|4g|5g|蜂窝|移动数据/i] },
+    { label: "recovery after switching", patterns: [/recover|reconnect|queue|realtime|恢复|重连|队列|实时/i] },
+  ],
+  "stale-qr-repair": [
+    { label: "old or stale QR/home-screen entry", patterns: [/old qr|stale qr|old home|stale home|旧.*二维码|过期.*二维码|旧.*桌面|旧.*主屏/i] },
+    { label: "fresh QR re-pair", patterns: [/fresh qr|new qr|re-?pair|paired again|新.*二维码|重新绑定|重新配对/i] },
+  ],
+  "network-interruption": [
+    { label: "interruption or disconnect", patterns: [/disconnect|interruption|stop.*tunnel|tunnel.*down|中断|断开|停止.*隧道/i] },
+    { label: "restore or reconnect", patterns: [/reconnect|restore|recovered|started.*again|恢复|重连|重新连接/i] },
+  ],
+  "diagnostic-export": [
+    { label: "diagnostic bundle export", patterns: [/diagnostic|bundle|export|诊断|导出/i] },
+  ],
+};
 const runbookEntryKinds = new Set(["temporary-cloudflare", "tailscale-https", "local", "stable-https", "insecure-http"]);
 const runbookManualSteps = [
   {
@@ -222,6 +248,17 @@ function safeRequirements(value: unknown) {
     : [];
 }
 
+function scenarioProofText(input: { note: string; requirements: string[] }) {
+  return [input.note, ...input.requirements].join("\n");
+}
+
+function missingScenarioProofLabels(id: typeof realWorldAcceptanceIds[number], input: { note: string; requirements: string[] }) {
+  const text = scenarioProofText(input);
+  return scenarioProofRules[id]
+    .filter((rule) => !rule.patterns.some((pattern) => pattern.test(text)))
+    .map((rule) => rule.label);
+}
+
 function entryKind(baseUrl: string): RemoteAcceptanceRunbookRecord["entryKind"] {
   const parsed = new URL(baseUrl);
   const host = parsed.hostname.toLowerCase();
@@ -382,6 +419,11 @@ export function saveRemoteAcceptanceRecord(input: {
   if (note.length < MANUAL_ACCEPTANCE_MIN_NOTE_CHARS) {
     throw new Error("Remote acceptance evidence note must describe the real check you completed.");
   }
+  const requirements = safeRequirements(input.evidence?.requirements);
+  const missingProof = missingScenarioProofLabels(input.id as typeof realWorldAcceptanceIds[number], { note, requirements });
+  if (missingProof.length > 0) {
+    throw new Error(`Remote acceptance evidence is missing scenario proof: ${missingProof.join(", ")}.`);
+  }
   const record: RemoteAcceptanceRecord = {
     id: input.id,
     baseUrl,
@@ -390,7 +432,7 @@ export function saveRemoteAcceptanceRecord(input: {
       entryKind: entryKind(baseUrl),
       verifiedUrl: baseUrl,
       source: safeNote(input.evidence?.source || "admin-checklist"),
-      requirements: safeRequirements(input.evidence?.requirements),
+      requirements,
     },
     createdAt: Date.now(),
   };

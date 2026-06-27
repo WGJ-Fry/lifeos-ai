@@ -868,6 +868,8 @@ function checkAssets() {
     remoteAcceptanceSource.includes("RemoteAcceptanceEvidenceScenario") &&
     remoteAcceptanceSource.includes("scenarioMatrix") &&
     remoteAcceptanceSource.includes("realWorldAcceptanceIds") &&
+    remoteAcceptanceSource.includes("scenarioProofRules") &&
+    remoteAcceptanceSource.includes("missingScenarioProofLabels") &&
     remoteAcceptanceSource.includes("missingRealWorldIds") &&
     remoteAcceptanceSource.includes("expiredRealWorldIds") &&
     remoteAcceptanceSource.includes("recommendedAction") &&
@@ -905,6 +907,8 @@ function checkAssets() {
     remoteAcceptanceChecklistSource.includes("connection.acceptance.httpsStatus") &&
     translationsSource.includes("connection.acceptance.httpsStatus") &&
     remoteValidationReportTestSource.includes("remote acceptance checklist expires stale real-world manual evidence") &&
+    remoteValidationReportTestSource.includes("accepted-weak-scenario") &&
+    remoteValidationReportTestSource.includes("missing scenario proof") &&
     remoteValidationReportTestSource.includes("scenarioMatrix.length, 6") &&
     remoteValidationReportTestSource.includes('scenario.nextAction === "refresh-evidence"') &&
     remoteValidationReportTestSource.includes("connection.evidencePack.scenario.cellularMobileChat.proof") &&

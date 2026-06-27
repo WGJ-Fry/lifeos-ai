@@ -514,7 +514,7 @@ test("remote acceptance checklist separates automated and real-world verificatio
     saveRemoteAcceptanceRecord({
       id: "network-switch",
       baseUrl: "https://lifeos.tailnet.example.ts.net",
-      note: "Phone switched between Wi-Fi and cellular with token=secret",
+      note: "Phone switched between Wi-Fi and cellular, then realtime queue recovered with token=secret",
     }, { type: "admin", id: "owner" });
     saveRemoteAcceptanceRecord({
       id: "stale-qr-repair",
@@ -752,6 +752,16 @@ test("remote acceptance records require a real evidence note", async (t) => {
     } catch (error) {
       results.push(error.message);
     }
+    try {
+      saveRemoteAcceptanceRecord({
+        id: "network-interruption",
+        baseUrl: "https://lifeos.example.test",
+        note: "I checked the remote connection and everything seemed fine today.",
+      });
+      results.push("accepted-weak-scenario");
+    } catch (error) {
+      results.push(error.message);
+    }
     saveRemoteAcceptanceRecord({
       id: "cellular-mobile-chat",
       baseUrl: "https://lifeos.example.test",
@@ -770,7 +780,10 @@ test("remote acceptance records require a real evidence note", async (t) => {
   });
   const results = JSON.parse(output);
   assert.match(results[0], /evidence note/);
-  assert.match(results[1], /cellular chat message/);
+  assert.match(results[1], /missing scenario proof/);
+  assert.match(results[1], /interruption or disconnect/);
+  assert.match(results[1], /restore or reconnect/);
+  assert.match(results[2], /cellular chat message/);
 });
 
 test("remote acceptance runbook import persists smoke evidence and rejects unsafe reports", async (t) => {
