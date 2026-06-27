@@ -138,6 +138,7 @@ export default function StudioRuntimeEventsPanel({
                           status: t(`studio.runtime.autoRepairSmokeReviewStatus.${item.latestSmokeReview.status}` as any),
                           failures: String(item.latestSmokeReview.failures.length),
                         })}
+                        {item.latestSmokeReview.method ? ` · ${t(`studio.runtime.autoRepairSmokeMethod.${item.latestSmokeReview.method}` as any)}` : ""}
                       </div>
                     )}
                   </div>
@@ -295,8 +296,10 @@ export default function StudioRuntimeEventsPanel({
                     status: t(`studio.runtime.autoRepairSmokeReviewStatus.${autoRepairSmokeReview.status}` as any),
                     failures: String(autoRepairSmokeReview.failures.length),
                   }),
+                  autoRepairSmokeReview.method ? t(`studio.runtime.autoRepairSmokeMethod.${autoRepairSmokeReview.method}` as any) : "",
+                  ...(autoRepairSmokeReview.staticChecks || []).slice(0, 2),
                   ...autoRepairSmokeReview.nextSteps.slice(0, 2),
-                ]}
+                ].filter(Boolean)}
               />
             )}
             <ProposalList title={t("studio.runtime.autoRepairNextSteps")} items={autoRepairResult.nextSteps.slice(0, 3)} />

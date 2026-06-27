@@ -150,13 +150,18 @@ export function useStudioRuntimeDebug({
         taskId: task.id,
         fromVersion: task.rollbackVersion ?? null,
         suggestedInstruction: instruction,
+        autoSmoke: true,
       });
       setRuntimeAutoRepairResult(response.result);
-      setRuntimeAutoRepairSmokeReview(null);
+      setRuntimeAutoRepairSmokeReview(response.staticSmoke?.review ?? null);
       appendSimulatorLog({
         time: "DEBUG",
-        text: response.result.status === "applied" ? t("studio.runtime.autoRepairCompleted") : t("studio.runtime.autoRepairNeedsReview"),
-        type: response.result.status === "applied" ? "info" : "log",
+        text: response.staticSmoke?.review
+          ? t(response.staticSmoke.review.status === "passed" ? "studio.runtime.autoRepairStaticSmokePassed" : "studio.runtime.autoRepairStaticSmokeFailed")
+          : response.result.status === "applied"
+            ? t("studio.runtime.autoRepairCompleted")
+            : t("studio.runtime.autoRepairNeedsReview"),
+        type: response.result.status === "applied" && response.staticSmoke?.review?.status !== "failed" ? "info" : "log",
       });
       await loadRuntimeEvents(appId);
       return response;

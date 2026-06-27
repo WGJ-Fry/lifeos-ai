@@ -209,8 +209,10 @@ export type CustomAppAutoRepairSmokeReview = {
   resultId: string;
   taskId?: string | null;
   status: "passed" | "failed";
+  method?: "manual" | "static-auto";
   note?: string | null;
   failures: string[];
+  staticChecks?: string[];
   rollbackRecommended: boolean;
   nextSteps: string[];
   reviewedAt: number;
@@ -1788,7 +1790,119 @@ export function completeCustomAppAutoRepair(appId: string, input: Record<string,
       } : null,
     },
   }, actor);
-  return { event, result, comparison };
+  const autoSmokeRequested = input.autoSmoke === true || input.staticSmoke === true || input.runStaticSmoke === true;
+  const staticSmoke = autoSmokeRequested ? recordStaticAutoRepairSmokeReview(app, result, comparison, actor) : null;
+  return { event, result, comparison, staticSmoke };
+}
+
+function buildStaticAutoRepairSmokeGate(
+  app: StoredCustomApp,
+  result: CustomAppAutoRepairResult,
+  comparison: CustomAppVersionComparison | null,
+) {
+  const checks: string[] = [];
+  const failures: string[] = [];
+  const latestVersion = latestCustomAppVersion(app.id);
+  const code = latestVersion?.code || app.code || "";
+
+  const addCheck = (ok: boolean, passed: string, failed: string) => {
+    if (ok) checks.push(passed);
+    else failures.push(failed);
+  };
+
+  addCheck(result.status === "applied", "Repair result is applied.", "Only applied low-risk repairs can use static auto-smoke.");
+  addCheck(result.rollbackAvailable && Boolean(result.rollbackVersion), "Rollback version is available.", "Rollback version is missing.");
+  addCheck(Boolean(latestVersion && result.toVersion && latestVersion.version === result.toVersion), "Latest saved version matches the repaired result.", "Latest saved version does not match the repaired result.");
+  addCheck(Boolean(comparison && comparison.risk === "low"), "Version comparison risk is low.", "Version comparison is missing or not low risk.");
+  addCheck(Boolean(code && Buffer.byteLength(code, "utf8") > 20), "Repaired code is non-empty.", "Repaired code is empty or too small to trust.");
+  addCheck(!/(requestCapability|requestAction|window\.open|location\.href|fetch\s*\(|XMLHttpRequest|WebSocket|eval\s*\(|new Function|document\.cookie|localStorage)/i.test(code), "No new high-risk API marker was found in repaired code.", "Repaired code contains a high-risk API marker; manual smoke review is required.");
+  addCheck(!/(github_pat_|ghp_|sk-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,}|\/Users\/[^/\s]+)/.test(code), "No token-shaped secret or local absolute path marker was found.", "Repaired code contains a token-shaped secret or local absolute path marker.");
+  addCheck(!comparison || comparison.totalChangedLines <= 120, "Changed line count stays within the static auto-smoke limit.", "Changed line count is too large for unattended smoke review.");
+
+  return {
+    status: failures.length === 0 ? "passed" as const : "failed" as const,
+    checks,
+    failures,
+    note: failures.length === 0
+      ? "Static auto-smoke passed conservative server-side checks. Run a real workflow smoke when possible."
+      : "Static auto-smoke failed; review manually and roll back if the repaired workflow is unsafe.",
+  };
+}
+
+function createCustomAppAutoRepairSmokeReviewEvent(
+  appId: string,
+  result: CustomAppAutoRepairResult,
+  input: {
+    status: CustomAppAutoRepairSmokeReview["status"];
+    note?: string | null;
+    failures?: string[];
+    method?: CustomAppAutoRepairSmokeReview["method"];
+    staticChecks?: string[];
+  },
+  actor?: { type: string; id: string },
+) {
+  const failures = (input.failures || [])
+    .map((item) => sanitizeOptionalText(item, 240))
+    .filter((item): item is string => Boolean(item))
+    .slice(0, 8);
+  const method = input.method || "manual";
+  const rollbackRecommended = input.status === "failed";
+  const nextSteps = input.status === "passed"
+    ? [
+        method === "static-auto"
+          ? "Static auto-smoke cleared the repair queue; still run the real main workflow when a user session is available."
+          : "Mark this repair as smoke verified and keep the rollback point for normal version history.",
+        "Allow a future auto repair only if a new runtime failure is captured.",
+      ]
+    : [
+        "Roll back to the recorded safe version before retrying the repair.",
+        method === "static-auto"
+          ? "Open the failed static checks, then narrow the repair before running another unattended pass."
+          : "Request a narrower repair proposal with the failing smoke-check note.",
+        "Do not run another unattended repair until this failure is reviewed.",
+      ];
+  const now = Date.now();
+  const review: CustomAppAutoRepairSmokeReview = {
+    id: `auto-repair-smoke-${crypto.randomUUID()}`,
+    appId,
+    resultId: result.id,
+    taskId: result.taskId || null,
+    status: input.status,
+    method,
+    note: sanitizeOptionalText(input.note, 500) || null,
+    failures,
+    staticChecks: (input.staticChecks || []).map((item) => sanitizeOptionalText(item, 240)).filter((item): item is string => Boolean(item)).slice(0, 10),
+    rollbackRecommended,
+    nextSteps,
+    reviewedAt: now,
+  };
+  const event = createCustomAppRuntimeEvent(appId, {
+    eventType: input.status === "passed" ? "auto_repair_smoke_passed" : "auto_repair_smoke_failed",
+    severity: input.status === "passed" ? "info" : "warning",
+    label: input.status === "passed" ? "Auto repair smoke passed" : "Auto repair smoke failed",
+    message: sanitizeActionText(review.note || `${input.status}: auto repair smoke review`, 500),
+    detail: {
+      autoRepairSmokeReview: review,
+      autoRepairResult: result,
+    },
+  }, actor);
+  return { event, review, result };
+}
+
+function recordStaticAutoRepairSmokeReview(
+  app: StoredCustomApp,
+  result: CustomAppAutoRepairResult,
+  comparison: CustomAppVersionComparison | null,
+  actor?: { type: string; id: string },
+) {
+  const gate = buildStaticAutoRepairSmokeGate(app, result, comparison);
+  return createCustomAppAutoRepairSmokeReviewEvent(app.id, result, {
+    status: gate.status,
+    note: gate.note,
+    failures: gate.failures,
+    method: "static-auto",
+    staticChecks: gate.checks,
+  }, actor);
 }
 
 export function recordCustomAppAutoRepairSmokeReview(appId: string, input: Record<string, unknown>, actor?: { type: string; id: string }) {
@@ -1808,45 +1922,12 @@ export function recordCustomAppAutoRepairSmokeReview(appId: string, input: Recor
   if (!result) throw statusError("Auto repair result not found", 404);
   const note = sanitizeOptionalText(input.note ?? input.message, 500) || null;
   const rawFailures = Array.isArray(input.failures) ? input.failures : status === "failed" ? [input.failure ?? note ?? "Smoke check failed"] : [];
-  const failures = rawFailures
-    .map((item) => sanitizeOptionalText(item, 240))
-    .filter((item): item is string => Boolean(item))
-    .slice(0, 5);
-  const rollbackRecommended = status === "failed";
-  const nextSteps = status === "passed"
-    ? [
-        "Mark this repair as smoke verified and keep the rollback point for normal version history.",
-        "Allow a future auto repair only if a new runtime failure is captured.",
-      ]
-    : [
-        "Roll back to the recorded safe version before retrying the repair.",
-        "Request a narrower repair proposal with the failing smoke-check note.",
-        "Do not run another unattended repair until this failure is reviewed.",
-      ];
-  const now = Date.now();
-  const review: CustomAppAutoRepairSmokeReview = {
-    id: `auto-repair-smoke-${crypto.randomUUID()}`,
-    appId,
-    resultId,
-    taskId: result.taskId || null,
+  return createCustomAppAutoRepairSmokeReviewEvent(appId, result, {
     status,
     note,
-    failures,
-    rollbackRecommended,
-    nextSteps,
-    reviewedAt: now,
-  };
-  const event = createCustomAppRuntimeEvent(appId, {
-    eventType: status === "passed" ? "auto_repair_smoke_passed" : "auto_repair_smoke_failed",
-    severity: status === "passed" ? "info" : "warning",
-    label: status === "passed" ? "Auto repair smoke passed" : "Auto repair smoke failed",
-    message: sanitizeActionText(note || `${status}: auto repair smoke review`, 500),
-    detail: {
-      autoRepairSmokeReview: review,
-      autoRepairResult: result,
-    },
+    failures: rawFailures,
+    method: "manual",
   }, actor);
-  return { event, review, result };
 }
 
 function selectCustomAppCapabilityRequest(appId: string, requestId: string) {

@@ -212,6 +212,9 @@ export function registerCustomAppRoutes(app: express.Express) {
         rollbackAvailable: result.result.rollbackAvailable,
         verificationStatus: result.result.verification.status,
         changedLines: result.comparison?.totalChangedLines ?? null,
+        staticSmokeStatus: result.staticSmoke?.review.status ?? null,
+        staticSmokeMethod: result.staticSmoke?.review.method ?? null,
+        staticSmokeFailures: result.staticSmoke?.review.failures.length ?? null,
       }, actor(req)?.type, actor(req)?.id);
       broadcastRealtime({
         type: "custom_app.auto_repair_completed",
@@ -220,6 +223,23 @@ export function registerCustomAppRoutes(app: express.Express) {
         result: result.result,
         timestamp: result.event?.createdAt || Date.now(),
       });
+      if (result.staticSmoke) {
+        insertAuditLog("custom_app_auto_repair_smoke_reviewed", "custom_app", req.params.appId, {
+          eventId: result.staticSmoke.event?.id,
+          resultId: result.staticSmoke.review.resultId,
+          status: result.staticSmoke.review.status,
+          method: result.staticSmoke.review.method,
+          rollbackRecommended: result.staticSmoke.review.rollbackRecommended,
+          failureCount: result.staticSmoke.review.failures.length,
+        }, actor(req)?.type, actor(req)?.id);
+        broadcastRealtime({
+          type: "custom_app.auto_repair_smoke_reviewed",
+          appId: req.params.appId,
+          event: result.staticSmoke.event,
+          review: result.staticSmoke.review,
+          timestamp: result.staticSmoke.event?.createdAt || Date.now(),
+        });
+      }
       res.json(result);
     } catch (error) {
       handleCustomAppError(res, error);
@@ -373,6 +393,7 @@ export function registerCustomAppRoutes(app: express.Express) {
         resultId: result.review.resultId,
         taskId: result.review.taskId,
         status: result.review.status,
+        method: result.review.method,
         rollbackRecommended: result.review.rollbackRecommended,
         failureCount: result.review.failures.length,
       }, actor(req)?.type, actor(req)?.id);

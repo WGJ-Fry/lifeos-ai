@@ -1039,8 +1039,10 @@ export type CustomAppAutoRepairSmokeReview = {
   resultId: string;
   taskId?: string | null;
   status: "passed" | "failed";
+  method?: "manual" | "static-auto";
   note?: string | null;
   failures: string[];
+  staticChecks?: string[];
   rollbackRecommended: boolean;
   nextSteps: string[];
   reviewedAt: number;
@@ -2075,11 +2077,19 @@ export function completeCustomAppAutoRepair(appId: string, input: {
   rollbackVersion?: number | null;
   suggestedInstruction?: string;
   instruction?: string;
+  autoSmoke?: boolean;
+  staticSmoke?: boolean;
+  runStaticSmoke?: boolean;
 }) {
   return requestJson<{
     event: StoredCustomAppRuntimeEvent | null;
     result: CustomAppAutoRepairResult;
     comparison: CustomAppVersionComparison | null;
+    staticSmoke?: {
+      event: StoredCustomAppRuntimeEvent | null;
+      review: CustomAppAutoRepairSmokeReview;
+      result: CustomAppAutoRepairResult;
+    } | null;
   }>(
     `/api/v1/custom-apps/${encodeURIComponent(appId)}/auto-repairs/complete`,
     {
