@@ -452,8 +452,13 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(calendarSyncControlPanelSource, /executeCalendarSyncOperation/);
   assert.match(calendarSyncControlPanelSource, /WRITE TO EXTERNAL CALENDAR/);
   assert.match(calendarSyncControlPanelSource, /confirmationText === confirmationPhrase/);
+  assert.match(calendarSyncControlPanelSource, /externalTargets/);
+  assert.match(calendarSyncControlPanelSource, /selectExternalTarget/);
+  assert.match(calendarSyncControlPanelSource, /requiresExternalId/);
   assert.match(translationsSource, /日历\/任务同步控制台/);
   assert.match(translationsSource, /Calendar \/ Task Sync Console/);
+  assert.match(translationsSource, /选择已读取的外部项目/);
+  assert.match(translationsSource, /Select Read External Item/);
   assert.match(lifeosApiSource, /NativeAutomationPlan/);
   assert.match(lifeosApiSource, /createNativeAutomationPlan/);
   assert.match(lifeosApiSource, /executeNativeAutomation/);

@@ -2229,9 +2229,13 @@ function checkAssets() {
     calendarSyncControlPanelSource.includes("executeCalendarSyncOperation") &&
     calendarSyncControlPanelSource.includes("WRITE TO EXTERNAL CALENDAR") &&
     calendarSyncControlPanelSource.includes("confirmationText === confirmationPhrase") &&
+    calendarSyncControlPanelSource.includes("externalTargets") &&
+    calendarSyncControlPanelSource.includes("selectExternalTarget") &&
+    calendarSyncControlPanelSource.includes("requiresExternalId") &&
     frontendSmokeTestSource.includes("CalendarSyncControlPanel") &&
     translationsSource.includes("diagnostics.calendarSafetyBody") &&
     translationsSource.includes("calendarSyncControl.title") &&
+    translationsSource.includes("calendarSyncControl.externalTarget") &&
     translationsSource.includes("diagnostics.syncConflicts") &&
     apiAuthTestSource.includes("blockedCalendarSyncPreview") &&
     apiAuthTestSource.includes("providerId: \"google-calendar\"") &&

@@ -48,7 +48,29 @@ export default function CalendarSyncControlPanel({
   }), [action, dueAt, externalId, kind, providerId, startsAt, title, t]);
 
   const selectedProvider = preview.providers.find((provider) => provider.id === providerId);
-  const canExecute = Boolean(preview.writeBackSupported && selectedProvider?.writeSupported && confirmationText === confirmationPhrase && title.trim());
+  const requiresExternalId = action === "update" || action === "complete" || action === "delete";
+  const externalTargets = preview.operations.filter((operation) =>
+    operation.action === "read-only-import"
+    && operation.providerId === providerId
+    && operation.kind === kind
+    && operation.externalId
+  );
+  const canExecute = Boolean(
+    preview.writeBackSupported
+    && selectedProvider?.writeSupported
+    && confirmationText === confirmationPhrase
+    && title.trim()
+    && (!requiresExternalId || externalId.trim()),
+  );
+
+  const selectExternalTarget = (value: string) => {
+    const target = externalTargets.find((operation) => operation.externalId === value);
+    setExternalId(value);
+    if (!target) return;
+    setTitle(target.title);
+    if (target.kind === "task") setDueAt(target.scheduledAt?.slice(0, 16) || "");
+    else setStartsAt(target.scheduledAt?.slice(0, 16) || "");
+  };
 
   const refreshPreview = async () => {
     setBusy("preview");
@@ -169,6 +191,25 @@ export default function CalendarSyncControlPanel({
         </label>
       </div>
 
+      <label className="mt-3 block text-xs font-bold text-zinc-300">
+        {t("calendarSyncControl.externalTarget")}
+        <select
+          value={externalId}
+          onChange={(event) => selectExternalTarget(event.target.value)}
+          className="mt-1 w-full rounded-xl border border-white/[0.08] bg-[#060a10] px-3 py-2 text-sm"
+        >
+          <option value="">{t("calendarSyncControl.externalTargetPlaceholder")}</option>
+          {externalTargets.map((target) => (
+            <option key={target.id} value={target.externalId}>
+              {target.title} {target.scheduledAt ? `(${target.scheduledAt.slice(0, 16)})` : ""}
+            </option>
+          ))}
+        </select>
+        <span className="mt-1 block text-[11px] font-normal text-zinc-500">
+          {requiresExternalId ? t("calendarSyncControl.externalTargetRequired") : t("calendarSyncControl.externalTargetOptional")}
+        </span>
+      </label>
+
       <div className="mt-3 grid gap-3 md:grid-cols-3">
         <label className="text-xs font-bold text-zinc-300 md:col-span-3">
           {t("calendarSyncControl.itemTitle")}
@@ -202,6 +243,7 @@ export default function CalendarSyncControlPanel({
           {t("calendarSyncControl.execute")}
         </button>
         <span className="text-xs text-zinc-500">{t("calendarSyncControl.confirmHint")}</span>
+        {requiresExternalId && !externalId.trim() ? <span className="text-xs text-amber-300">{t("calendarSyncControl.externalIdRequired")}</span> : null}
       </div>
 
       {status ? <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3 text-xs text-zinc-300">{status}</div> : null}
