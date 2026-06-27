@@ -4,6 +4,7 @@ import {
   NATIVE_AUTOMATION_ALLOWLIST_ENV,
   NATIVE_AUTOMATION_CONFIRMATION_TEXT,
   NATIVE_AUTOMATION_ENABLE_ENV,
+  NATIVE_AUTOMATION_FILE_ROOTS_ENV,
   NATIVE_AUTOMATION_MOCK_ENV,
   buildNativeAutomationPlan,
   executeNativeAutomation,
@@ -76,8 +77,56 @@ test("native automation bridge can run an allowlisted Shortcut through the comma
   assert.equal(calls[0].options.timeoutMs, 8000);
 });
 
-test("native automation bridge refuses shell, file, calendar, and reminder writes even with consent", () => {
-  for (const kind of ["shell", "file", "calendar", "reminder"]) {
+test("native automation bridge can reveal an allowlisted file target through the command runner", async () => {
+  const env = {
+    [NATIVE_AUTOMATION_ENABLE_ENV]: "1",
+    [NATIVE_AUTOMATION_ALLOWLIST_ENV]: "file:reveal",
+    [NATIVE_AUTOMATION_FILE_ROOTS_ENV]: "/tmp/lifeos-safe-files",
+  };
+  const calls = [];
+  const result = await executeNativeAutomation({
+    kind: "file",
+    target: "/tmp/lifeos-safe-files/report.md",
+    explicitConsent: true,
+    confirmationText: NATIVE_AUTOMATION_CONFIRMATION_TEXT,
+  }, {
+    env,
+    platform: "darwin",
+    runCommand: async (command, args, options) => {
+      calls.push({ command, args, options });
+      return { exitCode: 0, stdout: "revealed", stderr: "", timedOut: false };
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.plan.actionId, "file:reveal");
+  assert.equal(result.plan.safety.targetWithinAllowedRoots, true);
+  assert.deepEqual(calls[0].args, ["-R", "/tmp/lifeos-safe-files/report.md"]);
+  assert.doesNotMatch(JSON.stringify(result.plan), /\/tmp\/lifeos-safe-files\/report.md/);
+});
+
+test("native automation bridge refuses file targets outside allowed roots", () => {
+  const plan = buildNativeAutomationPlan({
+    kind: "file",
+    target: "/tmp/private/report.md",
+    explicitConsent: true,
+    confirmationText: NATIVE_AUTOMATION_CONFIRMATION_TEXT,
+  }, {
+    env: {
+      [NATIVE_AUTOMATION_ENABLE_ENV]: "1",
+      [NATIVE_AUTOMATION_ALLOWLIST_ENV]: "file:reveal",
+      [NATIVE_AUTOMATION_FILE_ROOTS_ENV]: "/tmp/lifeos-safe-files",
+    },
+    platform: "darwin",
+  });
+
+  assert.equal(plan.canExecute, false);
+  assert.ok(plan.blockedReasons.includes("file_target_not_in_allowed_roots"));
+  assert.equal(plan.safety.targetWithinAllowedRoots, false);
+});
+
+test("native automation bridge refuses shell, calendar, and reminder writes even with consent", () => {
+  for (const kind of ["shell", "calendar", "reminder"]) {
     const plan = buildNativeAutomationPlan({
       kind,
       target: "rm -rf /Users/example",

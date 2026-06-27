@@ -141,6 +141,7 @@ export default function NativeAutomationControlPanel() {
                 <div className="mt-2 space-y-1 opacity-80">
                   <div>{t("nativeAutomationControl.bridge")}: {plan.safety.bridgeEnabled ? "OK" : "-"}</div>
                   <div>{t("nativeAutomationControl.allowlist")}: {plan.safety.allowlisted ? "OK" : "-"}</div>
+                  <div>{t("nativeAutomationControl.fileRoots")}: {plan.kind !== "file" || plan.safety.targetWithinAllowedRoots ? "OK" : "-"}</div>
                   <div>{t("nativeAutomationControl.platform")}: {plan.safety.platformSupported ? "OK" : "-"}</div>
                   <div>{t("nativeAutomationControl.audit")}: {plan.safety.auditRequired ? "OK" : "-"}</div>
                 </div>

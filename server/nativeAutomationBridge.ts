@@ -1,8 +1,10 @@
 import { spawn } from "child_process";
+import path from "path";
 
 export const NATIVE_AUTOMATION_CONFIRMATION_TEXT = "RUN NATIVE ACTION";
 export const NATIVE_AUTOMATION_ENABLE_ENV = "LIFEOS_ENABLE_NATIVE_AUTOMATION_BRIDGE";
 export const NATIVE_AUTOMATION_ALLOWLIST_ENV = "LIFEOS_NATIVE_AUTOMATION_ALLOWLIST";
+export const NATIVE_AUTOMATION_FILE_ROOTS_ENV = "LIFEOS_NATIVE_FILE_ROOTS";
 export const NATIVE_AUTOMATION_MOCK_ENV = "LIFEOS_NATIVE_AUTOMATION_BRIDGE_MOCK";
 
 const MAX_NATIVE_PAYLOAD_CHARS = 4000;
@@ -50,6 +52,7 @@ export type NativeAutomationPlan = {
     auditRequired: true;
     sensitivePayloadBlocked: boolean;
     payloadWithinLimit: boolean;
+    targetWithinAllowedRoots: boolean;
   };
 };
 
@@ -95,6 +98,7 @@ type ResolvedNativeAction = {
   publicActionId: string;
   commandPreview: string[];
   shortcutName?: string;
+  fileTarget?: string;
 };
 
 function compact(value: unknown, fallback = "") {
@@ -109,6 +113,7 @@ function redactNativeAutomationText(value: unknown) {
     .replace(/\b(?:github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9_]+|sk-[A-Za-z0-9_-]{12,}|sk-or-[A-Za-z0-9_-]{12,}|AIza[0-9A-Za-z_-]{20,})\b/g, "[redacted-token]")
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted-email]")
     .replace(/\/Users\/[^/\s]+/g, "/Users/[redacted]")
+    .replace(/\/(?:home|tmp|private\/tmp|var\/folders|Volumes)\/[^\s]+/g, "/[redacted-path]")
     .replace(/[A-Z]:\\Users\\[^\\\s]+/gi, "C:\\Users\\[redacted]")
     .replace(/(?:\+?\d[\d\s().-]{6,}\d)/g, "[redacted-phone]")
     .replace(/(bearer|token|key|secret|password)=\S+/gi, "$1=[redacted]");
@@ -141,6 +146,25 @@ function readAllowlist(env: NativeAutomationBuildOptions["env"]) {
     .filter(Boolean));
 }
 
+function readFileRoots(env: NativeAutomationBuildOptions["env"]) {
+  return String(env?.[NATIVE_AUTOMATION_FILE_ROOTS_ENV] || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => path.resolve(item));
+}
+
+function isPathInside(root: string, target: string) {
+  const relative = path.relative(root, target);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function normalizeFileTarget(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw || /[\0\r\n]/.test(raw)) return "";
+  return path.isAbsolute(raw) ? path.resolve(raw) : "";
+}
+
 function safeShortcutName(value: unknown) {
   const name = compact(value);
   if (!name || /[\r\n\0]/.test(name) || name.length > 80) return "";
@@ -165,6 +189,15 @@ function resolveNativeAction(kind: NativeAutomationKind, input: NativeAutomation
       shortcutName,
     };
   }
+  if (kind === "file") {
+    const fileTarget = normalizeFileTarget(input.target);
+    return {
+      rawActionId: "file:reveal",
+      publicActionId: "file:reveal",
+      commandPreview: ["open", "-R", fileTarget ? redactNativeAutomationText(fileTarget) || "[allowed-file]" : "[absolute-file-path]"],
+      fileTarget,
+    };
+  }
   return {
     rawActionId: `${kind}:blocked`,
     publicActionId: `${kind}:blocked`,
@@ -181,10 +214,11 @@ function buildBlockedReasons(input: {
   confirmationAccepted: boolean;
   sensitivePayloadBlocked: boolean;
   payloadWithinLimit: boolean;
+  targetWithinAllowedRoots: boolean;
   action: ResolvedNativeAction;
 }) {
   const reasons: string[] = [];
-  if (!["clipboard", "shortcut"].includes(input.kind)) reasons.push("unsupported_native_action_kind");
+  if (!["clipboard", "shortcut", "file"].includes(input.kind)) reasons.push("unsupported_native_action_kind");
   if (!input.bridgeEnabled) reasons.push("native_bridge_disabled");
   if (!input.platformSupported) reasons.push("macos_runtime_required");
   if (!input.allowlisted) reasons.push("action_not_in_allowlist");
@@ -193,6 +227,8 @@ function buildBlockedReasons(input: {
   if (!input.payloadWithinLimit) reasons.push("payload_too_large");
   if (input.sensitivePayloadBlocked) reasons.push("sensitive_payload_blocked");
   if (input.kind === "shortcut" && !input.action.shortcutName) reasons.push("shortcut_name_required");
+  if (input.kind === "file" && !input.action.fileTarget) reasons.push("absolute_file_target_required");
+  if (input.kind === "file" && !input.targetWithinAllowedRoots) reasons.push("file_target_not_in_allowed_roots");
   return reasons;
 }
 
@@ -203,6 +239,7 @@ export function buildNativeAutomationPlan(input: NativeAutomationInput = {}, opt
   const kind = normalizeKind(input.kind);
   const payload = typeof input.payload === "string" ? input.payload : "";
   const action = resolveNativeAction(kind, input);
+  const allowedFileRoots = readFileRoots(env);
   const bridgeEnabled = env[NATIVE_AUTOMATION_ENABLE_ENV] === "1";
   const mockMode = bridgeEnabled && env[NATIVE_AUTOMATION_MOCK_ENV] === "1";
   const mode: NativeAutomationPlan["mode"] = !bridgeEnabled ? "disabled" : mockMode ? "mock" : "guarded";
@@ -212,6 +249,7 @@ export function buildNativeAutomationPlan(input: NativeAutomationInput = {}, opt
   const confirmationAccepted = input.confirmationText === NATIVE_AUTOMATION_CONFIRMATION_TEXT;
   const payloadWithinLimit = payload.length <= MAX_NATIVE_PAYLOAD_CHARS;
   const sensitivePayloadBlocked = Boolean(payload && looksSensitive(payload) && env.LIFEOS_NATIVE_AUTOMATION_ALLOW_SENSITIVE_PAYLOAD !== "1");
+  const targetWithinAllowedRoots = kind !== "file" || Boolean(action.fileTarget && allowedFileRoots.some((root) => isPathInside(root, action.fileTarget || "")));
   const blockedReasons = buildBlockedReasons({
     kind,
     bridgeEnabled,
@@ -221,6 +259,7 @@ export function buildNativeAutomationPlan(input: NativeAutomationInput = {}, opt
     confirmationAccepted,
     sensitivePayloadBlocked,
     payloadWithinLimit,
+    targetWithinAllowedRoots,
     action,
   });
   const canExecute = blockedReasons.length === 0;
@@ -252,6 +291,7 @@ export function buildNativeAutomationPlan(input: NativeAutomationInput = {}, opt
       auditRequired: true,
       sensitivePayloadBlocked,
       payloadWithinLimit,
+      targetWithinAllowedRoots,
     },
   };
 }
@@ -340,7 +380,9 @@ export async function executeNativeAutomation(input: NativeAutomationInput = {},
   const timeoutMs = Number(options.env?.LIFEOS_NATIVE_AUTOMATION_TIMEOUT_MS || DEFAULT_COMMAND_TIMEOUT_MS);
   const commandResult = plan.kind === "clipboard"
     ? await runner(process.env.LIFEOS_PBCOPY_BIN || "/usr/bin/pbcopy", [], { stdin: input.payload || "", timeoutMs })
-    : await runner(process.env.LIFEOS_SHORTCUTS_BIN || "/usr/bin/shortcuts", ["run", action.shortcutName || ""], { timeoutMs });
+    : plan.kind === "file"
+      ? await runner(process.env.LIFEOS_OPEN_BIN || "/usr/bin/open", ["-R", action.fileTarget || ""], { timeoutMs })
+      : await runner(process.env.LIFEOS_SHORTCUTS_BIN || "/usr/bin/shortcuts", ["run", action.shortcutName || ""], { timeoutMs });
 
   return {
     ok: commandResult.exitCode === 0 && !commandResult.timedOut,

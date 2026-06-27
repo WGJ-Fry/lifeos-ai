@@ -2040,22 +2040,29 @@ function checkAssets() {
     lifeosApiSource.includes("createNativeAutomationPlan") &&
     lifeosApiSource.includes("executeNativeAutomation") &&
     systemActionsTestSource.includes("system action plan blocks unsafe URL schemes and native automation preview writes") &&
-    systemActionsTestSource.includes("native system action summary keeps OS automation blocked") &&
+    systemActionsTestSource.includes("native system action summary keeps high-risk OS writes preview-only") &&
     nativeAutomationBridgeSource.includes("LIFEOS_ENABLE_NATIVE_AUTOMATION_BRIDGE") &&
     nativeAutomationBridgeSource.includes("LIFEOS_NATIVE_AUTOMATION_ALLOWLIST") &&
+    nativeAutomationBridgeSource.includes("NATIVE_AUTOMATION_FILE_ROOTS_ENV") &&
     nativeAutomationBridgeSource.includes("NATIVE_AUTOMATION_CONFIRMATION_TEXT") &&
+    nativeAutomationBridgeSource.includes("file:reveal") &&
+    nativeAutomationBridgeSource.includes("targetWithinAllowedRoots") &&
     nativeAutomationBridgeSource.includes("unsupported_native_action_kind") &&
     nativeAutomationBridgeSource.includes("sensitive_payload_blocked") &&
+    translationsSource.includes("nativeAutomationControl.fileRoots") &&
+    translationsSource.includes("Reveal File in Finder") &&
     adminRoutesSource.includes("/api/v1/admin/native-automation/plan") &&
     adminRoutesSource.includes("/api/v1/admin/native-automation/execute") &&
     adminRoutesSource.includes("native_automation_blocked") &&
     packageJson.scripts.test.includes("tests/native-automation-bridge.test.mjs") &&
     nativeAutomationBridgeTestSource.includes("native automation bridge is disabled by default") &&
     nativeAutomationBridgeTestSource.includes("executes only after enable flag, allowlist, and confirmation") &&
-    nativeAutomationBridgeTestSource.includes("refuses shell, file, calendar, and reminder writes") &&
+    nativeAutomationBridgeTestSource.includes("can reveal an allowlisted file target") &&
+    nativeAutomationBridgeTestSource.includes("refuses file targets outside allowed roots") &&
+    nativeAutomationBridgeTestSource.includes("refuses shell, calendar, and reminder writes") &&
     nativeAutomationApiTestSource.includes("/api/v1/admin/native-automation/plan") &&
     nativeAutomationApiTestSource.includes("/api/v1/admin/native-automation/execute")
-  ) pass("native local automation remains blocked by default and has an opt-in audited bridge skeleton");
+  ) pass("native local automation supports guarded clipboard, Shortcuts, and allowlisted Finder reveal while blocking unsafe writes");
   else warn("native local automation lacks blocked-preview safety gates or tests");
 
   const dataLifecycleSource = exists("server/dataLifecycle.ts") ? fs.readFileSync(path.join(rootDir, "server/dataLifecycle.ts"), "utf8") : "";

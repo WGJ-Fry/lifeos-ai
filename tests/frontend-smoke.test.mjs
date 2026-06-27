@@ -462,13 +462,17 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(lifeosApiSource, /NativeAutomationPlan/);
   assert.match(lifeosApiSource, /createNativeAutomationPlan/);
   assert.match(lifeosApiSource, /executeNativeAutomation/);
+  assert.match(lifeosApiSource, /targetWithinAllowedRoots/);
   assert.match(adminSettingsPageSource, /NativeAutomationControlPanel/);
   assert.match(nativeAutomationControlPanelSource, /RUN NATIVE ACTION/);
   assert.match(nativeAutomationControlPanelSource, /createNativeAutomationPlan/);
   assert.match(nativeAutomationControlPanelSource, /executeNativeAutomation/);
   assert.match(nativeAutomationControlPanelSource, /plan\?\.canExecute/);
+  assert.match(nativeAutomationControlPanelSource, /nativeAutomationControl\.fileRoots/);
   assert.match(translationsSource, /原生自动化安全桥/);
+  assert.match(translationsSource, /Finder 定位文件/);
   assert.match(translationsSource, /Native Automation Safety Bridge/);
+  assert.match(translationsSource, /Reveal File in Finder/);
   assert.match(lifeosApiSource, /listCustomAppActionRequests/);
   assert.match(lifeosApiSource, /createCustomAppActionRequest/);
   assert.match(lifeosApiSource, /decideCustomAppActionRequest/);

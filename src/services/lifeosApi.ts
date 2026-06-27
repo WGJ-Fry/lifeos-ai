@@ -327,6 +327,7 @@ export type NativeAutomationPlan = {
     auditRequired: true;
     sensitivePayloadBlocked: boolean;
     payloadWithinLimit: boolean;
+    targetWithinAllowedRoots: boolean;
   };
 };
 

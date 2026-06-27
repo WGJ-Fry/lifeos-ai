@@ -157,7 +157,7 @@ test("system action plan blocks unsafe URL schemes and native automation preview
   assert.doesNotMatch(nativePlan.sanitizedSource, /github_pat|secret/);
 });
 
-test("native system action summary keeps OS automation blocked until a native bridge ships", () => {
+test("native system action summary keeps high-risk OS writes preview-only outside the guarded bridge", () => {
   const summary = getNativeSystemActionPlanSummary();
   assert.deepEqual(summary.map((item) => item.id), ["file", "calendar", "reminder", "clipboard", "shell"]);
   assert.equal(summary.every((item) => item.status === "blocked-preview"), true);
