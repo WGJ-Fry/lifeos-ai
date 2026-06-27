@@ -36,16 +36,16 @@ Current release promise: put Markdown notes in a folder, run LifeOS locally, and
 
 ## Release Status
 
-Public release tag: [`v0.1.3-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha)<br>
-Source package version: `0.1.3-alpha.0`
+Public release tag: [`v0.1.4-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha)<br>
+Source package version: `0.1.4-alpha.0`
 
-This README is written for the public `v0.1.3-alpha` downloads. The `main` branch may contain later source-only changes; use those only if you are comfortable building from source.
+This README is written for the public `v0.1.4-alpha` downloads. The `main` branch may contain later source-only changes; use those only if you are comfortable building from source.
 
-Important: use the explicit [`v0.1.3-alpha` Release page](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha). If GitHub's generic **Latest release** label ever points to an older build, ignore it and use this versioned link.
+Important: use the explicit [`v0.1.4-alpha` Release page](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha). If GitHub's generic **Latest release** label ever points to an older build, ignore it and use this versioned link.
 
 | Track | What to expect |
 | --- | --- |
-| `v0.1.3-alpha` public release | Docker Compose local Markdown + read-only `.ics` memory demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue with conflict-risk guidance, SQLite migrations, backup/restore, diagnostics, release checks, connection diagnostics, and Studio blueprint confirmation/template/permission/repair guidance. |
+| `v0.1.4-alpha` public release | Docker Compose local Markdown + read-only `.ics` memory demo, GHCR image path, macOS unsigned ZIP, Windows NSIS installer, Linux AppImage, admin auth, AI provider settings, mobile PWA pairing, offline queue with idempotent replay and conflict-review guidance, SQLite migrations, backup/restore, diagnostics, release checks, connection diagnostics, Studio blueprint confirmation/template/permission/repair guidance plus readiness/quality scoring, and an opt-in macOS Calendar/Reminders connector path guarded by explicit admin confirmation. |
 | Current `main` source | Developer path only. It may contain later source changes after the tagged release; use it only if you are comfortable building from source. |
 | Earlier base | `0.1.1-alpha.0` added Docker quickstart/Ollama/Markdown vault defaults. `0.1.0` started the desktop/PWA foundation. |
 
@@ -53,12 +53,14 @@ Important: use the explicit [`v0.1.3-alpha` Release page](https://github.com/WGJ
 
 | Path | Use this when | Current public status |
 | --- | --- | --- |
-| **Docker Compose alpha** | You want the fastest local demo with Ollama and Markdown notes. | Recommended first try. Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.3-alpha`. |
-| **macOS desktop ZIP** | You want to try the early desktop shell on Apple Silicon. | Available in the [`v0.1.3-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha): `LifeOS.AI-0.1.3-alpha.0-arm64-unsigned.zip`. |
-| **Windows desktop installer** | You want a native Windows x64 installer. | Available in the [`v0.1.3-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha): `LifeOS.AI.Setup.0.1.3-alpha.0.exe`. |
-| **Linux AppImage** | You want a portable Linux x64 desktop package. | Available in the [`v0.1.3-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.3-alpha): `LifeOS.AI-0.1.3-alpha.0.AppImage`. |
+| **Docker Compose alpha** | You want the fastest local demo with Ollama and Markdown notes. | Recommended first try. Uses `ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha`. |
+| **macOS desktop ZIP** | You want to try the early desktop shell on Apple Silicon. | Available in the [`v0.1.4-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha): `LifeOS.AI-0.1.4-alpha.0-arm64-unsigned.zip`. |
+| **Windows desktop installer** | You want a native Windows x64 installer. | Available in the [`v0.1.4-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha): `LifeOS.AI.Setup.0.1.4-alpha.0.exe`. |
+| **Linux AppImage** | You want a portable Linux x64 desktop package. | Available in the [`v0.1.4-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha): `LifeOS.AI-0.1.4-alpha.0.AppImage`. |
 
-If you are new, start with Docker Compose below. If you specifically want the desktop app, use the `v0.1.3-alpha` Release and verify downloads with `SHA256SUMS` before first launch. GitHub asset URLs use dot-separated filenames, while `SHA256SUMS` may list the original builder filenames with spaces; compare the SHA256 value if the local filename differs.
+If you are new, start with Docker Compose below. If you specifically want the desktop app, use the `v0.1.4-alpha` Release and verify downloads with `SHA256SUMS` before first launch. GitHub asset URLs use dot-separated filenames, while `SHA256SUMS` may list the original builder filenames with spaces; compare the SHA256 value if the local filename differs.
+
+Filename mapping for checksum checks: GitHub may show `LifeOS.AI-0.1.4-alpha.0-arm64-unsigned.zip`, `LifeOS.AI.Setup.0.1.4-alpha.0.exe`, and `LifeOS.AI-0.1.4-alpha.0.AppImage`; builder metadata may show `LifeOS AI-0.1.4-alpha.0-arm64-unsigned.zip`, `LifeOS AI Setup 0.1.4-alpha.0.exe`, and `LifeOS AI-0.1.4-alpha.0.AppImage`.
 
 ## Real Product Screens
 
@@ -98,7 +100,7 @@ LifeOS is interesting because the current alpha already combines three working p
 | Desktop app shell | Available as current alpha packages |
 | Mobile companion | Pairing, chat, offline queue, device status, and action permissions are implemented |
 | Remote access guidance | LAN, Tailscale, Cloudflare Tunnel diagnostics and safety checks are implemented |
-| Generated programs | Studio generation, refinement, runtime logs, debug instruction, state storage, rollback, plus current-source blueprint confirmation, permission notes, and failure recovery guidance. |
+| Generated programs | Studio generation, refinement, runtime logs, debug instruction, state storage, rollback, blueprint confirmation, expanded template variants, readiness/quality scoring, permission notes, guarded repair boundaries, and failure recovery guidance. |
 
 ## Generated Problem-Solving Programs
 
@@ -122,7 +124,7 @@ Examples:
 - A follow-up board for people you promised to contact.
 - A tiny workflow panel for repeated local actions.
 
-Status: generation, manual refinement, durable state, runtime logs, debug instruction generation, action permission checks, and version rollback are implemented in the public release path. One-click repair save is source-only on `main`. Fully automatic unattended self-repair is not advertised here.
+Status: generation, manual refinement, durable state, runtime logs, debug instruction generation, action permission checks, template matching, readiness/quality scoring, guarded repair boundaries, and version rollback are implemented in the public release path. Fully automatic unattended self-repair is not advertised here.
 
 ## 2-Minute Setup
 
@@ -278,12 +280,12 @@ LifeOS is alpha software. The Docker quickstart is the most stable demo path; de
 - The public desktop packages are unsigned alpha builds. macOS Developer ID signing/notarization and Windows Authenticode signing are not part of this release, so Gatekeeper or SmartScreen may warn.
 - Remote diagnostics can verify configuration, but long-term remote stability still needs real-device evidence: cellular data, Wi-Fi switching, desktop restart recovery, stale QR repair, and tunnel interruption recovery.
 - Local memory reads Markdown plus optional read-only `.ics` calendar/task files in the Docker/local path.
-- Apple Calendar, Google Calendar, and system reminders account sync/write-back are not shipped yet.
+- Apple Calendar, Google Calendar, and system reminders account sync/write-back are not shipped yet. `v0.1.4-alpha` only adds a narrow macOS Apple Calendar/System Reminders connector path that must be explicitly enabled and confirmed by an admin before writing outside LifeOS.
 - `.ics` support is read-only local ingestion, not two-way calendar/task management.
 - No calendar/task write-back yet.
 - Not a perfect deadline detector.
 - Reads a limited number of files for speed and context size.
-- Studio generated programs remain alpha: blueprints, templates, permission notes, logs, state, repair guidance, and rollback exist, but fully automatic unattended repair is not advertised.
+- Studio generated programs remain alpha: blueprints, templates, readiness/quality scoring, permission notes, logs, state, repair guidance, guarded repair boundaries, and rollback exist, but fully automatic unattended repair is not advertised.
 - Local actions are still URL Scheme / browser / Shortcuts bridge flows, not full native OS automation.
 - Desktop, mobile, remote access, and Studio generated programs should be validated against the release notes before public demos.
 
@@ -332,10 +334,10 @@ npm run quality:gate
 Docker image:
 
 ```text
-ghcr.io/wgj-fry/lifeos-ai:v0.1.3-alpha
+ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha
 ```
 
-Note: the release tag is `v0.1.3-alpha`; the package version is `0.1.3-alpha.0`.
+Note: the release tag is `v0.1.4-alpha`; the package version is `0.1.4-alpha.0`.
 
 ## License
 

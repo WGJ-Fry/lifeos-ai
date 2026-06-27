@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased: 0.1.4-alpha.0 candidate
+## 0.1.4-alpha.0
 
-Source-only work queued for the next public alpha. Do not advertise as released until the tag, packages, Docker image, and release notes are published.
+Release candidate for the next public alpha. Do not advertise as publicly available until the tag, packages, Docker image, and release notes are published.
 
 - Expanded Studio problem blueprints with a larger template variant library for ledgers, planners, organizers, habits, calculators, forms, workflows, lookups, and general tasks.
 - Added generated-tool quality scoring, acceptance criteria, failure triggers, and guarded auto-repair/manual-review boundaries before app generation.

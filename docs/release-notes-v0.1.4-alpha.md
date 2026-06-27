@@ -39,7 +39,7 @@ docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha
 
 - Automatic updates are not enabled by default. Use manual download plus SHA256 verification.
 - macOS Developer ID signing/notarization and Windows Authenticode signing are not part of this unsigned alpha.
-- Google Calendar OAuth sync/write-back is not shipped yet. Apple Calendar and system Reminders writes require macOS, explicit environment opt-in, explicit admin confirmation, and audit logging.
+- Apple Calendar, Google Calendar, and system reminders full account sync/write-back are not shipped yet. Google Calendar OAuth sync/write-back is still preview-only; Apple Calendar and system Reminders writes require macOS, explicit environment opt-in, explicit admin confirmation, and audit logging.
 - `.ics` support is read-only local ingestion, not two-way calendar/task management.
 - Studio generated programs remain alpha: scoring, readiness checks, template expansion, and guarded repair prompts are present, but fully automatic unattended self-repair is not advertised.
 - Local actions are still URL Scheme / browser / Shortcuts bridge based. Full native automation and deep OS permission control are future work.
@@ -92,7 +92,7 @@ Package version：`0.1.4-alpha.0`
 
 - 默认不启用自动更新，继续使用手动下载 + SHA256 校验。
 - 本 alpha 不包含 macOS Developer ID 签名/公证，也不包含 Windows Authenticode 签名。
-- Google Calendar OAuth 同步/写回尚未发布。Apple Calendar 和系统提醒事项写入需要 macOS、环境变量显式开启、管理员明确确认和审计日志。
+- Apple Calendar、Google Calendar、系统提醒事项的完整账号同步/写回尚未发布。Google Calendar OAuth 同步/写回仍是预览；Apple Calendar 和系统提醒事项写入需要 macOS、环境变量显式开启、管理员明确确认和审计日志。
 - `.ics` 只是本地只读读取，不是双向日历/任务管理。
 - Studio 生成程序仍是 alpha：已有评分、就绪检查、模板扩展和带护栏修复提示，但不宣传完全无人值守自修复。
 - 本地动作仍基于 URL Scheme / 浏览器 / 快捷指令桥，不是完整原生自动化系统。

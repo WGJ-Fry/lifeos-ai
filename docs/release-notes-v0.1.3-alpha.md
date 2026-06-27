@@ -1,12 +1,12 @@
-# LifeOS v0.1.3-alpha
+# LifeOS v0.1.4-alpha
 
-LifeOS v0.1.3-alpha is the current public alpha line. It aligns the public Release tag with the latest `main` branch and keeps the release promise honest: local-first memory, mobile companion, safer remote access guidance, and Studio-generated problem-solving tools.
+LifeOS v0.1.4-alpha is the current public alpha line. It aligns the public Release tag with the latest `main` branch and keeps the release promise honest: local-first memory, mobile companion, safer remote access guidance, and Studio-generated problem-solving tools.
 
-Package version: `0.1.3-alpha.0`
+Package version: `0.1.4-alpha.0`
 
 ## What Is Included
 
-- Docker Compose quickstart with GHCR image `ghcr.io/wgj-fry/lifeos-ai:v0.1.3-alpha`.
+- Docker Compose quickstart with GHCR image `ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha`.
 - Local Markdown memory plus optional read-only local `.ics` calendar/task ingestion for `VEVENT` events and open dated `VTODO` tasks.
 - Admin authentication, AI provider settings, SQLite migrations, backup/restore, diagnostics, and redacted audit data.
 - Mobile PWA pairing, WebCrypto device credentials, device status, offline queue, retry/clear controls, and background sync hooks.
@@ -19,9 +19,9 @@ Package version: `0.1.3-alpha.0`
 
 This alpha intentionally ships unsigned packages:
 
-- macOS Apple Silicon unsigned ZIP: `LifeOS.AI-0.1.3-alpha.0-arm64-unsigned.zip`.
-- Windows x64 unsigned NSIS installer: `LifeOS.AI.Setup.0.1.3-alpha.0.exe`.
-- Linux x64 AppImage: `LifeOS.AI-0.1.3-alpha.0.AppImage`.
+- macOS Apple Silicon unsigned ZIP: `LifeOS.AI-0.1.4-alpha.0-arm64-unsigned.zip`.
+- Windows x64 unsigned NSIS installer: `LifeOS.AI.Setup.0.1.4-alpha.0.exe`.
+- Linux x64 AppImage: `LifeOS.AI-0.1.4-alpha.0.AppImage`.
 
 Verify every downloaded file with `SHA256SUMS`. macOS Gatekeeper and Windows SmartScreen may warn because the public packages are not formally signed yet.
 
@@ -48,13 +48,13 @@ Before posting this release widely, capture and keep a short validation note for
 
 ## 中文说明
 
-LifeOS v0.1.3-alpha 是当前公开 alpha 线。它把公开 Release tag 对齐到最新 `main`，并坚持只承诺已经能验证的能力：本地优先记忆、手机端入口、更安全的异地连接向导，以及 Studio 自动生成解决问题的程序。
+LifeOS v0.1.4-alpha 是当前公开 alpha 线。它把公开 Release tag 对齐到最新 `main`，并坚持只承诺已经能验证的能力：本地优先记忆、手机端入口、更安全的异地连接向导，以及 Studio 自动生成解决问题的程序。
 
-Package version：`0.1.3-alpha.0`
+Package version：`0.1.4-alpha.0`
 
 ### 已包含
 
-- Docker Compose 快速体验，镜像为 `ghcr.io/wgj-fry/lifeos-ai:v0.1.3-alpha`。
+- Docker Compose 快速体验，镜像为 `ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha`。
 - 本地 Markdown 记忆，以及可选的本地 `.ics` 只读日历/任务读取：支持 `VEVENT` 事件和未完成且带日期的 `VTODO`。
 - 管理员认证、AI provider 设置、SQLite migration、备份恢复、诊断和脱敏审计。
 - 手机 PWA 绑定、WebCrypto 设备凭证、设备状态、离线队列、重试/清空控制和后台同步钩子。
