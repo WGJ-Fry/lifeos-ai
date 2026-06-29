@@ -3,7 +3,6 @@ import path from "path";
 import { getAiConfigStatus, listAiProviderStatuses } from "./appSecrets";
 import { listAuditLogs, redactAuditMetadata, redactAuditString } from "./audit";
 import { buildCalendarSyncPreview } from "./calendarSyncPreview";
-import { refreshCalendarSyncReadinessProfile } from "./calendarSyncReadiness";
 import { db, getPendingRestore, listBackups } from "./db";
 import { getDevices } from "./devices";
 import { getClientState } from "./clientState";
@@ -221,11 +220,6 @@ export function createDiagnosticBundle() {
     records: remoteAcceptanceRecords,
   });
   const remoteAcceptanceSummary = summarizeRemoteAcceptanceChecklist(remoteAcceptanceChecklist);
-  const calendarSync = buildCalendarSyncPreview();
-  const calendarSyncReadiness = refreshCalendarSyncReadinessProfile(
-    { type: "system", id: "diagnostic-bundle" },
-    { preview: calendarSync },
-  );
   const bundle = {
     generatedAt: new Date().toISOString(),
     service: {
@@ -280,8 +274,7 @@ export function createDiagnosticBundle() {
       },
     },
     security: getSecurityDiagnostics(),
-    calendarSync,
-    calendarSyncReadiness,
+    calendarSync: buildCalendarSyncPreview(),
     systemActions: buildSystemActionDiagnostics(),
     release: getReleaseDiagnostics(),
     devices: {
