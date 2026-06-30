@@ -66,6 +66,20 @@ Filename mapping for checksum checks: GitHub may show `LifeOS.AI-0.1.4-alpha.0-a
 
 These are real screens from the current project, not concept art.
 
+### 30-Second Product Video
+
+<p align="center">
+  <a href="docs/assets/promo/lifeos-ai-30s-en.mp4">
+    <img src="docs/assets/promo/lifeos-ai-30s-en.gif" alt="LifeOS AI 30-second product video preview" width="100%">
+  </a>
+</p>
+
+<p align="center">
+  <a href="docs/assets/promo/lifeos-ai-30s-en.mp4">Watch MP4 video</a>
+  ·
+  <a href="docs/assets/promo/lifeos-ai-30s-en-cover.png">Download cover image</a>
+</p>
+
 <p align="center">
   <img src="public/screenshots/en-admin-onboarding.jpg" alt="LifeOS desktop first launch guide and security check" width="49%">
   <img src="public/screenshots/en-mobile-device.jpg" alt="LifeOS mobile device and connection page" width="24%">

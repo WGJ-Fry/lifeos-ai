@@ -66,6 +66,20 @@ LifeOS 先从一个很小但有用的工作流开始：
 
 下面是真实项目截图，不是概念图。
 
+### 30 秒产品视频
+
+<p align="center">
+  <a href="docs/assets/promo/lifeos-ai-30s-zh.mp4">
+    <img src="docs/assets/promo/lifeos-ai-30s-zh.gif" alt="LifeOS AI 30 秒产品视频预览" width="100%">
+  </a>
+</p>
+
+<p align="center">
+  <a href="docs/assets/promo/lifeos-ai-30s-zh.mp4">观看 MP4 视频</a>
+  ·
+  <a href="docs/assets/promo/lifeos-ai-30s-zh-cover.png">下载封面图</a>
+</p>
+
 <p align="center">
   <img src="public/screenshots/real-admin-onboarding.jpg" alt="LifeOS 电脑端首次启动与安全检查" width="49%">
   <img src="public/screenshots/real-mobile-device.jpg" alt="LifeOS 手机端设备与连接页面" width="24%">
