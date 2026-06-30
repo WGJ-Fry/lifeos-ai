@@ -291,7 +291,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(blockedReleaseUpdateCheck.status, 401);
   const releaseUpdateCheck = await request(port, "/api/v1/admin/release/update-check", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(releaseUpdateCheck.status, "up-to-date");
-  assert.equal(releaseUpdateCheck.current.tag, "v0.1.4-alpha");
+  assert.equal(releaseUpdateCheck.current.tag, "v0.1.5-alpha");
   assert.equal(releaseUpdateCheck.latest.tag, "v0.1.4-alpha");
   assert.equal(releaseUpdateCheck.latest.checksumAsset.name, "SHA256SUMS");
   assert.equal(releaseUpdateCheck.manualUpdateRequired, true);

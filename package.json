@@ -1,7 +1,7 @@
 {
   "name": "lifeos-ai",
   "private": false,
-  "version": "0.1.4-alpha.0",
+  "version": "0.1.5-alpha.0",
   "description": "Local-first personal AI assistant for memory, mobile companion, remote access, and generated problem-solving tools.",
   "author": "LifeOS",
   "license": "MIT",

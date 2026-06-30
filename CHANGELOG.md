@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.5-alpha.0
+
+Release candidate for the next public alpha. Do not advertise as publicly available until the tag, packages, Docker image, and release notes are published.
+
+- Added bilingual README product videos with matching English and Chinese MP4/GIF/cover assets.
+- Added mobile offline recovery evidence for foreground, background, network, and timer recovery attempts.
+- Added public-release review diagnostics for GitHub Latest, old releases, clean-machine SHA256 checks, anonymous GHCR pulls, and README/Release/Discussions truthfulness.
+- Tightened signed/unsigned desktop update diagnostics so signed distributions can use a safe HTTPS feed by default while unsigned alpha builds remain manual unless explicitly opted in.
+- Updated README, Docker Compose, user install guide, release notes, promotion kit, security policy, and roadmap to the `v0.1.5-alpha` release line.
+
 ## 0.1.4-alpha.0
 
 Release candidate for the next public alpha. Do not advertise as publicly available until the tag, packages, Docker image, and release notes are published.

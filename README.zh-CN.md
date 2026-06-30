@@ -36,16 +36,16 @@ LifeOS 先从一个很小但有用的工作流开始：
 
 ## 发布状态
 
-公开 Release tag：[`v0.1.4-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha)<br>
-源码 package version：`0.1.4-alpha.0`
+公开 Release tag：[`v0.1.5-alpha`](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha)<br>
+源码 package version：`0.1.5-alpha.0`
 
-这份 README 面向 `v0.1.4-alpha` 公开下载包。`main` 分支可能包含后续源码改动；只有你愿意从源码构建时，才需要关注它。
+这份 README 面向 `v0.1.5-alpha` 公开下载包。`main` 分支可能包含后续源码改动；只有你愿意从源码构建时，才需要关注它。
 
-重要：请使用明确的 [`v0.1.4-alpha` Release 页面](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha)。如果 GitHub 通用的 **Latest release** 标签仍指向旧版本，请忽略它，使用这个带版本号的链接。
+重要：请使用明确的 [`v0.1.5-alpha` Release 页面](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha)。如果 GitHub 通用的 **Latest release** 标签仍指向旧版本，请忽略它，使用这个带版本号的链接。
 
 | 轨道 | 可以期待什么 |
 | --- | --- |
-| `v0.1.4-alpha` 公开发布版 | Docker Compose 本地 Markdown + 只读 `.ics` 记忆演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、带幂等重放和冲突复核提示的离线队列、SQLite migration、备份恢复、诊断包、发布检查、连接诊断、Studio 蓝图确认/模板/权限/修复提示和就绪/质量评分，以及由管理员显式确认的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径、审计日志、写入历史和回滚状态。 |
+| `v0.1.5-alpha` 公开发布版 | Docker Compose 本地 Markdown + 只读 `.ics` 记忆演示、GHCR 镜像路径、macOS unsigned ZIP、Windows NSIS 安装包、Linux AppImage、管理员认证、AI provider 设置、手机 PWA 绑定、带幂等重放和冲突复核提示的离线队列、SQLite migration、备份恢复、诊断包、发布检查、连接诊断、Studio 蓝图确认/模板/权限/修复提示和就绪/质量评分，以及由管理员显式确认的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径、审计日志、写入历史和回滚状态。 |
 | 当前 `main` 源码 | 仅面向开发者。它可能包含 tag 发布之后的源码变化；只有你愿意从源码构建时才需要关注。 |
 | 更早基础版本 | `0.1.1-alpha.0` 增加 Docker quickstart/Ollama/Markdown vault 默认路径。`0.1.0` 建立桌面/PWA 底座。 |
 
@@ -53,14 +53,14 @@ LifeOS 先从一个很小但有用的工作流开始：
 
 | 路径 | 适合你在什么时候用 | 当前公开状态 |
 | --- | --- | --- |
-| **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha`。 |
-| **macOS 桌面 ZIP** | 想在 Apple Silicon Mac 上试用早期桌面端壳。 | 已在 [`v0.1.4-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha) 提供：`LifeOS.AI-0.1.4-alpha.0-arm64-unsigned.zip`。 |
-| **Windows 桌面安装包** | 想要 Windows x64 原生安装器。 | 已在 [`v0.1.4-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha) 提供：`LifeOS.AI.Setup.0.1.4-alpha.0.exe`。 |
-| **Linux AppImage** | 想要 Linux x64 便携桌面包。 | 已在 [`v0.1.4-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.4-alpha) 提供：`LifeOS.AI-0.1.4-alpha.0.AppImage`。 |
+| **Docker Compose alpha** | 想最快体验 Ollama + Markdown 本地记忆演示。 | 推荐第一次体验使用。镜像是 `ghcr.io/wgj-fry/lifeos-ai:v0.1.5-alpha`。 |
+| **macOS 桌面 ZIP** | 想在 Apple Silicon Mac 上试用早期桌面端壳。 | 已在 [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha) 提供：`LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip`。 |
+| **Windows 桌面安装包** | 想要 Windows x64 原生安装器。 | 已在 [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha) 提供：`LifeOS.AI.Setup.0.1.5-alpha.0.exe`。 |
+| **Linux AppImage** | 想要 Linux x64 便携桌面包。 | 已在 [`v0.1.5-alpha` Release](https://github.com/WGJ-Fry/lifeos-ai/releases/tag/v0.1.5-alpha) 提供：`LifeOS.AI-0.1.5-alpha.0.AppImage`。 |
 
-如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 `v0.1.4-alpha` Release，并在首次启动前用 `SHA256SUMS` 校验下载文件。GitHub 下载资产名使用点号，`SHA256SUMS` 里可能保留构建器生成的空格文件名；如果本地文件名不同，直接比对 SHA256 值即可。
+如果你是第一次看这个项目，建议从下面的 Docker Compose 开始。如果你明确想试桌面 App，请使用 `v0.1.5-alpha` Release，并在首次启动前用 `SHA256SUMS` 校验下载文件。GitHub 下载资产名使用点号，`SHA256SUMS` 里可能保留构建器生成的空格文件名；如果本地文件名不同，直接比对 SHA256 值即可。
 
-校验文件名对照：GitHub 可能显示 `LifeOS.AI-0.1.4-alpha.0-arm64-unsigned.zip`、`LifeOS.AI.Setup.0.1.4-alpha.0.exe`、`LifeOS.AI-0.1.4-alpha.0.AppImage`；构建器元数据可能显示 `LifeOS AI-0.1.4-alpha.0-arm64-unsigned.zip`、`LifeOS AI Setup 0.1.4-alpha.0.exe`、`LifeOS AI-0.1.4-alpha.0.AppImage`。
+校验文件名对照：GitHub 可能显示 `LifeOS.AI-0.1.5-alpha.0-arm64-unsigned.zip`、`LifeOS.AI.Setup.0.1.5-alpha.0.exe`、`LifeOS.AI-0.1.5-alpha.0.AppImage`；构建器元数据可能显示 `LifeOS AI-0.1.5-alpha.0-arm64-unsigned.zip`、`LifeOS AI Setup 0.1.5-alpha.0.exe`、`LifeOS AI-0.1.5-alpha.0.AppImage`。
 
 ## 真实产品界面
 
@@ -294,7 +294,7 @@ LifeOS 仍是 alpha 软件。Docker quickstart 是目前最稳定的演示路径
 - 当前公开桌面包仍是 unsigned alpha。macOS Developer ID 签名/公证 和 Windows Authenticode 签名不在本版本内，所以 Gatekeeper 或 SmartScreen 可能提示。
 - 远程诊断可以验证配置，但长期稳定性仍需要用户自己完成真实设备长测：手机蜂窝网络、Wi-Fi 切换、电脑重启恢复、旧二维码修复和隧道断开恢复。
 - Docker/local 路径可以读取 Markdown，也可以读取本地 `.ics` 日历/任务文件。
-- Apple Calendar、Google Calendar、系统提醒事项的完整后台账号同步还没发布。`v0.1.4-alpha` 只新增很窄的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径，必须显式开启并由管理员确认后才会写入 LifeOS 之外的系统；写入会进入 SQLite 历史、审计日志，并显示受控回滚状态。
+- Apple Calendar、Google Calendar、系统提醒事项的完整后台账号同步还没发布。`v0.1.5-alpha` 只新增很窄的 Apple Calendar、Google Calendar/Tasks、系统提醒事项连接器路径，必须显式开启并由管理员确认后才会写入 LifeOS 之外的系统；写入会进入 SQLite 历史、审计日志，并显示受控回滚状态。
 - `.ics` 只是本地只读读取，不是双向日历/任务管理。
 - 日历/任务写回只限于受控连接器路径，不会作为无人值守后台同步运行。
 - 它不是完美的截止日期检测器。
@@ -348,10 +348,10 @@ npm run quality:gate
 Docker 镜像：
 
 ```text
-ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha
+ghcr.io/wgj-fry/lifeos-ai:v0.1.5-alpha
 ```
 
-说明：release tag 是 `v0.1.4-alpha`；package version 是 `0.1.4-alpha.0`。
+说明：release tag 是 `v0.1.5-alpha`；package version 是 `0.1.5-alpha.0`。
 
 ## License
 
