@@ -109,6 +109,15 @@ export type RemoteAcceptanceEvidenceScenario = {
   ageDays?: number;
 };
 
+export type RemoteAcceptanceEvidenceTask = {
+  id: RemoteAcceptanceItem["id"] | "long-term-entry";
+  priority: "critical" | "high" | "normal";
+  status: "blocked" | "missing" | "expired";
+  titleKey: string;
+  bodyKey: string;
+  command?: string;
+};
+
 export type RemoteAcceptanceEvidencePack = {
   ready: boolean;
   generatedAt: number;
@@ -126,6 +135,7 @@ export type RemoteAcceptanceEvidencePack = {
   latestAcceptedAt?: number;
   latestRunbookImportedAt?: number;
   recommendedAction: "save-long-term-entry" | "run-remote-smoke" | "complete-real-world-checks" | "refresh-expired-evidence" | "export-diagnostics" | "ready";
+  priorityTasks: RemoteAcceptanceEvidenceTask[];
   scenarioMatrix: RemoteAcceptanceEvidenceScenario[];
   coverage: Array<Pick<RemoteAcceptanceItem, "id" | "status" | "acceptedAt" | "expiresAt" | "evidence">>;
 };
@@ -625,6 +635,82 @@ function buildRemoteAcceptanceEvidenceScenario(item: RemoteAcceptanceItem, now: 
   };
 }
 
+const evidenceScenarioPriority: Partial<Record<RemoteAcceptanceItem["id"], RemoteAcceptanceEvidenceTask["priority"]>> = {
+  "cellular-mobile-chat": "critical",
+  "network-switch": "high",
+  "network-interruption": "high",
+  "restart-restore": "high",
+  "stale-qr-repair": "normal",
+  "diagnostic-export": "normal",
+};
+
+function evidencePriorityWeight(priority: RemoteAcceptanceEvidenceTask["priority"]) {
+  if (priority === "critical") return 0;
+  if (priority === "high") return 1;
+  return 2;
+}
+
+function buildRemoteAcceptancePriorityTasks(input: {
+  checklist: RemoteAcceptanceItem[];
+  summary: RemoteAcceptanceSummary;
+  automatedReady: boolean;
+  scenarioMatrix: RemoteAcceptanceEvidenceScenario[];
+}): RemoteAcceptanceEvidenceTask[] {
+  const tasks: RemoteAcceptanceEvidenceTask[] = [];
+  if (!input.summary.hasLongTermEntry) {
+    const longTermItem = input.checklist.find((item) => item.id === "tailscale-https-serve" || item.id === "cloudflare-named-tunnel");
+    tasks.push({
+      id: "long-term-entry",
+      priority: "critical",
+      status: "blocked",
+      titleKey: "connection.evidencePack.task.longTermEntry.title",
+      bodyKey: "connection.evidencePack.task.longTermEntry.body",
+      command: longTermItem?.command,
+    });
+  }
+
+  if (!input.automatedReady) {
+    const smokeItem = input.checklist.find((item) => item.id === "remote-smoke");
+    tasks.push({
+      id: "remote-smoke",
+      priority: input.summary.hasLongTermEntry ? "critical" : "high",
+      status: input.summary.hasLongTermEntry ? "missing" : "blocked",
+      titleKey: "connection.evidencePack.task.remoteSmoke.title",
+      bodyKey: "connection.evidencePack.task.remoteSmoke.body",
+      command: smokeItem?.command,
+    });
+  }
+
+  if (!input.summary.hasLongTermEntry || !input.automatedReady) {
+    return tasks.sort((left, right) => {
+      const priorityDelta = evidencePriorityWeight(left.priority) - evidencePriorityWeight(right.priority);
+      if (priorityDelta !== 0) return priorityDelta;
+      const leftIndex = left.id === "long-term-entry" ? -2 : left.id === "remote-smoke" ? -1 : realWorldAcceptanceIds.indexOf(left.id as typeof realWorldAcceptanceIds[number]);
+      const rightIndex = right.id === "long-term-entry" ? -2 : right.id === "remote-smoke" ? -1 : realWorldAcceptanceIds.indexOf(right.id as typeof realWorldAcceptanceIds[number]);
+      return leftIndex - rightIndex;
+    });
+  }
+
+  for (const scenario of input.scenarioMatrix) {
+    if (scenario.status === "passed") continue;
+    tasks.push({
+      id: scenario.id,
+      priority: evidenceScenarioPriority[scenario.id] || "normal",
+      status: scenario.status,
+      titleKey: scenario.titleKey,
+      bodyKey: scenario.proofKey,
+    });
+  }
+
+  return tasks.sort((left, right) => {
+    const priorityDelta = evidencePriorityWeight(left.priority) - evidencePriorityWeight(right.priority);
+    if (priorityDelta !== 0) return priorityDelta;
+    const leftIndex = left.id === "long-term-entry" ? -2 : left.id === "remote-smoke" ? -1 : realWorldAcceptanceIds.indexOf(left.id as typeof realWorldAcceptanceIds[number]);
+    const rightIndex = right.id === "long-term-entry" ? -2 : right.id === "remote-smoke" ? -1 : realWorldAcceptanceIds.indexOf(right.id as typeof realWorldAcceptanceIds[number]);
+    return leftIndex - rightIndex;
+  });
+}
+
 export function buildRemoteAcceptanceEvidencePack(input: {
   checklist: RemoteAcceptanceItem[];
   summary?: RemoteAcceptanceSummary;
@@ -655,6 +741,12 @@ export function buildRemoteAcceptanceEvidencePack(input: {
             ? "export-diagnostics"
             : "complete-real-world-checks"
           : "ready";
+  const priorityTasks = buildRemoteAcceptancePriorityTasks({
+    checklist: input.checklist,
+    summary,
+    automatedReady,
+    scenarioMatrix,
+  });
   return {
     ready: summary.ready && realWorldReady,
     generatedAt: now,
@@ -672,6 +764,7 @@ export function buildRemoteAcceptanceEvidencePack(input: {
     latestAcceptedAt: acceptedTimes.sort((a, b) => b - a)[0],
     latestRunbookImportedAt,
     recommendedAction,
+    priorityTasks,
     scenarioMatrix,
     coverage: realWorldItems.map((item) => ({
       id: item.id,

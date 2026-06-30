@@ -1286,6 +1286,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /长期异地验收未完成/);
   assert.match(remoteAcceptanceEvidencePackSource, /connection\.evidencePack\.title/);
   assert.match(remoteAcceptanceEvidencePackSource, /recommendedAction/);
+  assert.match(remoteAcceptanceEvidencePackSource, /priorityTasks/);
+  assert.match(remoteAcceptanceEvidencePackSource, /taskPriorityTone/);
+  assert.match(remoteAcceptanceEvidencePackSource, /connection\.evidencePack\.priorityTasks/);
+  assert.match(remoteAcceptanceEvidencePackSource, /connection\.evidencePack\.taskStatus\./);
   assert.match(remoteAcceptanceEvidencePackSource, /missingRealWorldIds/);
   assert.match(remoteAcceptanceEvidencePackSource, /expiredRealWorldIds/);
   assert.match(remoteAcceptanceEvidencePackSource, /scenarioMatrix/);
@@ -1295,6 +1299,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(remoteAcceptanceEvidencePackSource, /connection\.evidencePack\.action\./);
   assert.match(translationsSource, /真实长测证据包/);
   assert.match(translationsSource, /Real-World Long-Test Evidence Pack/);
+  assert.match(translationsSource, /优先补齐任务/);
+  assert.match(translationsSource, /Priority tasks/);
+  assert.match(translationsSource, /connection\.evidencePack\.task\.longTermEntry\.title/);
   assert.match(translationsSource, /connection\.evidencePack\.action\.refresh-expired-evidence/);
   assert.match(translationsSource, /connection\.evidencePack\.scenario\.cellularMobileChat\.proof/);
   assert.match(translationsSource, /手机蜂窝网络/);

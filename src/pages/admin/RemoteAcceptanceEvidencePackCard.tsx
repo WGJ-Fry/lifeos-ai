@@ -45,6 +45,32 @@ export default function RemoteAcceptanceEvidencePackCard({
               <div className="mt-2 opacity-75">{t("connection.evidencePack.nextReview", { time: new Date(evidencePack.nextReviewAt).toLocaleString() })}</div>
             ) : null}
           </div>
+          {evidencePack.priorityTasks?.length ? (
+            <div className="mt-3 rounded-xl border border-current/15 bg-black/10 p-3 text-xs">
+              <div className="font-bold">{t("connection.evidencePack.priorityTasks")}</div>
+              <div className="mt-3 grid gap-2">
+                {evidencePack.priorityTasks.slice(0, 5).map((task) => (
+                  <div key={`${task.id}-${task.status}`} className="rounded-xl border border-current/10 bg-black/10 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <div className="font-bold">{t(task.titleKey as any)}</div>
+                        <div className="mt-1 opacity-75">{t(task.bodyKey as any)}</div>
+                      </div>
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${taskPriorityTone(task.priority)}`}>
+                          {t(`connection.evidencePack.priority.${task.priority}` as any)}
+                        </span>
+                        <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${taskStatusTone(task.status)}`}>
+                          {t(`connection.evidencePack.taskStatus.${task.status}` as any)}
+                        </span>
+                      </div>
+                    </div>
+                    {task.command ? <code className="mt-2 block break-all rounded-lg bg-black/20 px-2 py-1.5 text-[10px] opacity-80">{task.command}</code> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {missing.length ? (
             <div className="mt-3 rounded-xl border border-current/15 bg-black/10 p-3 text-xs">
               <div className="font-bold">{t("connection.evidencePack.gaps")}</div>
@@ -96,6 +122,18 @@ export default function RemoteAcceptanceEvidencePackCard({
 function scenarioStatusTone(status: "passed" | "missing" | "expired") {
   if (status === "passed") return "border-emerald-300/30 bg-emerald-400/10 text-emerald-100";
   if (status === "expired") return "border-rose-300/30 bg-rose-400/10 text-rose-100";
+  return "border-amber-300/30 bg-amber-400/10 text-amber-100";
+}
+
+function taskPriorityTone(priority: "critical" | "high" | "normal") {
+  if (priority === "critical") return "border-rose-300/30 bg-rose-400/10 text-rose-100";
+  if (priority === "high") return "border-amber-300/30 bg-amber-400/10 text-amber-100";
+  return "border-sky-300/30 bg-sky-400/10 text-sky-100";
+}
+
+function taskStatusTone(status: "blocked" | "missing" | "expired") {
+  if (status === "blocked") return "border-rose-300/30 bg-rose-400/10 text-rose-100";
+  if (status === "expired") return "border-purple-300/30 bg-purple-400/10 text-purple-100";
   return "border-amber-300/30 bg-amber-400/10 text-amber-100";
 }
 

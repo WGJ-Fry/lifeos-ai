@@ -769,6 +769,14 @@ export type NetworkDiagnostics = {
     latestAcceptedAt?: number;
     latestRunbookImportedAt?: number;
     recommendedAction: "save-long-term-entry" | "run-remote-smoke" | "complete-real-world-checks" | "refresh-expired-evidence" | "export-diagnostics" | "ready";
+    priorityTasks: Array<{
+      id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"] | "long-term-entry";
+      priority: "critical" | "high" | "normal";
+      status: "blocked" | "missing" | "expired";
+      titleKey: string;
+      bodyKey: string;
+      command?: string;
+    }>;
     scenarioMatrix: Array<{
       id: NetworkDiagnostics["remoteAcceptanceChecklist"][number]["id"];
       status: "passed" | "missing" | "expired";

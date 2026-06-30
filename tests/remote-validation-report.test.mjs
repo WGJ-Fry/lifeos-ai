@@ -1068,6 +1068,31 @@ test("remote acceptance evidence pack exposes missing, expired, and ready long-t
   assert.equal(missingPack.scenarioMatrix[0].proofKey, "connection.evidencePack.scenario.restartRestore.proof");
   assert.equal(missingPack.recommendedAction, "complete-real-world-checks");
   assert.equal(missingPack.latestRunbookImportedAt, now - 10_000);
+  assert.equal(missingPack.priorityTasks.length, 6);
+  assert.equal(missingPack.priorityTasks[0].id, "cellular-mobile-chat");
+  assert.equal(missingPack.priorityTasks[0].priority, "critical");
+  assert.equal(missingPack.priorityTasks[0].status, "missing");
+  assert.equal(missingPack.priorityTasks[0].titleKey, "connection.evidencePack.scenario.cellularMobileChat.title");
+  assert.equal(missingPack.priorityTasks.some((task) => task.id === "network-switch" && task.priority === "high"), true);
+  assert.equal(missingPack.priorityTasks.some((task) => task.id === "diagnostic-export" && task.priority === "normal"), true);
+
+  const noLongTermChecklist = baseChecklist.map((item) => (
+    item.id === "tailscale-https-serve" || item.id === "remote-smoke"
+      ? { ...item, status: "needs-action" }
+      : item
+  ));
+  const noLongTermPack = buildRemoteAcceptanceEvidencePack({
+    checklist: noLongTermChecklist,
+    summary: summarizeRemoteAcceptanceChecklist(noLongTermChecklist),
+    baseUrl: "https://example.com/lifeos",
+    now,
+  });
+  assert.equal(noLongTermPack.recommendedAction, "save-long-term-entry");
+  assert.equal(noLongTermPack.priorityTasks[0].id, "long-term-entry");
+  assert.equal(noLongTermPack.priorityTasks[0].priority, "critical");
+  assert.equal(noLongTermPack.priorityTasks[0].status, "blocked");
+  assert.equal(noLongTermPack.priorityTasks[1].id, "remote-smoke");
+  assert.equal(noLongTermPack.priorityTasks[1].status, "blocked");
 
   const expiredChecklist = baseChecklist.map((item) => (
     item.status === "manual-required"
@@ -1095,6 +1120,9 @@ test("remote acceptance evidence pack exposes missing, expired, and ready long-t
   assert.equal(expiredPack.scenarioMatrix.every((scenario) => scenario.status === "expired"), true);
   assert.equal(expiredPack.scenarioMatrix.every((scenario) => scenario.nextAction === "refresh-evidence"), true);
   assert.equal(expiredPack.scenarioMatrix.every((scenario) => scenario.ageDays === 8), true);
+  assert.equal(expiredPack.priorityTasks.length, 6);
+  assert.equal(expiredPack.priorityTasks.every((task) => task.status === "expired"), true);
+  assert.equal(expiredPack.priorityTasks[0].id, "cellular-mobile-chat");
 
   const readyChecklist = baseChecklist.map((item, index) => (
     item.status === "manual-required"
@@ -1119,4 +1147,5 @@ test("remote acceptance evidence pack exposes missing, expired, and ready long-t
   assert.equal(readyPack.scenarioMatrix.every((scenario) => scenario.status === "passed"), true);
   assert.equal(readyPack.scenarioMatrix.every((scenario) => scenario.nextAction === "keep-record"), true);
   assert.equal(readyPack.scenarioMatrix.some((scenario) => scenario.proofKey === "connection.evidencePack.scenario.cellularMobileChat.proof"), true);
+  assert.deepEqual(readyPack.priorityTasks, []);
 });
