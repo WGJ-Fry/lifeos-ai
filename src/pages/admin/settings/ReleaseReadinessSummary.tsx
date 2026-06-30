@@ -35,6 +35,20 @@ export default function ReleaseReadinessSummary({ release }: { release: ConfigDi
             ))}
           </div>
           {!ready ? <div className="mt-3 font-semibold">{t("diagnostics.releaseBlockedAction")}</div> : null}
+          {release.manualReview?.items?.length ? (
+            <div className="mt-3 rounded-xl border border-current/15 bg-black/10 p-3">
+              <div className="font-bold">{t("diagnostics.releaseReview.title")}</div>
+              <div className="mt-1 opacity-75">{t("diagnostics.releaseReview.body")}</div>
+              <div className="mt-3 grid gap-2">
+                {release.manualReview.items.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-current/10 bg-black/10 px-3 py-2">
+                    <div className="font-semibold">{t(item.labelKey as any)}</div>
+                    <div className="mt-0.5 opacity-70">{t(item.detailKey as any)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

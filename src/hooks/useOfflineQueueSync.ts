@@ -6,9 +6,11 @@ import {
   getOfflineMessageQueueSyncGuard,
   getOfflineMessageQueueSummary,
   removeOfflineMessages,
+  recordOfflineQueueRecoveryAttempt,
   resetFailedOfflineMessages,
   retryOfflineMessage,
   subscribeOfflineMessageQueue,
+  type OfflineMessageQueueRecoveryTrigger,
   type OfflineMessageQueueSyncGuard,
   type OfflineMessageQueueSummary,
 } from "../services/offlineMessageQueue";
@@ -36,7 +38,10 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>,
     setOfflineSyncGuard(getOfflineMessageQueueSyncGuard(queue, { online: network.online, networkQuality: network.quality }));
   }, []);
 
-  const syncQueuedMessages = useCallback(async (forceRetryFailed = false) => {
+  const syncQueuedMessages = useCallback(async (
+    forceRetryFailed = false,
+    trigger: OfflineMessageQueueRecoveryTrigger = forceRetryFailed ? "manual" : "foreground",
+  ) => {
     if (getOfflineMessageQueueCount() === 0) return;
     if (forceRetryFailed) resetFailedOfflineMessages();
     const network = getNetworkStatus();
@@ -44,24 +49,27 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>,
     setNetworkStatus(network);
     setOfflineSyncGuard(guard);
     if (!guard.allowed) {
+      recordOfflineQueueRecoveryAttempt({ result: "blocked", trigger, guard });
       refreshQueueState();
       setOfflineSyncStatus("idle");
       return;
     }
     setOfflineSyncStatus("syncing");
     try {
-      await flushOfflineMessages();
+      const syncedCount = await flushOfflineMessages();
+      recordOfflineQueueRecoveryAttempt({ result: "synced", trigger, guard, syncedCount });
       refreshQueueState();
       setOfflineSyncStatus("idle");
     } catch (error) {
       console.warn("Failed to flush queued messages:", error);
+      recordOfflineQueueRecoveryAttempt({ result: "failed", trigger, guard, error });
       setOfflineSyncStatus("error");
     }
   }, [flushOfflineMessages, refreshQueueState]);
 
   const retryQueuedMessage = useCallback(async (id: string) => {
     retryOfflineMessage(id);
-    await syncQueuedMessages();
+    await syncQueuedMessages(false, "manual");
   }, [syncQueuedMessages]);
 
   const removeQueuedMessage = useCallback((id: string) => {
@@ -80,16 +88,16 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>,
   useEffect(() => {
     const handleRecoverableState = () => {
       setNetworkStatus(getNetworkStatus());
-      void syncQueuedMessages();
+      void syncQueuedMessages(false, "network-change");
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         setNetworkStatus(getNetworkStatus());
-        void syncQueuedMessages();
+        void syncQueuedMessages(false, "visibility");
       }
     };
     const handleServiceWorkerMessage = (event: MessageEvent) => {
-      if (event.data?.type === "LIFEOS_SYNC_OFFLINE_QUEUE") void syncQueuedMessages();
+      if (event.data?.type === "LIFEOS_SYNC_OFFLINE_QUEUE") void syncQueuedMessages(false, "background-sync");
     };
 
     window.addEventListener("online", handleRecoverableState);
@@ -119,7 +127,7 @@ export function useOfflineQueueSync(flushOfflineMessages: () => Promise<number>,
     if (!offlineQueueSummary.nextRetryAt || networkStatus.quality === "offline" || offlineSyncStatus === "syncing") return;
     const delay = Math.max(500, offlineQueueSummary.nextRetryAt - Date.now());
     const timer = window.setTimeout(() => {
-      void syncQueuedMessages();
+      void syncQueuedMessages(false, "timer");
     }, delay);
     return () => window.clearTimeout(timer);
   }, [offlineQueueSummary.nextRetryAt, networkStatus.quality, offlineSyncStatus, syncQueuedMessages]);

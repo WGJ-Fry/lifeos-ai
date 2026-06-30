@@ -161,6 +161,39 @@ function buildSystemActionDiagnostics() {
   return summary;
 }
 
+function publicReleaseManualReview() {
+  return {
+    required: true,
+    items: [
+      {
+        id: "latest-release-label",
+        labelKey: "diagnostics.releaseReview.latestLabel",
+        detailKey: "diagnostics.releaseReview.latestLabelDetail",
+      },
+      {
+        id: "old-releases-deprecated",
+        labelKey: "diagnostics.releaseReview.oldReleases",
+        detailKey: "diagnostics.releaseReview.oldReleasesDetail",
+      },
+      {
+        id: "clean-download-sha256",
+        labelKey: "diagnostics.releaseReview.cleanDownload",
+        detailKey: "diagnostics.releaseReview.cleanDownloadDetail",
+      },
+      {
+        id: "docker-ghcr-public",
+        labelKey: "diagnostics.releaseReview.dockerPull",
+        detailKey: "diagnostics.releaseReview.dockerPullDetail",
+      },
+      {
+        id: "release-copy-current",
+        labelKey: "diagnostics.releaseReview.releaseCopy",
+        detailKey: "diagnostics.releaseReview.releaseCopyDetail",
+      },
+    ],
+  };
+}
+
 export function getReleaseDiagnostics() {
   for (const releaseDir of releaseDirCandidates()) {
     const manifestPath = path.join(releaseDir, "update-feed", "release-manifest.json");
@@ -176,6 +209,7 @@ export function getReleaseDiagnostics() {
         generatedAt: typeof manifest.generatedAt === "string" ? manifest.generatedAt : "",
         artifactCount: artifacts.length,
         artifacts,
+        manualReview: publicReleaseManualReview(),
       };
     } catch {
       return {
@@ -186,6 +220,7 @@ export function getReleaseDiagnostics() {
         artifactCount: 0,
         artifacts: [],
         error: "release manifest is unreadable",
+        manualReview: publicReleaseManualReview(),
       };
     }
   }
@@ -196,6 +231,7 @@ export function getReleaseDiagnostics() {
     generatedAt: "",
     artifactCount: 0,
     artifacts: [],
+    manualReview: publicReleaseManualReview(),
   };
 }
 

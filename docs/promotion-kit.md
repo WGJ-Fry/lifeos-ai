@@ -247,12 +247,12 @@ Your private AI core on desktop. Your personal AI assistant on phone.
 - 截图使用 `public/screenshots/real-*.jpg`，不要使用概念图。
 - GitHub Topics 已包含 `personal-ai`、`local-first`、`pwa`、`electron`、`sqlite`、`tailscale`、`cloudflare-tunnel`。
 - Issues 已开启，建议同时开启 Discussions 收集使用反馈。
-- macOS 未签名公证、Windows 未 Authenticode 签名、自动更新未启用、仓库使用 MIT License，这几点要主动说明。
+- macOS 未签名公证、Windows 未 Authenticode 签名、当前公开 unsigned alpha 默认手动更新、仓库使用 MIT License，这几点要主动说明。
 
 ## 注意事项
 
 - 不要承诺“官方商店级安装体验已经完成”；当前仓库使用 MIT License，但桌面签名、公证和 Windows Authenticode 签名仍在完善。
-- 不要宣传“自动更新已可用”，当前版本是手动下载更新。
+- 不要宣传“unsigned alpha 已默认自动更新”，当前公开版本是手动下载更新；signed 分发版才走安全 HTTPS feed 默认检查。
 - Windows 安装包已上传但未 Authenticode 签名，要主动说明 SmartScreen 可能提示。
 - 异地连接建议 Tailscale、Cloudflare Tunnel 或可信 HTTPS 反向代理，不建议直接暴露公网 IP。
 

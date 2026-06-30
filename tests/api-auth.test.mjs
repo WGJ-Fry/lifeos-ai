@@ -279,6 +279,14 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(typeof diagnostics.release.checksumAvailable, "boolean");
   assert.equal(typeof diagnostics.release.artifactCount, "number");
   assert.equal(Array.isArray(diagnostics.release.artifacts), true);
+  assert.equal(diagnostics.release.manualReview.required, true);
+  assert.deepEqual(diagnostics.release.manualReview.items.map((item) => item.id), [
+    "latest-release-label",
+    "old-releases-deprecated",
+    "clean-download-sha256",
+    "docker-ghcr-public",
+    "release-copy-current",
+  ]);
   const blockedReleaseUpdateCheck = await request(port, "/api/v1/admin/release/update-check");
   assert.equal(blockedReleaseUpdateCheck.status, 401);
   const releaseUpdateCheck = await request(port, "/api/v1/admin/release/update-check", { headers: adminHeaders }).then((res) => res.json());

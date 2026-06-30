@@ -172,20 +172,27 @@ node_modules/
 
 ## 如果要启用自动更新
 
-当前包未设置 `LIFEOS_UPDATE_URL`，也没有设置 `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`，所以不会自动检查更新。以后启用时，需要：
+当前公开 unsigned alpha 包默认走手动更新。以后启用 feed 检查时，需要：
 
 1. 选择稳定 HTTPS 地址。
 2. 上传安装包和对应 `latest*.yml` 到同一目录。
-3. 构建桌面包时设置：
+3. 构建 signed 分发版时设置：
+
+   ```bash
+   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.4-alpha"
+   LIFEOS_DISTRIBUTION=signed
+   ```
+
+4. 如果仍是 unsigned alpha，只能作为显式 opt-in 测试：
 
    ```bash
    LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.4-alpha"
    LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1
    ```
 
-4. 重新打包并发布。
+5. 重新打包并发布。
 
-不要把 `LIFEOS_UPDATE_URL` 指向单个文件；它必须是包含 feed 文件的目录。只设置 URL 不会自动启用更新检查，必须显式设置 `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`。
+不要把 `LIFEOS_UPDATE_URL` 指向单个文件；它必须是包含 feed 文件的目录。unsigned alpha 只设置 URL 不会自动启用更新检查，signed 分发版可以在安全 HTTPS feed 下默认启用。
 
 ## 我还没有考虑到但发布前很重要的事
 
@@ -322,20 +329,27 @@ node_modules/
 
 ## Future Auto-Update
 
-`LIFEOS_UPDATE_URL` and `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1` are not currently configured, so automatic updates are disabled. To enable them later:
+The current public unsigned alpha uses manual updates. To enable feed checks later:
 
 1. Pick a stable HTTPS directory.
 2. Upload the installer and matching `latest*.yml` files to the same directory.
-3. Build with:
+3. Build signed distributions with:
+
+   ```bash
+   LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.4-alpha"
+   LIFEOS_DISTRIBUTION=signed
+   ```
+
+4. If the build is still unsigned alpha, use explicit opt-in only for testing:
 
    ```bash
    LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.4-alpha"
    LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1
    ```
 
-4. Repackage and publish.
+5. Repackage and publish.
 
-`LIFEOS_UPDATE_URL` must point to a directory containing feed files, not a single installer or yml file. Setting only the URL does not enable update checks; `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1` is the explicit opt-in.
+`LIFEOS_UPDATE_URL` must point to a directory containing feed files, not a single installer or yml file. For unsigned alpha builds, setting only the URL does not enable update checks; signed distributions can use a safe HTTPS feed as the default update path.
 
 ## Important Gaps Before Wider Public Distribution
 

@@ -637,6 +637,79 @@ test("offline message queue records successful write-back metadata and clears it
   assert.equal(storage.has("lifeos_offline_message_queue_sync_meta"), false);
 });
 
+test("offline queue records background recovery attempts and clears them with the queue", async () => {
+  storage.clear();
+  dispatchedEvents = [];
+  postedMessages = [];
+  registeredSyncTags = [];
+  const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=recovery-attempt-${Date.now()}`);
+
+  const id = queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "recover this after weak network" }] });
+  const weakGuard = queueModule.getOfflineMessageQueueSyncGuard(
+    queueModule.getOfflineMessageQueue(),
+    { online: true, networkQuality: "poor", remoteOk: true, now: 1_000 },
+  );
+  assert.equal(weakGuard.allowed, false);
+  assert.equal(weakGuard.mode, "waiting-stable-network");
+
+  queueModule.recordOfflineQueueRecoveryAttempt({
+    result: "blocked",
+    trigger: "background-sync",
+    guard: weakGuard,
+    now: 1_000,
+  });
+  let summary = queueModule.getOfflineMessageQueueSummary();
+  assert.equal(summary.lastRecoveryAttemptAt, 1_000);
+  assert.equal(summary.lastRecoveryAttemptResult, "blocked");
+  assert.equal(summary.lastRecoveryAttemptTrigger, "background-sync");
+  assert.equal(summary.lastRecoveryAttemptMode, "waiting-stable-network");
+  assert.equal(summary.lastRecoveryAttemptReasonKey, "offlineQueue.syncPlan.reason.waitStableNetwork");
+  assert.equal(summary.lastRecoveryAttemptReadyCount, 1);
+  assert.equal(summary.lastRecoveryAttemptQueueCount, 1);
+
+  const readyGuard = queueModule.getOfflineMessageQueueSyncGuard(
+    queueModule.getOfflineMessageQueue(),
+    { online: true, networkQuality: "ok", remoteOk: true, now: 2_000 },
+  );
+  assert.equal(readyGuard.allowed, true);
+  queueModule.recordOfflineQueueRecoveryAttempt({
+    result: "synced",
+    trigger: "network-change",
+    guard: readyGuard,
+    syncedCount: 1,
+    now: 2_000,
+  });
+  summary = queueModule.getOfflineMessageQueueSummary();
+  assert.equal(summary.lastRecoveryAttemptAt, 2_000);
+  assert.equal(summary.lastRecoveryAttemptResult, "synced");
+  assert.equal(summary.lastRecoveryAttemptTrigger, "network-change");
+  assert.equal(summary.lastRecoveryAttemptMode, "background-ready");
+  assert.equal(summary.lastRecoveryAttemptSyncedCount, 1);
+
+  queueModule.recordOfflineQueueRecoveryAttempt({
+    result: "failed",
+    trigger: "manual",
+    guard: readyGuard,
+    error: new Error("Failed to fetch https://lifeos.example.com/api?token=demo-value"),
+    now: 3_000,
+  });
+  summary = queueModule.getOfflineMessageQueueSummary();
+  assert.equal(summary.lastRecoveryAttemptResult, "failed");
+  assert.match(summary.lastRecoveryAttemptError, /token=%5Bredacted%5D/);
+  assert.equal(summary.lastRecoveryAttemptError.includes("secret"), false);
+
+  queueModule.markOfflineMessagesSynced([id]);
+  summary = queueModule.getOfflineMessageQueueSummary();
+  assert.equal(summary.lastRecoveryAttemptResult, "failed");
+  assert.equal(summary.lastSyncedCount, 1);
+
+  await queueModule.clearOfflineMessageQueue();
+  summary = queueModule.getOfflineMessageQueueSummary();
+  assert.equal(summary.lastRecoveryAttemptAt, undefined);
+  assert.equal(summary.lastRecoveryAttemptResult, undefined);
+  assert.equal(storage.has("lifeos_offline_message_queue_sync_meta"), false);
+});
+
 test("offline message queue records only actually synced items", async () => {
   storage.clear();
   dispatchedEvents = [];

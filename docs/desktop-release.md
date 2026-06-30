@@ -64,7 +64,7 @@ ELECTRON_MIRROR=https://github.com/electron/electron/releases/download/ npm run 
 Current known distribution gap:
 
 - Windows is not Authenticode signed yet. The NSIS installer is usable, but SmartScreen may warn about an unknown publisher.
-- `LIFEOS_UPDATE_URL` and `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1` are not configured yet, so packaged apps skip automatic update checks.
+- Current public unsigned alpha packages use manual download plus SHA256 verification. Signed distributions can use a safe HTTPS `LIFEOS_UPDATE_URL` as the default update path; unsigned alpha builds require `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1` before feed checks run.
 - The macOS artifact is arm64 only. Intel Mac users need a separate x64 or universal build.
 
 ## macOS Signing Path
@@ -143,11 +143,11 @@ ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ npm run desktop:dist:lin
 
 ## Update Channel
 
-The desktop shell includes an optional `electron-updater` feed check. It is disabled unless the app is packaged, `LIFEOS_UPDATE_URL` is set, and the maintainer explicitly opts in with `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`:
+The desktop shell includes an optional `electron-updater` feed check. It requires a packaged app and a safe HTTPS `LIFEOS_UPDATE_URL`. Signed distributions can use the safe feed as the default update path; unsigned alpha builds still require explicit opt-in with `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`:
 
 ```bash
 LIFEOS_UPDATE_URL="https://updates.example.com/lifeos-ai"
-LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1
+LIFEOS_DISTRIBUTION=signed
 ```
 
 `LIFEOS_UPDATE_URL` must be an HTTPS directory URL. Do not point it at a single installer/feed file, and do not include credentials, query tokens, or fragments.
@@ -156,7 +156,7 @@ Recommended release channels:
 
 1. Unsigned manual updates: run `npm run desktop:zip:unsigned`, upload the zip, and leave `LIFEOS_UPDATE_URL` unset.
 2. Unsigned optional feed checks: upload every file in `release/update-feed/` to a static HTTPS directory, set `LIFEOS_UPDATE_URL`, then set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
-3. Signed installer updates: run the relevant `desktop:dist:*` command or `npm run desktop:dist`, then `npm run release:feed`, upload the installer plus `latest*.yml` and `release-manifest.json`, set `LIFEOS_UPDATE_URL`, and opt in with `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
+3. Signed installer updates: run the relevant `desktop:dist:*` command or `npm run desktop:dist`, then `npm run release:feed`, upload the installer plus `latest*.yml` and `release-manifest.json`, set `LIFEOS_UPDATE_URL`, and set `LIFEOS_DISTRIBUTION=signed` for safe default update checks.
 
 Feed file mapping:
 
@@ -168,10 +168,10 @@ For GitHub Releases, the practical value is usually:
 
 ```bash
 LIFEOS_UPDATE_URL="https://github.com/<owner>/<repo>/releases/download/v0.1.4-alpha"
-LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1
+LIFEOS_DISTRIBUTION=signed
 ```
 
-For a private update host, use the HTTPS folder that contains `latest-mac.yml`, `latest.yml`, or `latest-linux.yml` next to the installer artifact. Keep `release-manifest.json` in the same folder so release checks and support diagnostics can verify exactly which files were published.
+For an unsigned alpha feed test, use the same safe HTTPS directory and explicitly set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`. For a private update host, use the HTTPS folder that contains `latest-mac.yml`, `latest.yml`, or `latest-linux.yml` next to the installer artifact. Keep `release-manifest.json` in the same folder so release checks and support diagnostics can verify exactly which files were published.
 
 ## Startup Failure Experience
 

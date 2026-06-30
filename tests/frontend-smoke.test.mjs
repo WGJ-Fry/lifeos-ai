@@ -275,7 +275,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
 
   const offlineQueueSyncHookSource = await readFile(path.join(rootDir, "src", "hooks", "useOfflineQueueSync.ts"), "utf8");
   assert.match(offlineQueueSyncHookSource, /offlineQueueSummary\.nextRetryAt/);
-  assert.match(offlineQueueSyncHookSource, /window\.setTimeout\(\(\) => \{\s*void syncQueuedMessages\(\);/);
+  assert.match(offlineQueueSyncHookSource, /recordOfflineQueueRecoveryAttempt/);
+  assert.match(offlineQueueSyncHookSource, /window\.setTimeout\(\(\) => \{\s*void syncQueuedMessages\(false, "timer"\);/);
   assert.match(offlineQueueSyncHookSource, /options\.clearConfirmMessage/);
   assert.doesNotMatch(offlineQueueSyncHookSource, /Clear all unsynced offline messages/);
 

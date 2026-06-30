@@ -119,6 +119,8 @@ function normalizeDesktopRuntimeConfig(config) {
 function validateDesktopUpdateUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return { configured: false, enabled: false, mode: "manual", updateUrlHost: "", reason: "not_configured" };
+  const explicitOptIn = process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE === "1";
+  const signedDistribution = process.env.LIFEOS_DISTRIBUTION === "signed";
   try {
     const parsed = new URL(raw);
     const updateUrlHost = parsed.host;
@@ -130,7 +132,7 @@ function validateDesktopUpdateUrl(value) {
     if (/\.(dmg|zip|exe|AppImage|yml|json)$/i.test(parsed.pathname)) {
       return blocked("url_points_to_artifact");
     }
-    if (process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE !== "1") {
+    if (!explicitOptIn && !signedDistribution) {
       return { configured: true, enabled: false, mode: "manual", updateUrlHost, reason: "opt_in_required", url: raw };
     }
     return { configured: true, enabled: true, mode: "feed-ready", updateUrlHost, reason: "ready", url: raw };

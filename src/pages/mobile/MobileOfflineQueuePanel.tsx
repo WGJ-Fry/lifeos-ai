@@ -9,6 +9,7 @@ import { useI18n } from "../../i18n/I18nProvider";
 import { Metric } from "./MobileDeviceStatusCards";
 import { MobileOfflineQueueHealthCard } from "./MobileOfflineQueueHealthCard";
 import MobileOfflineQueueConflictCard from "./MobileOfflineQueueConflictCard";
+import MobileOfflineQueueRecoveryAttemptCard from "./MobileOfflineQueueRecoveryAttemptCard";
 import { QueueItem, QueueStorageCard } from "./MobileOfflineQueueCards";
 
 type MobileOfflineQueuePanelProps = {
@@ -104,6 +105,7 @@ export default function MobileOfflineQueuePanel({
           </div>
         </div>
       ) : null}
+      <MobileOfflineQueueRecoveryAttemptCard summary={queueSummary} />
       {queueSummary.count === 0 ? (
         <div className="mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-xs leading-relaxed text-emerald-100">
           <div className="font-bold">{t("offlineQueue.emptyTitle")}</div>
@@ -135,14 +137,7 @@ export default function MobileOfflineQueuePanel({
             <span className="text-zinc-500">{t("mobileDevice.recentItems", { shown: visibleQueueItems.length, total: queueItems.length })}</span>
           </div>
           {visibleQueueItems.map((item) => (
-            <div key={item.id}>
-              <QueueItem
-                item={item}
-                onRetry={() => onRetryItem(item)}
-                onCopy={() => onCopyItem(item)}
-                onRemove={() => onRemoveItem(item)}
-              />
-            </div>
+            <div key={item.id}><QueueItem item={item} onRetry={() => onRetryItem(item)} onCopy={() => onCopyItem(item)} onRemove={() => onRemoveItem(item)} /></div>
           ))}
           {queueItems.length > 5 ? (
             <button

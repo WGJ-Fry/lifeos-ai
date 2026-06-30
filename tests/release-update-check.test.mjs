@@ -84,8 +84,10 @@ test("release update check detects newer public prerelease and checksum asset", 
 test("release update check exposes opt-in auto-update feed readiness", async () => {
   const oldUpdateUrl = process.env.LIFEOS_UPDATE_URL;
   const oldAutoUpdate = process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE;
+  const oldDistribution = process.env.LIFEOS_DISTRIBUTION;
   const module = await import(`../server/releaseUpdateCheck.ts?case=auto-${Date.now()}`);
   try {
+    delete process.env.LIFEOS_DISTRIBUTION;
     process.env.LIFEOS_UPDATE_URL = "https://updates.example.com/lifeos-ai/v0.1.5-alpha";
     delete process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE;
     const manualUntilOptIn = await module.checkReleaseUpdate({
@@ -104,11 +106,24 @@ test("release update check exposes opt-in auto-update feed readiness", async () 
     assert.equal(feedReady.autoUpdate.updateUrlHost, "updates.example.com");
     assert.equal(feedReady.autoUpdate.feedUrl, "https://updates.example.com/lifeos-ai/v0.1.5-alpha");
     assert.equal(feedReady.manualUpdateRequired, false);
+
+    delete process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE;
+    process.env.LIFEOS_DISTRIBUTION = "signed";
+    const signedDefaultReady = await module.checkReleaseUpdate({
+      fetchImpl: async () => jsonResponse([{ tag_name: "v0.1.5-alpha", draft: false, prerelease: true, assets: [] }]),
+    });
+    assert.equal(signedDefaultReady.autoUpdateEnabled, true);
+    assert.equal(signedDefaultReady.autoUpdate.mode, "feed-ready");
+    assert.equal(signedDefaultReady.autoUpdate.reason, "ready");
+    assert.equal(signedDefaultReady.manualUpdateRequired, false);
+    assert.match(signedDefaultReady.autoUpdate.requirements.join("\n"), /signed\/notarized packages/);
   } finally {
     if (oldUpdateUrl === undefined) delete process.env.LIFEOS_UPDATE_URL;
     else process.env.LIFEOS_UPDATE_URL = oldUpdateUrl;
     if (oldAutoUpdate === undefined) delete process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE;
     else process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE = oldAutoUpdate;
+    if (oldDistribution === undefined) delete process.env.LIFEOS_DISTRIBUTION;
+    else process.env.LIFEOS_DISTRIBUTION = oldDistribution;
   }
 });
 

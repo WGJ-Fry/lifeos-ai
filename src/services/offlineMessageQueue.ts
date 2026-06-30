@@ -68,6 +68,16 @@ export type OfflineMessageQueueSyncMeta = {
   lastSyncedCount?: number;
   lastAckedMutationIds?: string[];
   lastAckedIdempotencyKeys?: string[];
+  lastRecoveryAttemptAt?: number;
+  lastRecoveryAttemptResult?: OfflineMessageQueueRecoveryAttemptResult;
+  lastRecoveryAttemptTrigger?: OfflineMessageQueueRecoveryTrigger;
+  lastRecoveryAttemptMode?: OfflineMessageQueueSyncPlan["mode"] | "manual-force";
+  lastRecoveryAttemptReasonKey?: string;
+  lastRecoveryAttemptDetailKey?: string;
+  lastRecoveryAttemptReadyCount?: number;
+  lastRecoveryAttemptQueueCount?: number;
+  lastRecoveryAttemptSyncedCount?: number;
+  lastRecoveryAttemptError?: string;
 };
 
 export type OfflineMessageFailureKind = "network" | "auth" | "server" | "storage" | "size" | "interrupted" | "unknown";
@@ -165,6 +175,9 @@ export type OfflineMessageQueueSyncGuard = {
   recovery: OfflineMessageQueueRecoverySummary;
 };
 
+export type OfflineMessageQueueRecoveryAttemptResult = "synced" | "blocked" | "failed";
+export type OfflineMessageQueueRecoveryTrigger = "foreground" | "background-sync" | "network-change" | "visibility" | "manual" | "timer";
+
 export type OfflineMessageQueueRecoveryAction =
   | "none"
   | "resolve-conflicts"
@@ -245,6 +258,16 @@ function readSyncMeta(): OfflineMessageQueueSyncMeta {
       lastSyncedCount: Number.isFinite(parsed?.lastSyncedCount) ? parsed.lastSyncedCount : undefined,
       lastAckedMutationIds: Array.isArray(parsed?.lastAckedMutationIds) ? parsed.lastAckedMutationIds.filter((id: unknown): id is string => typeof id === "string").slice(0, 10) : undefined,
       lastAckedIdempotencyKeys: Array.isArray(parsed?.lastAckedIdempotencyKeys) ? parsed.lastAckedIdempotencyKeys.filter((id: unknown): id is string => typeof id === "string").slice(0, 10) : undefined,
+      lastRecoveryAttemptAt: Number.isFinite(parsed?.lastRecoveryAttemptAt) ? parsed.lastRecoveryAttemptAt : undefined,
+      lastRecoveryAttemptResult: parsed?.lastRecoveryAttemptResult === "synced" || parsed?.lastRecoveryAttemptResult === "blocked" || parsed?.lastRecoveryAttemptResult === "failed" ? parsed.lastRecoveryAttemptResult : undefined,
+      lastRecoveryAttemptTrigger: parsed?.lastRecoveryAttemptTrigger === "foreground" || parsed?.lastRecoveryAttemptTrigger === "background-sync" || parsed?.lastRecoveryAttemptTrigger === "network-change" || parsed?.lastRecoveryAttemptTrigger === "visibility" || parsed?.lastRecoveryAttemptTrigger === "manual" || parsed?.lastRecoveryAttemptTrigger === "timer" ? parsed.lastRecoveryAttemptTrigger : undefined,
+      lastRecoveryAttemptMode: parsed?.lastRecoveryAttemptMode === "idle" || parsed?.lastRecoveryAttemptMode === "background-ready" || parsed?.lastRecoveryAttemptMode === "manual-review" || parsed?.lastRecoveryAttemptMode === "blocked" || parsed?.lastRecoveryAttemptMode === "waiting-network" || parsed?.lastRecoveryAttemptMode === "waiting-stable-network" || parsed?.lastRecoveryAttemptMode === "manual-force" ? parsed.lastRecoveryAttemptMode : undefined,
+      lastRecoveryAttemptReasonKey: typeof parsed?.lastRecoveryAttemptReasonKey === "string" ? parsed.lastRecoveryAttemptReasonKey : undefined,
+      lastRecoveryAttemptDetailKey: typeof parsed?.lastRecoveryAttemptDetailKey === "string" ? parsed.lastRecoveryAttemptDetailKey : undefined,
+      lastRecoveryAttemptReadyCount: Number.isFinite(parsed?.lastRecoveryAttemptReadyCount) ? parsed.lastRecoveryAttemptReadyCount : undefined,
+      lastRecoveryAttemptQueueCount: Number.isFinite(parsed?.lastRecoveryAttemptQueueCount) ? parsed.lastRecoveryAttemptQueueCount : undefined,
+      lastRecoveryAttemptSyncedCount: Number.isFinite(parsed?.lastRecoveryAttemptSyncedCount) ? parsed.lastRecoveryAttemptSyncedCount : undefined,
+      lastRecoveryAttemptError: typeof parsed?.lastRecoveryAttemptError === "string" ? sanitizeOfflineMessageError(parsed.lastRecoveryAttemptError) : undefined,
     };
   } catch {
     return {};
@@ -257,6 +280,7 @@ function writeSyncMeta(meta: OfflineMessageQueueSyncMeta) {
     ...meta,
     lastAckedMutationIds: meta.lastAckedMutationIds?.slice(0, 10),
     lastAckedIdempotencyKeys: meta.lastAckedIdempotencyKeys?.slice(0, 10),
+    lastRecoveryAttemptError: meta.lastRecoveryAttemptError ? sanitizeOfflineMessageError(meta.lastRecoveryAttemptError) : undefined,
   }));
 }
 
@@ -1334,6 +1358,31 @@ export function getOfflineMessageQueueSyncGuard(
   };
 }
 
+export function recordOfflineQueueRecoveryAttempt(input: {
+  result: OfflineMessageQueueRecoveryAttemptResult;
+  trigger?: OfflineMessageQueueRecoveryTrigger;
+  guard?: OfflineMessageQueueSyncGuard;
+  syncedCount?: number;
+  error?: unknown;
+  now?: number;
+}) {
+  const meta = readSyncMeta();
+  writeSyncMeta({
+    ...meta,
+    lastRecoveryAttemptAt: input.now ?? Date.now(),
+    lastRecoveryAttemptResult: input.result,
+    lastRecoveryAttemptTrigger: input.trigger || "foreground",
+    lastRecoveryAttemptMode: input.guard?.mode,
+    lastRecoveryAttemptReasonKey: input.guard?.reasonKey,
+    lastRecoveryAttemptDetailKey: input.guard?.detailKey,
+    lastRecoveryAttemptReadyCount: input.guard?.readyCount,
+    lastRecoveryAttemptQueueCount: input.guard?.queueCount,
+    lastRecoveryAttemptSyncedCount: Number.isFinite(input.syncedCount) ? input.syncedCount : undefined,
+    lastRecoveryAttemptError: input.error ? sanitizeOfflineMessageError(input.error) : undefined,
+  });
+  emitQueueChanged();
+}
+
 export function removeOfflineMessages(ids: string[]) {
   const idSet = new Set(ids);
   writeQueue(readQueue().filter((item) => !idSet.has(item.id)), { requestSync: false });
@@ -1354,7 +1403,9 @@ export function markOfflineMessagesSynced(ids: string[]) {
   const syncedCount = queue.length - nextQueue.length;
   if (syncedCount === 0) return;
   const syncedItems = queue.filter((item) => idSet.has(item.id));
+  const meta = readSyncMeta();
   writeSyncMeta({
+    ...meta,
     lastSyncedAt: Date.now(),
     lastSyncedCount: syncedCount,
     lastAckedMutationIds: syncedItems.map((item) => item.mutationId),

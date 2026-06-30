@@ -2306,6 +2306,8 @@ function checkAssets() {
     releaseUpdateCheckSource.includes("chooseAssetForPlatform") &&
     releaseUpdateCheckSource.includes("checksumCommandForPlatform") &&
     releaseUpdateCheckSource.includes("LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE") &&
+    releaseUpdateCheckSource.includes("LIFEOS_DISTRIBUTION") &&
+    releaseUpdateCheckSource.includes("signedDistribution") &&
     releaseUpdateCheckSource.includes("buildAutoUpdateState") &&
     releaseUpdateStatusCardSource.includes("manualUpdatePlan") &&
     releaseUpdateStatusCardSource.includes("autoUpdate.mode") &&
@@ -2318,8 +2320,9 @@ function checkAssets() {
     translationsSource.includes("diagnostics.releaseUpdate.step.checksum") &&
     releaseUpdateCheckTestSource.includes("manualUpdatePlan.platform") &&
     releaseUpdateCheckTestSource.includes("opt-in auto-update feed readiness") &&
+    releaseUpdateCheckTestSource.includes("signedDefaultReady") &&
     frontendSmokeTestSource.includes("releaseUpdate\\.manualPlan")
-  ) pass("admin update check provides a platform-specific manual SHA256 update plan and guarded auto-update feed readiness");
+  ) pass("admin update check provides a platform-specific manual SHA256 update plan, explicit opt-in feed readiness, and signed-distribution safe defaults");
   else warn("admin update check is missing platform-specific manual update plan coverage");
 
   const calendarSyncPreviewSource = exists("server/calendarSyncPreview.ts") ? fs.readFileSync(path.join(rootDir, "server/calendarSyncPreview.ts"), "utf8") : "";
@@ -2831,6 +2834,7 @@ function checkSecurityConfig() {
     desktopMain.includes("url_contains_credentials_or_tokens") &&
     desktopMain.includes("url_points_to_artifact") &&
     desktopMain.includes("LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE") &&
+    desktopMain.includes("LIFEOS_DISTRIBUTION") &&
     desktopMain.includes("opt_in_required") &&
     desktopMain.includes("desktopUpdateStatus.enabled") &&
     desktopMain.includes("desktopUpdateStatus.mode") &&
@@ -2839,7 +2843,7 @@ function checkSecurityConfig() {
     desktopSmokeTestSource.includes("diagnostics.updates.mode") &&
     desktopSmokeTestSource.includes("diagnostics.updates.label") &&
     desktopSmokeTestSource.includes("url_contains_credentials_or_tokens")
-  ) pass("desktop runtime disables unsafe auto-update URLs and requires explicit auto-update opt-in");
+  ) pass("desktop runtime disables unsafe auto-update URLs, supports signed safe defaults, and requires opt-in for unsigned alpha");
   else warn("desktop runtime may accept unsafe auto-update URLs");
   if (
     desktopMain.includes("function desktopUpdateLabel") &&

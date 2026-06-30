@@ -23,7 +23,7 @@ Package version: `0.1.4-alpha.0`
 - Release truth checks that keep README, release notes, Docker image tags, asset names, alpha limitations, complete desktop assets, and real-world remote acceptance evidence aligned before public promotion.
 - Remote acceptance release evidence now requires fresh per-scenario coverage, proof text, stable HTTPS, and diagnostic-bundle redaction review before public promotion.
 - Remote health monitoring now keeps recent long-run samples with pass/fail counts, recovery attempts, consecutive successes, and observed duration in network diagnostics and diagnostic bundles. These samples support long-term evidence, but real phone cellular, network-switch, restart, stale-QR, and tunnel-interruption acceptance still remain required.
-- Desktop update diagnostics now show manual mode, blocked feed URLs, or explicitly opted-in HTTPS feed readiness. `LIFEOS_UPDATE_URL` alone does not enable update checks; maintainers must also set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
+- Desktop update diagnostics now show manual mode, blocked feed URLs, explicitly opted-in HTTPS feed readiness, or signed-distribution safe defaults. Unsigned alpha builds still require `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`; signed distributions can use a safe HTTPS feed as the default update path.
 
 ## Desktop Packages
 
@@ -46,7 +46,7 @@ docker pull ghcr.io/wgj-fry/lifeos-ai:v0.1.4-alpha
 
 ## Current Limits
 
-- Automatic updates are not enabled by default. Use manual download plus SHA256 verification unless a maintainer publishes a stable HTTPS feed and explicitly sets `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
+- Automatic updates are not enabled by default for the public unsigned alpha. Use manual download plus SHA256 verification unless a maintainer publishes a stable HTTPS feed and either ships a signed distribution or explicitly opts an unsigned alpha into feed checks.
 - macOS Developer ID signing/notarization and Windows Authenticode signing are not part of this unsigned alpha.
 - Apple Calendar, Google Calendar, Google Tasks, and system reminders full background account sync is not broadly shipped yet. Narrow connector writes require explicit environment opt-in, explicit admin confirmation, audit logging, SQLite write history, rollback status, and real-account `calendar:acceptance` evidence before public promotion.
 - `.ics` support is read-only local ingestion, not two-way calendar/task management.

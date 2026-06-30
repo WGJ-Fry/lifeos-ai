@@ -201,11 +201,12 @@ function installCommandForPlatform(platform: ReleaseUpdatePlatform, assetName: s
 
 function buildAutoUpdateState(): ReleaseAutoUpdateState {
   const raw = String(process.env.LIFEOS_UPDATE_URL || "").trim();
-  const optIn = process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE === "1";
+  const explicitOptIn = process.env.LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE === "1";
+  const signedDistribution = process.env.LIFEOS_DISTRIBUTION === "signed";
   const baseRequirements = [
     "Publish the complete release/update-feed directory to the HTTPS feed URL.",
     "Keep SHA256SUMS and release-manifest.json beside the latest*.yml feed files.",
-    "Set LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1 only after the feed URL is stable and public.",
+    "Use signed/notarized packages for default automatic update checks, or set LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1 after the feed URL is stable and public.",
   ];
   if (!raw) {
     return {
@@ -233,7 +234,7 @@ function buildAutoUpdateState(): ReleaseAutoUpdateState {
     if (parsed.protocol !== "https:") return blocked("non_https");
     if (parsed.username || parsed.password || parsed.search || parsed.hash) return blocked("url_contains_credentials_or_tokens");
     if (/\.(dmg|zip|exe|AppImage|yml|json)$/i.test(parsed.pathname)) return blocked("url_points_to_artifact");
-    if (!optIn) {
+    if (!explicitOptIn && !signedDistribution) {
       return {
         configured: true,
         enabled: false,

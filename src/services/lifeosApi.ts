@@ -550,6 +550,14 @@ export type ConfigDiagnostics = {
       sha256: string;
       releaseDate: string;
     }>;
+    manualReview: {
+      required: boolean;
+      items: Array<{
+        id: string;
+        labelKey: string;
+        detailKey: string;
+      }>;
+    };
     recommendations: string[];
   };
   calendarSync: CalendarSyncPreview;

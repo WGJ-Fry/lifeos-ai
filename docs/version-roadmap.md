@@ -54,7 +54,9 @@ These changes are implemented on `main` after the public `v0.1.4-alpha` release 
 - Failed server-side static smoke checks can now trigger an automatic rollback to the recorded safe version for low-risk Studio repairs, while keeping the failure and rollback evidence visible.
 - Release promotion truth checks now require a remote acceptance evidence file when running `npm run version:truth:release`; the evidence must show a stable HTTPS entry plus completed cellular, network-switch, restart, stale-QR, network-interruption, and diagnostic-export scenarios.
 - Remote health monitoring now keeps recent long-run samples in diagnostics and diagnostic bundles: pass/fail counts, recovery attempts, consecutive successes, observed duration, and latest samples. This supports long-term evidence but does not replace real phone acceptance.
-- Desktop update diagnostics now distinguish manual mode, blocked feeds, and explicitly opted-in HTTPS feed readiness. A safe `LIFEOS_UPDATE_URL` is not enough by itself; maintainers must also set `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`.
+- Mobile offline recovery now records the latest foreground/background/network/timer recovery attempt, including whether it synced, paused, or failed, the trigger, the sync mode, ready/total queue counts, synced count, and redacted failure reason. The mobile queue page surfaces this evidence for weak-network and multi-device troubleshooting.
+- Release diagnostics now include a manual public-release review checklist for GitHub Latest, deprecated old releases, clean-machine SHA256 verification, anonymous GHCR pulls, and README/Release/Discussions truthfulness.
+- Desktop update diagnostics now distinguish manual mode, blocked feeds, explicitly opted-in HTTPS feed readiness, and signed-distribution safe defaults. A signed distribution with a valid HTTPS feed can enter feed-ready mode without `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`; unsigned alpha builds still require explicit opt-in and should remain manual for public testing.
 
 ## Next Planned Alpha: v0.1.5-alpha
 
@@ -193,6 +195,9 @@ These capabilities should not be described as current release features until the
 - 已应用的 Studio 自动修复现在必须记录烟测复核后才会从队列消失；通过会关闭队列项，失败会保留回滚建议和人工复核状态。
 - 低风险 Studio 修复如果后端静态烟测失败，现在可以自动回滚到记录的安全版本，同时保留失败和回滚证据。
 - 远程健康监控现在会把最近长期样本写入诊断和诊断包：通过/失败次数、恢复尝试、连续成功、观察时长和最近样本。这能辅助长期证据，但不能替代真实手机验收。
+- 手机离线恢复现在会记录最近一次前台、后台、切网、页面恢复或定时恢复尝试：是否写回、暂停或失败，触发来源、同步模式、可写回/总队列数量、成功写回数量和脱敏失败原因，并在手机队列页展示。
+- 发布诊断现在包含公开发布人工复核清单：GitHub Latest、旧 Release 废弃状态、干净机器 SHA256 校验、GHCR 匿名拉取，以及 README / Release / Discussions 是否只写已发布能力。
+- 桌面更新诊断现在区分手动模式、被阻断 feed、显式 opt-in 的 HTTPS feed，以及 signed 分发安全默认。signed 分发配合有效 HTTPS feed 可以不再额外要求 `LIFEOS_ENABLE_DESKTOP_AUTO_UPDATE=1`；unsigned alpha 仍需要显式 opt-in，公开测试建议继续手动更新。
 
 ### 下一计划版本：v0.1.5-alpha
 
