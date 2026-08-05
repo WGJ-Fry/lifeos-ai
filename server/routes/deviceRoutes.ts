@@ -48,6 +48,33 @@ function normalizePairingBaseUrl(value: unknown) {
   return normalized;
 }
 
+function isLoopbackBindHost(bindHost: string) {
+  const host = String(bindHost || "").trim().toLowerCase().replace(/^\[|\]$/g, "");
+  return host === "localhost" || host === "::1" || host.startsWith("127.");
+}
+
+function isPrivateLanIPv4(host: string) {
+  if (/^10\./.test(host)) return true;
+  if (/^192\.168\./.test(host)) return true;
+  const match = host.match(/^172\.(\d+)\./);
+  return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
+}
+
+// A LAN IP in the QR only works when the server actually listens on that interface.
+// While the core is bound to loopback the QR still renders and still looks valid, but
+// the phone can only ever get a connection refusal. Fail loudly instead.
+// Tunnel hostnames (Tailscale, Cloudflare) legitimately proxy into loopback, so only
+// literal private IPv4 addresses are rejected here.
+export function pairingBaseUrlNeedsLanBinding(baseUrl: string, bindHost: string) {
+  if (!isLoopbackBindHost(bindHost)) return false;
+  try {
+    const host = new URL(baseUrl).hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    return isPrivateLanIPv4(host);
+  } catch {
+    return false;
+  }
+}
+
 function sanitizeDevice(device: DeviceRecord) {
   const { accessTokenHash, ...safeDevice } = device;
   return safeDevice;
@@ -59,6 +86,32 @@ function sanitizeDeviceWithConnectivity(device: DeviceRecord) {
     connectivityReport: getLatestDeviceConnectivityReport(device.id) || null,
     icloudHandoffEvent: getLatestDeviceIcloudHandoffEvent(device.id) || null,
   };
+}
+
+function normalizeP256PublicKey(value: unknown) {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") throw new Error("publicKey must be a base64url P-256 SPKI key");
+  const encoded = value.trim();
+  if (!encoded || encoded.length > 256 || !/^[A-Za-z0-9_-]+$/.test(encoded)) {
+    throw new Error("publicKey must be a base64url P-256 SPKI key");
+  }
+
+  try {
+    const der = Buffer.from(encoded, "base64url");
+    if (!der.length || der.toString("base64url") !== encoded) {
+      throw new Error("non-canonical key");
+    }
+    const key = crypto.createPublicKey({ key: der, format: "der", type: "spki" });
+    const curve = key.asymmetricKeyDetails?.namedCurve;
+    if (key.asymmetricKeyType !== "ec" || !["prime256v1", "P-256"].includes(String(curve || ""))) {
+      throw new Error("unsupported curve");
+    }
+    const canonical = key.export({ type: "spki", format: "der" }).toString("base64url");
+    if (canonical !== encoded) throw new Error("non-canonical key");
+    return canonical;
+  } catch {
+    throw new Error("publicKey must be a canonical P-256 SPKI key");
+  }
 }
 
 function connectivityAuditSummary(deviceId: string) {
@@ -198,7 +251,7 @@ function revokeDevice(device: DeviceRecord, actor: { type: string; id: string },
   });
 }
 
-export function registerDeviceRoutes(app: express.Express) {
+export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1") {
   app.post("/api/v1/devices/bind/start", rateLimit({ keyPrefix: "bind-start", windowMs: 5 * 60 * 1000, max: 20 }), requireAdmin, (req, res) => {
     const now = Date.now();
     const token = createSecret("bind");
@@ -207,6 +260,17 @@ export function registerDeviceRoutes(app: express.Express) {
       baseUrl = normalizePairingBaseUrl(req.body?.baseUrl) || baseUrl;
     } catch (error: any) {
       return res.status(400).json({ error: error.message || "Invalid baseUrl" });
+    }
+    if (pairingBaseUrlNeedsLanBinding(baseUrl, bindHost)) {
+      insertAuditLog("binding_session_blocked", "binding_session", "unknown", {
+        reason: "lan_pairing_requires_lan_binding",
+        bindHost,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      return res.status(409).json({
+        code: "lan_pairing_requires_lan_binding",
+        error: "This computer only listens on its own loopback address, so a LAN QR code cannot be reached from the phone. Turn on LAN access and restart OwnOrbit, or pair through Tailscale HTTPS Serve or Cloudflare Tunnel instead.",
+        recovery: { action: "enable-lan-access-and-restart" },
+      });
     }
     const session: BindingSession = {
       id: crypto.randomUUID(),
@@ -263,6 +327,15 @@ export function registerDeviceRoutes(app: express.Express) {
     if (!token || !deviceName) {
       return res.status(400).json({ error: "token and deviceName are required" });
     }
+    let normalizedPublicKey: string | undefined;
+    try {
+      normalizedPublicKey = normalizeP256PublicKey(publicKey);
+    } catch (error: any) {
+      return res.status(400).json({
+        code: "invalid_device_public_key",
+        error: error.message || "Device public key is invalid",
+      });
+    }
 
     const now = Date.now();
     const session = getOpenBindingSessionByToken(token, now);
@@ -289,20 +362,20 @@ export function registerDeviceRoutes(app: express.Express) {
       });
     }
 
+    const authMethod = normalizedPublicKey ? "signature" : "token";
     const accessToken = createSecret("device");
     const device: DeviceRecord = {
       id: crypto.randomUUID(),
       name: String(deviceName).slice(0, 80),
       type: deviceType === "desktop" || deviceType === "browser" ? deviceType : "mobile",
       status: "offline",
-      publicKey: typeof publicKey === "string" ? publicKey : undefined,
+      publicKey: normalizedPublicKey,
       accessTokenHash: tokenHash(accessToken),
-      accessTokenExpiresAt: deviceTokenExpiresAt(now),
+      accessTokenExpiresAt: authMethod === "token" ? deviceTokenExpiresAt(now) : undefined,
       createdAt: now,
       lastSeenAt: now,
     };
 
-    const authMethod = device.publicKey ? "signature" : "token";
     insertDevice(device);
     confirmBindingSession(session.id, device.id, now);
     noteCloudKitLocalChange("device-trust", { type: "device", id: device.id });
@@ -311,7 +384,7 @@ export function registerDeviceRoutes(app: express.Express) {
       name: device.name,
       type: device.type,
       authMethod,
-      credentialExpiresAt: device.accessTokenExpiresAt,
+      credentialExpiresAt: device.accessTokenExpiresAt || null,
     }, "device", device.id);
 
     broadcastRealtime({
@@ -325,7 +398,7 @@ export function registerDeviceRoutes(app: express.Express) {
       device: sanitizeDevice(device),
       authMethod,
       ...(authMethod === "token" ? { accessToken } : {}),
-      accessTokenExpiresAt: device.accessTokenExpiresAt,
+      ...(device.accessTokenExpiresAt ? { accessTokenExpiresAt: device.accessTokenExpiresAt } : {}),
     });
   });
 
