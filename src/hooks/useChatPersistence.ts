@@ -34,7 +34,7 @@ export function useChatPersistence() {
   const chatSessionPromiseRef = useRef<Promise<string> | null>(null);
 
   const createAndUseChatSession = useCallback(async () => {
-    const { session } = await createChatSession("JARVIS Main Session");
+    const { session } = await createChatSession("OwnOrbit Main Session");
     saveActiveChatSessionId(session.id);
     chatSessionIdRef.current = session.id;
     chatSessionPromiseRef.current = Promise.resolve(session.id);

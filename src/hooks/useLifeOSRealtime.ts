@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createDeviceWebSocketAuthMessage, getStoredDeviceCredentialAsync, realtimeWebSocketUrl, rotateDeviceToken } from "../services/lifeosApi";
+import { createDeviceWebSocketAuthMessage, getStoredDeviceCredentialAsync, realtimeWebSocketUrl, refreshDeviceEndpoints, rotateDeviceToken } from "../services/lifeosApi";
 
 export type RealtimeStatus = "unbound" | "connecting" | "connected" | "offline";
 
@@ -125,10 +125,19 @@ export function useLifeOSRealtime() {
             setNextReconnectAt(null);
             setLastError(null);
             setStatus("connected");
+            // Reconnecting is exactly when the address set may have moved
+            // (desktop restart, port drift, new tunnel) — refresh the list
+            // while this origin still works.
+            refreshDeviceEndpoints().catch(() => null);
           }
           if (event?.type === "device.token.rotate_requested") {
             const currentCredential = await getStoredDeviceCredentialAsync();
             if (currentCredential?.accessToken) rotateDeviceToken().catch(() => null);
+          }
+          if (event?.type === "endpoints.changed") {
+            // A server-side push means the set really moved — bypass the
+            // client throttle so the new list lands immediately.
+            refreshDeviceEndpoints({ force: true }).catch(() => null);
           }
         } catch {}
         setLastEventAt(Date.now());

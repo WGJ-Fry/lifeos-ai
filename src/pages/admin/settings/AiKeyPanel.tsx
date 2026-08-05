@@ -5,6 +5,7 @@ import type { AiProviderId, AiProviderStatus, ConfigDiagnostics } from "../../..
 import { useI18n } from "../../../i18n/I18nProvider";
 import type { TranslationKey } from "../../../i18n/translations";
 import AiProviderSecuritySummary from "./AiProviderSecuritySummary";
+import { getAiProviderTestFeedback } from "../../../services/aiProviderTestFeedback";
 
 function formatAiKeyApiError(error: any, t: (key: any, params?: Record<string, any>) => string, fallbackKey: TranslationKey) {
   if (isLifeosRequestTimeout(error)) return t("api.requestTimeout");
@@ -107,9 +108,12 @@ export default function AiKeyPanel({ diagnostics, onChanged }: { diagnostics: Co
       const result = await testAiProvider(selectedProvider, "live");
       const testDetails = result.mode === "live" ? t("aiKey.testLiveOk", { count: result.modelCount ?? 0 }) : t("aiKey.testConfigOnly");
       const catalogDetails = result.modelCatalogUpdated ? ` ${t("aiKey.modelCatalogUpdated", { count: result.discoveredModelCount || result.modelCount || 0 })}` : "";
-      setStatus(result.ok
-        ? `${t("aiKey.testConfigOk", { provider: result.provider.provider, model: result.selectedModel || result.provider.selectedModel || result.provider.defaultModel || "-" })} ${testDetails}${catalogDetails}`
-        : result.message);
+      if (result.ok && result.selectedModelAvailable !== false) {
+        setStatus(`${t("aiKey.testConfigOk", { provider: result.provider.provider, model: result.selectedModel || result.provider.selectedModel || result.provider.defaultModel || "-" })} ${testDetails}${catalogDetails}`);
+      } else {
+        const feedback = getAiProviderTestFeedback(result);
+        setStatus(t(feedback.key, feedback.params));
+      }
       await refreshProviders();
     } catch (error: any) {
       setStatus(formatAiKeyApiError(error, t, "aiKey.testFailed"));

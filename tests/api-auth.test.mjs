@@ -21,6 +21,7 @@ function request(port, pathname, options = {}) {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      Origin: `http://127.0.0.1:${port}`,
       ...(options.headers || {}),
     },
   });
@@ -56,6 +57,18 @@ function signedDeviceHeaders({ deviceId, privateKey, method = "GET", pathname, b
     "X-LifeOS-Device-Timestamp": timestamp,
     "X-LifeOS-Device-Nonce": nonce,
     "X-LifeOS-Device-Signature": signature,
+  };
+}
+
+function signedWebsocketAuthEvent({ deviceId, privateKey, timestamp = String(Date.now()), nonce = crypto.randomUUID() }) {
+  const payload = ["WS", "/api/v1/ws", "", timestamp, nonce].join("\n");
+  const signature = crypto.sign("sha256", Buffer.from(payload), { key: privateKey, dsaEncoding: "ieee-p1363" }).toString("base64url");
+  return {
+    type: "auth",
+    deviceId,
+    timestamp,
+    nonce,
+    signature,
   };
 }
 
@@ -192,6 +205,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     env: {
       ...process.env,
       NODE_ENV: "production",
+      LIFEOS_ALLOW_BROWSER_ADMIN_BOOTSTRAP: "1",
       LIFEOS_PORT: String(port),
       LIFEOS_DATA_DIR: dataDir,
       LIFEOS_HOST: "127.0.0.1",
@@ -222,6 +236,20 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(healthHeaders.headers.get("x-content-type-options"), "nosniff");
   assert.equal(healthHeaders.headers.get("referrer-policy"), "same-origin");
 
+  const oversizedBody = JSON.stringify({ value: "x".repeat(1_200_000) });
+  const oversizedPublicRequest = await request(port, "/api/v1/admin/login", {
+    method: "POST",
+    body: oversizedBody,
+  });
+  assert.equal(oversizedPublicRequest.status, 413);
+  assert.deepEqual(await oversizedPublicRequest.json(), { error: "Request body is too large" });
+
+  const unauthenticatedLargeBackupImport = await request(port, "/api/v1/backups/encrypted-import", {
+    method: "POST",
+    body: oversizedBody,
+  });
+  assert.equal(unauthenticatedLargeBackupImport.status, 401);
+
   const unauthDevices = await request(port, "/api/v1/devices");
   assert.equal(unauthDevices.status, 401);
 
@@ -230,6 +258,22 @@ test("admin auth protects APIs and device binding enables mobile access", async 
 
   const statusBefore = await request(port, "/api/v1/admin/status").then((res) => res.json());
   assert.equal(statusBefore.configured, false);
+
+  const crossOriginSetup = await request(port, "/api/v1/admin/setup", {
+    method: "POST",
+    headers: { Origin: "https://malicious.example" },
+    body: JSON.stringify({ password: "correct horse battery staple" }),
+  });
+  assert.equal(crossOriginSetup.status, 403);
+  assert.equal((await crossOriginSetup.json()).code, "local_setup_only");
+
+  const forwardedSetup = await request(port, "/api/v1/admin/setup", {
+    method: "POST",
+    headers: { "X-Forwarded-For": "127.0.0.1" },
+    body: JSON.stringify({ password: "correct horse battery staple" }),
+  });
+  assert.equal(forwardedSetup.status, 403);
+  assert.equal((await forwardedSetup.json()).code, "local_setup_only");
 
   const setupResponse = await request(port, "/api/v1/admin/setup", {
     method: "POST",
@@ -241,7 +285,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(setup.onboardingRequired, true);
   assert.equal(setup.nextPath, "/admin/onboarding");
 
-  const adminHeaders = cookieHeader(setupResponse);
+  let adminHeaders = cookieHeader(setupResponse);
 
   const statusAfter = await request(port, "/api/v1/admin/status", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(statusAfter.configured, true);
@@ -259,6 +303,12 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "backup").required, false);
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "device").done, false);
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "device").required, true);
+  assert.deepEqual(initialOnboarding.onboarding.deviceReadiness, {
+    ready: false,
+    webDevices: 0,
+    cloudKitDevices: 0,
+    modes: [],
+  });
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "security").done, true);
   assert.equal(initialOnboarding.onboarding.steps.find((step) => step.id === "security").required, false);
 
@@ -267,6 +317,57 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     headers: adminHeaders,
   });
   assert.equal(incompleteOnboarding.status, 409);
+
+  const cloudKitOnboardingDb = new DatabaseSync(path.join(dataDir, "lifeos.db"));
+  const cloudKitOnboardingNow = Date.now();
+  cloudKitOnboardingDb.prepare("INSERT INTO cloudkit_device_keys (device_id, device_id_hash, display_name, device_type, channel_scope, public_key, public_key_fingerprint, status, created_at, expires_at, logical_clock, mutation_id, source_record_name, source_evidence_id, imported_at, applied_at, revoked_at) VALUES (?, ?, ?, 'ios', 'cloudkit-chat', ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, NULL)")
+    .run("onboarding-cloudkit-device", "onboarding-cloudkit-device-hash", "Onboarding iPhone", "onboarding-public-key", "onboarding-fingerprint", cloudKitOnboardingNow, cloudKitOnboardingNow + 60_000, 1, "onboarding-mutation", "onboarding-record", "onboarding-evidence", cloudKitOnboardingNow, cloudKitOnboardingNow);
+  const unauthenticatedChatDevices = await request(port, "/api/v1/admin/cloudkit-chat/devices");
+  assert.equal(unauthenticatedChatDevices.status, 401);
+  const pendingChatDevicesResponse = await request(port, "/api/v1/admin/cloudkit-chat/devices", { headers: adminHeaders });
+  assert.equal(pendingChatDevicesResponse.status, 200);
+  const pendingChatDevices = await pendingChatDevicesResponse.json();
+  assert.equal(pendingChatDevices.devices.summary.pending, 1);
+  assert.equal(pendingChatDevices.devices.summary.approved, 0);
+  assert.equal(pendingChatDevices.devices.items[0].state, "pending");
+  assert.equal(pendingChatDevices.devices.items[0].deviceId, undefined);
+  assert.equal(pendingChatDevices.devices.items[0].publicKey, undefined);
+  assert.equal(JSON.stringify(pendingChatDevices).includes("onboarding-public-key"), false);
+  assert.equal(JSON.stringify(pendingChatDevices).includes("onboarding-cloudkit-device-hash"), false);
+  const pendingChatDeviceId = pendingChatDevices.devices.items[0].id;
+  const approveWithoutCsrf = await request(port, `/api/v1/admin/cloudkit-chat/devices/${pendingChatDeviceId}/approve`, {
+    method: "POST",
+    headers: { Cookie: adminHeaders.Cookie },
+    body: "{}",
+  });
+  assert.equal(approveWithoutCsrf.status, 403);
+  const approveChatDevice = await request(port, `/api/v1/admin/cloudkit-chat/devices/${pendingChatDeviceId}/approve`, {
+    method: "POST",
+    headers: adminHeaders,
+    body: "{}",
+  });
+  assert.equal(approveChatDevice.status, 200);
+  assert.equal((await approveChatDevice.json()).device.state, "approved");
+  const cloudKitOnboarding = await request(port, "/api/v1/admin/onboarding", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(cloudKitOnboarding.onboarding.steps.find((step) => step.id === "device").done, true);
+  assert.deepEqual(cloudKitOnboarding.onboarding.deviceReadiness, {
+    ready: true,
+    webDevices: 0,
+    cloudKitDevices: 1,
+    modes: ["cloudkit-native"],
+  });
+  const revokeChatDevice = await request(port, `/api/v1/admin/cloudkit-chat/devices/${pendingChatDeviceId}/revoke`, {
+    method: "POST",
+    headers: adminHeaders,
+    body: "{}",
+  });
+  assert.equal(revokeChatDevice.status, 200);
+  assert.equal((await revokeChatDevice.json()).device.state, "revoked");
+  const onboardingAfterRevoke = await request(port, "/api/v1/admin/onboarding", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(onboardingAfterRevoke.onboarding.steps.find((step) => step.id === "device").done, false);
+  assert.equal(onboardingAfterRevoke.onboarding.deviceReadiness.cloudKitDevices, 0);
+  cloudKitOnboardingDb.prepare("DELETE FROM cloudkit_device_keys WHERE device_id = ?").run("onboarding-cloudkit-device");
+  cloudKitOnboardingDb.close();
 
   const diagnostics = await request(port, "/api/v1/admin/config-diagnostics", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(diagnostics.ai.provider, "Google Gemini");
@@ -487,22 +588,31 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(sequentialPasswordChangeBody.passwordPolicy.meetsPolicy, false);
   assert.equal(sequentialPasswordChangeBody.passwordPolicy.noLongRepeats, true);
   assert.equal(sequentialPasswordChangeBody.passwordPolicy.noSequentialPattern, false);
-  const strongPasswordChange = await request(port, "/api/v1/admin/password", {
+  const previousAdminHeaders = adminHeaders;
+  const strongPasswordChangeResponse = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
     body: JSON.stringify({ currentPassword: "correct horse battery staple", newPassword: "new strong password 123!" }),
-  }).then((res) => res.json());
+  });
+  const strongPasswordChange = await strongPasswordChangeResponse.json();
   assert.equal(strongPasswordChange.ok, true);
+  assert.equal(typeof strongPasswordChange.expiresAt, "number");
   assert.equal(strongPasswordChange.passwordPolicy.meetsPolicy, true);
   assert.equal(JSON.stringify(strongPasswordChange).includes("new strong password 123!"), false);
-  const changeBackPassword = await request(port, "/api/v1/admin/password", {
+  const revokedAdminSession = await request(port, "/api/v1/admin/onboarding", { headers: previousAdminHeaders });
+  assert.equal(revokedAdminSession.status, 401);
+  adminHeaders = cookieHeader(strongPasswordChangeResponse);
+
+  const changeBackPasswordResponse = await request(port, "/api/v1/admin/password", {
     method: "PUT",
     headers: adminHeaders,
     body: JSON.stringify({ currentPassword: "new strong password 123!", newPassword: "correct horse battery staple" }),
-  }).then((res) => res.json());
+  });
+  const changeBackPassword = await changeBackPasswordResponse.json();
   assert.equal(changeBackPassword.ok, true);
   assert.equal(changeBackPassword.passwordPolicy.meetsPolicy, true);
   assert.equal(JSON.stringify(changeBackPassword).includes("correct horse battery staple"), false);
+  adminHeaders = cookieHeader(changeBackPasswordResponse);
 
   const blockedNetworkDiagnostics = await request(port, "/api/v1/admin/network-diagnostics");
   assert.equal(blockedNetworkDiagnostics.status, 401);
@@ -1908,6 +2018,34 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     "X-LifeOS-Device-ID": credential.device.id,
     "X-LifeOS-Device-Token": credential.accessToken,
   };
+
+  // Endpoint discovery: bind/confirm hands the phone the address snapshot,
+  // the authenticated route serves it with version-conditional responses,
+  // and neither anonymous callers nor admin sessions may read it.
+  assert.equal(typeof credential.endpoints?.version, "string");
+  assert.ok(Array.isArray(credential.endpoints?.candidates));
+  const endpointsResponse = await request(port, "/api/v1/devices/me/endpoints", { headers: deviceHeaders });
+  assert.equal(endpointsResponse.status, 200);
+  const endpointsBody = await endpointsResponse.json();
+  assert.equal(typeof endpointsBody.version, "string");
+  assert.equal(endpointsBody.unchanged, false);
+  assert.ok(Array.isArray(endpointsBody.candidates));
+  for (const endpointCandidate of endpointsBody.candidates) {
+    assert.deepEqual(Object.keys(endpointCandidate).sort(), ["baseUrl", "id", "mode", "priority", "secure", "stability"]);
+  }
+  const endpointsUnchanged = await request(port, `/api/v1/devices/me/endpoints?version=${encodeURIComponent(endpointsBody.version)}`, { headers: deviceHeaders });
+  assert.equal(endpointsUnchanged.status, 200);
+  const endpointsUnchangedBody = await endpointsUnchanged.json();
+  assert.equal(endpointsUnchangedBody.unchanged, true);
+  assert.equal(endpointsUnchangedBody.candidates, undefined);
+  const anonEndpoints = await request(port, "/api/v1/devices/me/endpoints");
+  assert.equal(anonEndpoints.status, 401);
+  const adminEndpoints = await request(port, "/api/v1/devices/me/endpoints", { headers: adminHeaders });
+  assert.equal(adminEndpoints.status, 401);
+  // Health CORS reflection stays closed for unknown origins.
+  const evilOriginHealth = await request(port, "/api/v1/health", { headers: { Origin: "https://evil.example.com" } });
+  assert.equal(evilOriginHealth.headers.get("access-control-allow-origin"), null);
+
   const unauthConnectivityReport = await request(port, "/api/v1/devices/me/connectivity-report", {
     method: "POST",
     headers: adminHeaders,
@@ -2097,6 +2235,19 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     method: "POST",
     headers: adminHeaders,
   }).then((res) => res.json());
+  const invalidSignatureKeyPair = crypto.generateKeyPairSync("ec", { namedCurve: "P-384" });
+  const invalidSignatureBinding = await request(port, "/api/v1/devices/bind/confirm", {
+    method: "POST",
+    body: JSON.stringify({
+      token: signatureBinding.token,
+      deviceName: "Invalid Signature Phone",
+      deviceType: "mobile",
+      publicKey: invalidSignatureKeyPair.publicKey.export({ type: "spki", format: "der" }).toString("base64url"),
+    }),
+  }).then((res) => res.json().then((body) => ({ status: res.status, body })));
+  assert.equal(invalidSignatureBinding.status, 400);
+  assert.equal(invalidSignatureBinding.body.code, "invalid_device_public_key");
+
   const signatureKeyPair = createDeviceKeyPair();
   const signatureCredential = await request(port, "/api/v1/devices/bind/confirm", {
     method: "POST",
@@ -2109,7 +2260,7 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(signatureCredential.authMethod, "signature");
   assert.equal(signatureCredential.accessToken, undefined);
-  assert.equal(typeof signatureCredential.accessTokenExpiresAt, "number");
+  assert.equal(signatureCredential.accessTokenExpiresAt, undefined);
   const signedStateBody = JSON.stringify({ value: { enabled: true } });
   const signedStateHeaders = signedDeviceHeaders({
     deviceId: signatureCredential.device.id,
@@ -2124,6 +2275,223 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     body: signedStateBody,
   }).then((res) => res.json());
   assert.equal(signedState.value.enabled, true);
+
+  const replayedSignedState = await request(port, "/api/v1/state/lifeos_proxy_enabled", {
+    method: "PUT",
+    headers: signedStateHeaders,
+    body: signedStateBody,
+  });
+  assert.equal(replayedSignedState.status, 401);
+
+  const signedWebsocketEvent = signedWebsocketAuthEvent({
+    deviceId: signatureCredential.device.id,
+    privateKey: signatureKeyPair.privateKey,
+  });
+  await new Promise((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/api/v1/ws`);
+    const timer = setTimeout(() => {
+      ws.close();
+      reject(new Error("signed websocket auth timed out"));
+    }, 3000);
+    ws.on("open", () => ws.send(JSON.stringify(signedWebsocketEvent)));
+    ws.on("message", (raw) => {
+      const event = JSON.parse(raw.toString());
+      if (event.type !== "auth.ok") return;
+      clearTimeout(timer);
+      ws.close();
+      resolve();
+    });
+    ws.on("error", reject);
+  });
+  await new Promise((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/api/v1/ws`);
+    const timer = setTimeout(() => {
+      ws.close();
+      reject(new Error("replayed signed websocket credential was not rejected"));
+    }, 3000);
+    ws.on("open", () => ws.send(JSON.stringify(signedWebsocketEvent)));
+    ws.on("message", (raw) => {
+      const event = JSON.parse(raw.toString());
+      if (event.type === "auth.ok") {
+        clearTimeout(timer);
+        ws.close();
+        reject(new Error("replayed signed websocket credential unexpectedly authenticated"));
+      }
+    });
+    ws.on("close", (code) => {
+      clearTimeout(timer);
+      assert.equal(code, 1008);
+      resolve();
+    });
+    ws.on("error", reject);
+  });
+
+  // Cross-origin migration: a working device requests a one-time voucher,
+  // redeems it with a fresh keypair (as the new origin would), the whole
+  // credential rotates, and the voucher burns.
+  const migrationSourceBinding = await request(port, "/api/v1/devices/bind/start", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({}),
+  }).then((res) => res.json());
+  const migrationOldKeyPair = createDeviceKeyPair();
+  const migrationCredential = await request(port, "/api/v1/devices/bind/confirm", {
+    method: "POST",
+    body: JSON.stringify({
+      token: migrationSourceBinding.token,
+      deviceName: "Migration Phone",
+      deviceType: "mobile",
+      publicKey: migrationOldKeyPair.publicKey,
+    }),
+  }).then((res) => res.json());
+  assert.equal(migrationCredential.authMethod, "signature");
+  const migrationDeviceId = migrationCredential.device.id;
+
+  const anonMigrateToken = await request(port, "/api/v1/devices/me/migrate-token", { method: "POST" });
+  assert.equal(anonMigrateToken.status, 401);
+
+  const migrateVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationOldKeyPair.privateKey,
+      method: "POST",
+      pathname: "/api/v1/devices/me/migrate-token",
+    }),
+  }).then((res) => res.json());
+  assert.match(migrateVoucher.token, /^migrate_/);
+  assert.equal(typeof migrateVoucher.expiresAt, "number");
+
+  const migrationNewKeyPair = createDeviceKeyPair();
+  const migrated = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: migrateVoucher.token, publicKey: migrationNewKeyPair.publicKey }),
+  }).then((res) => res.json());
+  assert.equal(migrated.device.id, migrationDeviceId, JSON.stringify(migrated));
+  assert.equal(migrated.authMethod, "signature");
+  assert.equal(migrated.accessToken, undefined);
+  assert.equal(typeof migrated.endpoints?.version, "string");
+  assert.equal(JSON.stringify(migrated).includes("accessTokenHash"), false);
+
+  // The old origin's key is dead, the new one works.
+  const oldKeyAfterMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationOldKeyPair.privateKey,
+      method: "GET",
+      pathname: "/api/v1/devices/me/connectivity-report",
+    }),
+  });
+  assert.equal(oldKeyAfterMigration.status, 401);
+  const newKeyAfterMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationNewKeyPair.privateKey,
+      method: "GET",
+      pathname: "/api/v1/devices/me/connectivity-report",
+    }),
+  });
+  assert.equal(newKeyAfterMigration.status, 200);
+
+  // Single-use: replaying the voucher fails without leaking it back.
+  const replayedVoucher = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: migrateVoucher.token, publicKey: createDeviceKeyPair().publicKey }),
+  });
+  assert.equal(replayedVoucher.status, 400);
+  const replayedVoucherBody = await replayedVoucher.json();
+  assert.equal(replayedVoucherBody.code, "migration_token_invalid_or_expired");
+  assert.equal(JSON.stringify(replayedVoucherBody).includes(migrateVoucher.token), false);
+
+  const bogusVoucher = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: "migrate_totally_bogus_voucher_value" }),
+  });
+  assert.equal(bogusVoucher.status, 400);
+
+  // A voucher pinned to a target origin burns on a wrong-origin redemption
+  // attempt and cannot be replayed at the right origin afterwards.
+  const pinnedVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    headers: {
+      ...signedDeviceHeaders({
+        deviceId: migrationDeviceId,
+        privateKey: migrationNewKeyPair.privateKey,
+        method: "POST",
+        pathname: "/api/v1/devices/me/migrate-token",
+        body: JSON.stringify({ targetBaseUrl: "https://stable.example.com" }),
+      }),
+    },
+    body: JSON.stringify({ targetBaseUrl: "https://stable.example.com" }),
+  }).then((res) => res.json());
+  assert.match(pinnedVoucher.token, /^migrate_/);
+  const wrongOriginRedeem = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: pinnedVoucher.token, targetBaseUrl: "https://evil.example.com", publicKey: createDeviceKeyPair().publicKey }),
+  });
+  assert.equal(wrongOriginRedeem.status, 400);
+  const rightOriginAfterBurn = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: pinnedVoucher.token, targetBaseUrl: "https://stable.example.com", publicKey: createDeviceKeyPair().publicKey }),
+  });
+  assert.equal(rightOriginAfterBurn.status, 400);
+
+  // Token-mode redemption (a plain-HTTP origin without WebCrypto): the device
+  // downgrades to bearer-token auth and the signature key dies.
+  const tokenModeVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationNewKeyPair.privateKey,
+      method: "POST",
+      pathname: "/api/v1/devices/me/migrate-token",
+    }),
+  }).then((res) => res.json());
+  const tokenModeMigrated = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: tokenModeVoucher.token }),
+  }).then((res) => res.json());
+  assert.equal(tokenModeMigrated.authMethod, "token");
+  assert.match(tokenModeMigrated.accessToken, /^device_/);
+  assert.equal(typeof tokenModeMigrated.accessTokenExpiresAt, "number");
+  const signatureAfterTokenMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationNewKeyPair.privateKey,
+      method: "GET",
+      pathname: "/api/v1/devices/me/connectivity-report",
+    }),
+  });
+  assert.equal(signatureAfterTokenMigration.status, 401);
+  const tokenAfterTokenMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: {
+      "X-LifeOS-Device-ID": migrationDeviceId,
+      "X-LifeOS-Device-Token": tokenModeMigrated.accessToken,
+    },
+  });
+  assert.equal(tokenAfterTokenMigration.status, 200);
+
+  // A voucher issued before revocation must not resurrect a revoked device.
+  const preRevocationVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    headers: {
+      "X-LifeOS-Device-ID": migrationDeviceId,
+      "X-LifeOS-Device-Token": tokenModeMigrated.accessToken,
+    },
+  }).then((res) => res.json());
+  assert.match(preRevocationVoucher.token, /^migrate_/);
+  const revokeMigrationDevice = await request(port, `/api/v1/devices/${migrationDeviceId}`, {
+    method: "DELETE",
+    headers: adminHeaders,
+  });
+  assert.equal(revokeMigrationDevice.status, 200);
+  const revokedRedeem = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: preRevocationVoucher.token, publicKey: createDeviceKeyPair().publicKey }),
+  });
+  assert.equal(revokedRedeem.status, 400);
+  const revokedRedeemBody = await revokedRedeem.json();
+  assert.equal(revokedRedeemBody.code, "migration_token_invalid_or_expired");
 
   const tamperedSignedState = await request(port, "/api/v1/state/lifeos_proxy_enabled", {
     method: "PUT",
@@ -2182,6 +2550,37 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   });
   const localModelPort = localModelServer.address().port;
   const localModelEndpoint = `http://127.0.0.1:${localModelPort}/v1`;
+  const testedTransientLocalLive = await request(port, "/api/v1/admin/ai-providers/local/test", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ mode: "live", credential: localModelEndpoint }),
+  }).then((res) => res.json());
+  assert.equal(testedTransientLocalLive.ok, true, JSON.stringify(testedTransientLocalLive));
+  assert.equal(testedTransientLocalLive.mode, "live");
+  assert.equal(JSON.stringify(testedTransientLocalLive).includes(localModelEndpoint), false);
+  const originalLocalModel = testedTransientLocalLive.provider.selectedModel;
+  const selectedMissingLocalModel = await request(port, "/api/v1/admin/ai-providers/local/model", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ model: "missing-local-model" }),
+  }).then((res) => res.json());
+  assert.equal(selectedMissingLocalModel.provider.selectedModel, "missing-local-model");
+  const testedMissingLocalModel = await request(port, "/api/v1/admin/ai-providers/local/test", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ mode: "live", credential: localModelEndpoint }),
+  }).then((res) => res.json());
+  assert.equal(testedMissingLocalModel.ok, false, JSON.stringify(testedMissingLocalModel));
+  assert.equal(testedMissingLocalModel.result, "live_failed");
+  assert.equal(testedMissingLocalModel.reason, "selected_model_unavailable");
+  assert.equal(testedMissingLocalModel.selectedModelAvailable, false);
+  await request(port, "/api/v1/admin/ai-providers/local/model", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({ model: originalLocalModel }),
+  });
+  const localProvidersAfterTransientTest = await request(port, "/api/v1/admin/ai-providers", { headers: adminHeaders }).then((res) => res.json());
+  assert.equal(localProvidersAfterTransientTest.providers.find((provider) => provider.id === "local").configured, false);
   const savedLocalProvider = await request(port, "/api/v1/admin/ai-providers/local/key", {
     method: "PUT",
     headers: adminHeaders,
@@ -2227,13 +2626,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   }).then((res) => res.json());
   assert.equal(completedOnboarding.onboarding.completed, true);
   assert.equal(completedOnboarding.onboarding.required, false);
-  assert.equal(completedOnboarding.onboarding.nextPath, "/chat");
+  assert.equal(completedOnboarding.onboarding.nextPath, "/admin/dashboard");
   assert.equal(typeof completedOnboarding.onboarding.completedAt, "number");
   assert.equal(completedOnboarding.onboarding.steps.every((step) => step.done), true);
 
   const statusAfterOnboarding = await request(port, "/api/v1/admin/status", { headers: adminHeaders }).then((res) => res.json());
   assert.equal(statusAfterOnboarding.onboardingRequired, false);
-  assert.equal(statusAfterOnboarding.nextPath, "/chat");
+  assert.equal(statusAfterOnboarding.nextPath, "/admin/dashboard");
 
   const rotated = await request(port, "/api/v1/devices/token/rotate", {
     method: "POST",
@@ -2325,10 +2724,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(deletedMemory.status, 200);
 
   const cloudKitAutoSyncAfterLocalChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 10);
+  // 14 = 2 chat + 3 memory + 9 device-trust (the migration flows above add a
+  // bind, two credential rotations, and a revocation — one device-trust
+  // change each).
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 14);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["chat-history"], 2);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType.memory, 3);
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["device-trust"], 5);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["device-trust"], 9);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.rawPayloadStored, false);
   assert.equal(typeof cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.nextSuggestedRunAt, "number");
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.enabled, false);
@@ -2683,6 +3085,64 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(defaultCustomAppCapabilities.manifest.allowedCapabilities.includes("storage"), true);
   assert.equal(defaultCustomAppCapabilities.manifest.allowedCapabilities.includes("communication"), true);
   assert.equal(defaultCustomAppCapabilities.manifest.riskLevel, "high");
+
+  const insecureCustomAppNetworkOrigin = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      allowedCapabilities: ["storage", "network"],
+      allowedNetworkOrigins: ["http://api.example.com"],
+    }),
+  });
+  assert.equal(insecureCustomAppNetworkOrigin.status, 400);
+
+  const credentialedCustomAppNetworkOrigin = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      allowedCapabilities: ["storage", "network"],
+      allowedNetworkOrigins: ["https://user:password@api.example.com"],
+    }),
+  });
+  assert.equal(credentialedCustomAppNetworkOrigin.status, 400);
+
+  const networkCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
+    method: "PUT",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      allowedCapabilities: ["storage", "network"],
+      allowedNetworkOrigins: ["https://api.example.com/v1", "https://api.example.com"],
+    }),
+  }).then((res) => res.json());
+  assert.deepEqual(networkCustomAppCapabilities.manifest.allowedNetworkOrigins, ["https://api.example.com"]);
+
+  const networkOriginCapabilityRequest = await request(port, "/api/v1/custom-apps/custom-ledger-1/capability-requests", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({
+      requestedCapabilities: ["network"],
+      networkOrigins: ["https://data.example.com/reports"],
+      label: "Runtime wants report data",
+      reason: "Fetch the report requested by the user",
+    }),
+  }).then((res) => res.json());
+  assert.equal(networkOriginCapabilityRequest.request.status, "pending");
+  assert.deepEqual(networkOriginCapabilityRequest.request.missingCapabilities, []);
+  assert.deepEqual(networkOriginCapabilityRequest.request.missingNetworkOrigins, ["https://data.example.com"]);
+
+  const networkOriginCapabilityDecision = await request(port, `/api/v1/custom-apps/custom-ledger-1/capability-requests/${networkOriginCapabilityRequest.request.id}/decision`, {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({ decision: "approved", note: "Approved exact report origin" }),
+  }).then((res) => res.json());
+  assert.equal(networkOriginCapabilityDecision.request.status, "approved");
+  const capabilitiesAfterNetworkOriginApproval = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
+    headers: adminHeaders,
+  }).then((res) => res.json());
+  assert.deepEqual(
+    capabilitiesAfterNetworkOriginApproval.manifest.allowedNetworkOrigins.sort(),
+    ["https://api.example.com", "https://data.example.com"],
+  );
 
   const noCommunicationCustomAppCapabilities = await request(port, "/api/v1/custom-apps/custom-ledger-1/capabilities", {
     method: "PUT",
@@ -3237,7 +3697,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const revokedStateAccess = await request(port, "/api/v1/state/lifeos_tasks_pro", { headers: deviceHeaders });
   assert.equal(revokedStateAccess.status, 401);
   const cloudKitAutoSyncAfterDeviceTrustChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
-  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["device-trust"], 7);
+  // 11 = the original 7 plus the migration flows: bind, two rotations, and a
+  // revocation.
+  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["device-trust"], 11);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["generated-app-state"], 1);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType.tasks, 1);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["chat-history"] >= 1, true);
@@ -3543,6 +4005,7 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
     env: {
       ...process.env,
       NODE_ENV: "production",
+      LIFEOS_ALLOW_BROWSER_ADMIN_BOOTSTRAP: "1",
       LIFEOS_PORT: String(port),
       LIFEOS_DATA_DIR: dataDir,
       LIFEOS_HOST: "127.0.0.1",
@@ -3683,6 +4146,13 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
   assert.equal(desktopNetworkSummary.icloud.dataSync.pushEvidence.rawPayloadStored, false);
   assert.equal(desktopNetworkSummary.icloud.dataSync.pushEvidence.deviceTokenStored, false);
   assert.equal(desktopNetworkSummary.icloud.dataSync.pushEvidence.cloudKitChangeTokenStored, false);
+  assert.equal(desktopNetworkSummary.icloud.chatRelay.enabled, true);
+  assert.equal(desktopNetworkSummary.icloud.chatRelay.ready, false);
+  assert.equal(desktopNetworkSummary.icloud.chatRelay.scope, "chat-relay-only");
+  assert.equal(desktopNetworkSummary.icloud.chatRelay.rawPayloadReturned, false);
+  assert.equal(desktopNetworkSummary.icloud.chatRelay.promptReturned, false);
+  assert.equal(desktopNetworkSummary.icloud.chatRelay.responseReturned, false);
+  assert.ok(desktopNetworkSummary.icloud.chatRelay.blockedDataTypes.includes("memory"));
   assert.equal(Array.isArray(desktopNetworkSummary.issues), true);
   assert.ok(desktopNetworkSummary.issues.some((issue) => issue.id === "cloudkit-data-sync-setup" && issue.severity === "danger"));
   assert.equal(desktopNetworkSummary.alert.id, "cloudkit-data-sync-setup");
@@ -3707,6 +4177,34 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
   assert.equal(internalIcloudRefresh.cloudKitDataSync.enabled, false);
   assert.equal(internalIcloudRefresh.cloudKitDataSync.ready, false);
   assert.equal(internalIcloudRefresh.cloudKitDataSync.rawPayloadReturned, false);
+  assert.equal(internalIcloudRefresh.cloudKitChatRelay.queued, false);
+  assert.equal(internalIcloudRefresh.cloudKitChatRelay.enabled, true);
+  assert.equal(internalIcloudRefresh.cloudKitChatRelay.ready, false);
+  assert.equal(internalIcloudRefresh.cloudKitChatRelay.rawPayloadReturned, false);
+
+  const blockedChatRelayRun = await request(port, "/api/v1/internal/cloudkit-chat-relay/run", {
+    method: "POST",
+    body: JSON.stringify({ reason: "test-chat-relay" }),
+  });
+  assert.equal(blockedChatRelayRun.status, 401);
+  const wrongTokenChatRelayRun = await request(port, "/api/v1/internal/cloudkit-chat-relay/run", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": "wrong-desktop-internal-token-1234567890" },
+    body: JSON.stringify({ reason: "test-chat-relay" }),
+  });
+  assert.equal(wrongTokenChatRelayRun.status, 401);
+  const chatRelayRunResponse = await request(port, "/api/v1/internal/cloudkit-chat-relay/run", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Token": desktopInternalToken },
+    body: JSON.stringify({ reason: "test-chat-relay" }),
+  });
+  const chatRelayRun = await chatRelayRunResponse.json();
+  assert.equal(chatRelayRunResponse.status, 200, JSON.stringify(chatRelayRun));
+  assert.equal(chatRelayRun.ok, false);
+  assert.equal(chatRelayRun.result.status, "needs-setup");
+  assert.equal(chatRelayRun.result.rawPayloadReturned, false);
+  assert.equal(chatRelayRun.result.promptReturned, false);
+  assert.equal(chatRelayRun.result.responseReturned, false);
   assert.equal(internalIcloudRefresh.cloudKitDataSync.cloudKitChangeTokenReturned, false);
   assert.equal(JSON.stringify(internalIcloudRefresh).includes("payloadJson"), false);
   assert.equal(JSON.stringify(internalIcloudRefresh).includes("serverChangeToken"), false);
@@ -3715,11 +4213,13 @@ test("desktop internal iCloud refresh requires the local desktop token", async (
 test("local admin password reset works only as a guarded local recovery path", async (t) => {
   const port = await getOpenPort();
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-local-reset-test-"));
+  const desktopInternalToken = crypto.randomBytes(32).toString("hex");
   const child = spawn(process.execPath, ["dist/server.cjs"], {
     cwd: rootDir,
     env: {
       ...process.env,
       NODE_ENV: "production",
+      LIFEOS_DESKTOP_INTERNAL_TOKEN: desktopInternalToken,
       LIFEOS_PORT: String(port),
       LIFEOS_DATA_DIR: dataDir,
       LIFEOS_HOST: "127.0.0.1",
@@ -3740,23 +4240,62 @@ test("local admin password reset works only as a guarded local recovery path", a
 
   await waitForServer(port, child, childOutput);
 
+  async function desktopCapability(action) {
+    const response = await request(port, "/api/v1/internal/admin-capability", {
+      method: "POST",
+      headers: {
+        Origin: "",
+        "X-LifeOS-Desktop-Token": desktopInternalToken,
+      },
+      body: JSON.stringify({ action }),
+    });
+    const body = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(body));
+    return body.capability;
+  }
+
+  const blockedSetup = await request(port, "/api/v1/admin/setup", {
+    method: "POST",
+    body: JSON.stringify({ password: "old local password 123!" }),
+  });
+  assert.equal(blockedSetup.status, 403);
+
+  const setupCapability = await desktopCapability("setup");
   const setupResponse = await request(port, "/api/v1/admin/setup", {
     method: "POST",
+    headers: { "X-LifeOS-Desktop-Capability": setupCapability },
     body: JSON.stringify({ password: "old local password 123!" }),
   });
   assert.equal(setupResponse.status, 200);
   const oldAdminHeaders = cookieHeader(setupResponse);
 
+  const blockedReset = await request(port, "/api/v1/admin/local-password-reset", {
+    method: "POST",
+    body: JSON.stringify({ newPassword: "new local password 123!" }),
+  });
+  assert.equal(blockedReset.status, 403);
+
+  const weakCapability = await desktopCapability("reset");
   const weakReset = await request(port, "/api/v1/admin/local-password-reset", {
     method: "POST",
+    headers: { "X-LifeOS-Desktop-Capability": weakCapability },
     body: JSON.stringify({ newPassword: "password123" }),
   });
   assert.equal(weakReset.status, 400);
   const weakResetBody = await weakReset.json();
   assert.equal(weakResetBody.passwordPolicy.meetsPolicy, false);
 
+  const replayedWeakCapability = await request(port, "/api/v1/admin/local-password-reset", {
+    method: "POST",
+    headers: { "X-LifeOS-Desktop-Capability": weakCapability },
+    body: JSON.stringify({ newPassword: "new local password 123!" }),
+  });
+  assert.equal(replayedWeakCapability.status, 403);
+
+  const resetCapability = await desktopCapability("reset");
   const resetResponse = await request(port, "/api/v1/admin/local-password-reset", {
     method: "POST",
+    headers: { "X-LifeOS-Desktop-Capability": resetCapability },
     body: JSON.stringify({ newPassword: "new local password 123!" }),
   });
   assert.equal(resetResponse.status, 200);
@@ -3792,6 +4331,7 @@ test("public base path serves API, mobile shell, and realtime websocket", async 
     env: {
       ...process.env,
       NODE_ENV: "production",
+      LIFEOS_ALLOW_BROWSER_ADMIN_BOOTSTRAP: "1",
       LIFEOS_PORT: String(port),
       LIFEOS_DATA_DIR: dataDir,
       LIFEOS_HOST: "127.0.0.1",

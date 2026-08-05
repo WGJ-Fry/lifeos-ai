@@ -924,3 +924,48 @@ test("offline queue health prioritizes storage, failed sync, remote entry, and n
   assert.equal(buildOfflineQueueHealth({ ...baseSummary, count: 1, pending: 1 }, baseStorage, online, remoteOk).titleKey, "offlineQueue.healthPendingTitle");
   assert.equal(buildOfflineQueueHealth(baseSummary, baseStorage, online, remoteOk).titleKey, "offlineQueue.healthReadyTitle");
 });
+
+// globalThis.crypto is a getter-only property in Node, so it has to be redefined rather than assigned.
+function withCrypto(replacement, run) {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  Object.defineProperty(globalThis, "crypto", { value: replacement, configurable: true, writable: true });
+  return Promise.resolve()
+    .then(run)
+    .finally(() => {
+      if (original) Object.defineProperty(globalThis, "crypto", original);
+      else delete globalThis.crypto;
+    });
+}
+
+test("queue ids survive a non-secure context where crypto.randomUUID is unavailable", async () => {
+  // Over plain-HTTP LAN the phone is not a secure context, so crypto.randomUUID is undefined
+  // while crypto.getRandomValues still works. Enqueuing must not throw there.
+  await withCrypto({
+    getRandomValues(target) {
+      for (let index = 0; index < target.length; index += 1) target[index] = (index * 37 + 11) % 256;
+      return target;
+    },
+  }, async () => {
+    const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=insecure-context-${Date.now()}`);
+    const id = queueModule.randomQueueId();
+    assert.match(id, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    assert.doesNotThrow(() => queueModule.enqueueOfflineMessage({ role: "user", parts: [{ text: "lan http enqueue" }] }));
+  });
+});
+
+test("queue ids still use crypto.randomUUID when the context is secure", async () => {
+  let used = false;
+  await withCrypto({
+    randomUUID() {
+      used = true;
+      return "11111111-2222-4333-8444-555555555555";
+    },
+    getRandomValues(target) {
+      return target;
+    },
+  }, async () => {
+    const queueModule = await import(`../src/services/offlineMessageQueue.ts?case=secure-context-${Date.now()}`);
+    assert.equal(queueModule.randomQueueId(), "11111111-2222-4333-8444-555555555555");
+    assert.equal(used, true);
+  });
+});

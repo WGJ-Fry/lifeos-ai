@@ -13,6 +13,8 @@ import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceW
 import { flushPendingMobileIcloudHandoffEvents, getMobileIcloudHandoffServerRepairStatus, getMobileIcloudHandoffStatus, handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
 import type { MobileIcloudHandoffServerRepairStatus } from "../../services/mobileIcloudHandoff";
 import MobileConnectionRecoveryCard from "./MobileConnectionRecoveryCard";
+import MobileEndpointFallbackCard from "./MobileEndpointFallbackCard";
+import MobileEndpointMigrationCard from "./MobileEndpointMigrationCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
 import MobileOfflineQueueRecoveryCard from "./MobileOfflineQueueRecoveryCard";
@@ -72,9 +74,14 @@ export default function MobileDevicePage() {
       await flushPendingMobileIcloudHandoffEvents().catch(() => null);
       setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
       setIcloudServerRepair(getMobileIcloudHandoffServerRepairStatus());
-      if (options.announce) setStatus(t("mobileDevice.serverStateRefreshed"));
-    } catch (error: any) {
-      if (options.announce) setStatus(error.message || t("mobileDevice.serverStateRefreshFailed"));
+      if (options.announce) {
+        const refreshedServerState = healthResult.status === "fulfilled" || reportResult.status === "fulfilled";
+        setStatus(t(refreshedServerState
+          ? "mobileDevice.serverStateRefreshed"
+          : "mobileDevice.serverStateRefreshFailed"));
+      }
+    } catch {
+      if (options.announce) setStatus(t("mobileDevice.serverStateRefreshFailed"));
     } finally {
       if (options.announce) setServerRefreshBusy(false);
     }
@@ -181,11 +188,11 @@ export default function MobileDevicePage() {
       setCredential(null);
       await refreshCredentialStorage();
       setStatus(t("mobileDevice.unboundDone"));
-    } catch (error: any) {
+    } catch {
       await clearStoredDeviceCredential();
       setCredential(null);
       await refreshCredentialStorage();
-      setStatus(t("mobileDevice.localClearedRevokeFailed", { message: error.message || t("mobileDevice.revokeLater") }));
+      setStatus(t("mobileDevice.localClearedRevokeFailed", { message: t("mobileDevice.revokeLater") }));
     }
   };
 
@@ -196,8 +203,8 @@ export default function MobileDevicePage() {
       setCredential(next);
       await refreshCredentialStorage();
       setStatus(t("mobileDevice.credentialRefreshed"));
-    } catch (error: any) {
-      setStatus(error.message || t("mobileDevice.refreshFailed"));
+    } catch {
+      setStatus(t("mobileDevice.refreshFailed"));
     }
   };
 
@@ -256,8 +263,8 @@ export default function MobileDevicePage() {
     try {
       await navigator.clipboard.writeText(text);
       setStatus(t("mobileDevice.itemCopied"));
-    } catch (error: any) {
-      setStatus(error.message || t("mobileDevice.copyFailed"));
+    } catch {
+      setStatus(t("mobileDevice.copyFailed"));
     }
   };
 
@@ -332,6 +339,17 @@ export default function MobileDevicePage() {
           currentEntry={currentEntry}
           lastConnectivityResult={lastConnectivityResult}
         />
+        {credential ? (
+          // Gate on a connectivity test that actually failed IN THIS SESSION —
+          // a stale failure report fetched from the server must not tell the
+          // user their working entry is unreachable.
+          <MobileEndpointFallbackCard active={Boolean(connectivityTest && !connectivityTest.ok)} />
+        ) : null}
+        {credential ? (
+          // Suggested only while the current entry works — migration needs the
+          // old origin alive to hand out its voucher.
+          <MobileEndpointMigrationCard active={!connectivityTest || connectivityTest.ok} />
+        ) : null}
         {credential ? (
           <MobileConnectionRecoveryCard
             connectivityBusy={connectivityBusy}

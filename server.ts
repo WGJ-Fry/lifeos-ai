@@ -9,7 +9,7 @@ import { insertAuditLog } from "./server/audit";
 import { DeviceRecord, BindingSession, getDevices, insertBindingSession, insertDevice } from "./server/devices";
 import { registerAiRoutes } from "./server/aiRoutes";
 import { registerAdminRoutes } from "./server/routes/adminRoutes";
-import { registerBackupRoutes } from "./server/routes/backupRoutes";
+import { ENCRYPTED_BACKUP_IMPORT_PATH, registerBackupRoutes } from "./server/routes/backupRoutes";
 import { registerChatRoutes } from "./server/routes/chatRoutes";
 import { registerCoreRoutes } from "./server/routes/coreRoutes";
 import { registerCustomAppRoutes } from "./server/routes/customAppRoutes";
@@ -19,9 +19,11 @@ import { registerProblemBlueprintRoutes } from "./server/routes/problemBlueprint
 import { registerStateRoutes } from "./server/routes/stateRoutes";
 import { attachRealtimeServer } from "./server/realtime";
 import { runMigrations } from "./server/migrations";
-import { redactApiErrorResponses, requireCsrf, securityHeaders } from "./server/httpSecurity";
+import { apiRequestErrorHandler, redactApiErrorResponses, requireCsrf, securityHeaders } from "./server/httpSecurity";
 import { startBackupScheduler } from "./server/backupSchedule";
 import { startCloudKitAutoSyncScheduler } from "./server/cloudKitAutoSyncSchedule";
+import { startCloudKitChatLifecycleScheduler } from "./server/cloudKitChatLifecycle";
+import { startCloudKitChatRelayScheduler } from "./server/cloudKitChatRelaySchedule";
 import { maybeStartConfiguredCloudflareTunnel } from "./server/cloudflareTunnel";
 import { runIcloudHandoffStartupRefresh, startIcloudHandoffMonitor } from "./server/icloudHandoffMonitor";
 import { maybeStartConfiguredTailscaleServe } from "./server/networkDiagnostics";
@@ -87,6 +89,8 @@ migrateLegacyJsonStore();
 migrateLegacyCustomAppsFromClientState();
 startBackupScheduler();
 startCloudKitAutoSyncScheduler();
+startCloudKitChatRelayScheduler();
+startCloudKitChatLifecycleScheduler();
 startRemoteHealthMonitor();
 startIcloudHandoffMonitor();
 
@@ -98,16 +102,20 @@ app.use((req, _res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "64mb" }));
-app.use(express.urlencoded({ limit: "64mb", extended: true }));
 app.use(securityHeaders);
 app.use(redactApiErrorResponses);
 app.use(requireCsrf);
+const defaultJsonParser = express.json({ limit: process.env.LIFEOS_JSON_BODY_LIMIT || "1mb" });
+app.use((req, res, next) => {
+  if (req.path === ENCRYPTED_BACKUP_IMPORT_PATH) return next();
+  return defaultJsonParser(req, res, next);
+});
+app.use(express.urlencoded({ limit: process.env.LIFEOS_FORM_BODY_LIMIT || "256kb", extended: true }));
 
 registerCoreRoutes(app, HOST);
 registerAdminRoutes(app);
 registerBackupRoutes(app);
-registerDeviceRoutes(app);
+registerDeviceRoutes(app, HOST);
 registerChatRoutes(app);
 registerMemoryRoutes(app);
 registerProblemBlueprintRoutes(app);
@@ -115,6 +123,7 @@ registerCustomAppRoutes(app);
 registerStateRoutes(app);
 
 registerAiRoutes(app);
+app.use(apiRequestErrorHandler);
 
 async function startServer() {
   const server = http.createServer(app);

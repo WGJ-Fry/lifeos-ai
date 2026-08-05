@@ -1,5 +1,6 @@
 import { listAiProviderStatuses } from "./appSecrets";
 import { getClientState, setClientState } from "./clientState";
+import { countActiveCloudKitDevices } from "./cloudKitDeviceKeys";
 import { listBackups } from "./db";
 import { getDevices } from "./devices";
 import { getSecurityDiagnostics } from "./securityDiagnostics";
@@ -26,7 +27,7 @@ export function getOnboardingStatus() {
           label: "Configure AI Provider",
           done: true,
           required: true,
-          actionPath: "/chat",
+          actionPath: "/admin/dashboard",
           message: "Quickstart mode uses the local model configured by environment variables.",
         },
         {
@@ -34,7 +35,7 @@ export function getOnboardingStatus() {
           label: "Create Initial Backup",
           done: true,
           required: false,
-          actionPath: "/chat",
+          actionPath: "/admin/dashboard",
           message: "Skipped in quickstart mode.",
         },
         {
@@ -42,7 +43,7 @@ export function getOnboardingStatus() {
           label: "Pair Mobile",
           done: true,
           required: true,
-          actionPath: "/chat",
+          actionPath: "/admin/devices/pair",
           message: "Skipped in quickstart mode.",
         },
         {
@@ -50,7 +51,7 @@ export function getOnboardingStatus() {
           label: "Security Check",
           done: true,
           required: false,
-          actionPath: "/chat",
+          actionPath: "/admin/settings",
           message: "Local-only quickstart mode.",
         },
       ],
@@ -58,17 +59,25 @@ export function getOnboardingStatus() {
       completedAt: Date.now(),
       required: false,
       securityOverall: "ok" as const,
-      nextPath: "/chat",
+      deviceReadiness: {
+        ready: true,
+        webDevices: 0,
+        cloudKitDevices: 0,
+        modes: ["quickstart"] as const,
+      },
+      nextPath: "/admin/dashboard",
     };
   }
 
   const providers = listAiProviderStatuses();
   const backups = listBackups();
   const devices = getDevices();
+  const webDeviceCount = devices.filter((device) => device.status !== "revoked").length;
+  const cloudKitDeviceCount = countActiveCloudKitDevices();
   const security = getSecurityDiagnostics();
   const aiConfigured = providers.some((provider) => provider.configured);
   const hasBackup = backups.length > 0;
-  const hasDevice = devices.some((device) => device.status !== "revoked");
+  const hasDevice = webDeviceCount > 0 || cloudKitDeviceCount > 0;
   const securityReady = security.overall !== "critical";
   const completedState = getClientState(ONBOARDING_COMPLETED_KEY)?.value as { completedAt?: number } | undefined;
 
@@ -95,7 +104,11 @@ export function getOnboardingStatus() {
       done: hasDevice,
       required: true,
       actionPath: "/admin/devices/pair",
-      message: hasDevice ? `${devices.filter((device) => device.status !== "revoked").length} device(s) paired.` : "Pair a phone before using mobile as the daily entry point.",
+      message: cloudKitDeviceCount > 0
+        ? `${cloudKitDeviceCount} native Apple device(s) connected through CloudKit${webDeviceCount > 0 ? `; ${webDeviceCount} web device(s) paired` : ""}.`
+        : webDeviceCount > 0
+          ? `${webDeviceCount} web device(s) paired.`
+          : "Connect a native Apple device through CloudKit or pair the mobile web app.",
     },
     {
       id: "security",
@@ -114,7 +127,16 @@ export function getOnboardingStatus() {
     completedAt: completed ? completedState?.completedAt || null : null,
     required: !completed || !completedState?.completedAt,
     securityOverall: security.overall,
-    nextPath: completed ? "/chat" : "/admin/onboarding",
+    deviceReadiness: {
+      ready: hasDevice,
+      webDevices: webDeviceCount,
+      cloudKitDevices: cloudKitDeviceCount,
+      modes: [
+        ...(cloudKitDeviceCount > 0 ? ["cloudkit-native" as const] : []),
+        ...(webDeviceCount > 0 ? ["web-pwa" as const] : []),
+      ],
+    },
+    nextPath: completed ? "/admin/dashboard" : "/admin/onboarding",
   };
 }
 

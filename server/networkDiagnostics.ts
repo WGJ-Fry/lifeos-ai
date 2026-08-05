@@ -12,6 +12,7 @@ import { buildIcloudPhoneConfirmationStatus } from "./icloudPhoneConfirmation.ts
 import { buildIcloudPairingSessionStatus } from "./icloudPairingSession.ts";
 import { getLatestIcloudRepairImportRecord } from "./icloudRepairImports.ts";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl } from "./publicBaseUrl";
+import { TAILSCALE_DNS_ADMIN_URL, buildTunnelConflictNote, detectTunnelConflicts } from "./tunnelConflict.ts";
 
 type CommandResult = {
   ok: boolean;
@@ -207,7 +208,7 @@ function brewCommand() {
 }
 
 function tailscaleCommand() {
-  return process.env.LIFEOS_TAILSCALE_BIN || resolveExecutable("tailscale", process.platform === "darwin" ? macTailscaleCandidates : [], ["version", "--short"]);
+  return process.env.LIFEOS_TAILSCALE_BIN || resolveExecutable("tailscale", process.platform === "darwin" ? macTailscaleCandidates : [], ["version"]);
 }
 
 function tailscaleCommandPrefixArgs() {
@@ -2304,8 +2305,8 @@ function buildConnectionCandidates(input: {
       stability: "stable",
       notes: [
         input.tailscale.serveRunning
-          ? "Best for long-term remote phone access on your own Tailnet. HTTPS Serve is already active."
-          : `Best for long-term remote phone access on your own Tailnet. Run: ${input.tailscale.serveCommand}`,
+          ? "Private Tailnet entry. Tailscale must be connected on the phone with the same account. HTTPS Serve is already active."
+          : `Private Tailnet entry. Connect Tailscale on the phone with the same account, then run: ${input.tailscale.serveCommand}`,
       ],
     }));
   }
@@ -2464,7 +2465,7 @@ function getCloudflareTunnelStatus(port: string) {
 }
 
 function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || process.env.PORT || "3000")) {
-  const version = runTailscaleCommand(["version", "--short"]);
+  const version = runTailscaleCommand(["version"]);
   const installed = version.ok;
   const brew = process.platform === "darwin" && !installed
     ? runCommand(brewCommand(), ["--version"])
@@ -2473,6 +2474,7 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
   let online = false;
   let deviceName = "";
   let tailnetName = "";
+  let dnsName = "";
   let urls: string[] = [];
   let magicDnsUrls: string[] = [];
   let httpsServeUrl = "";
@@ -2485,12 +2487,25 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
       try {
         const parsed = JSON.parse(status.output);
         online = Boolean(parsed?.Self?.Online);
-        deviceName = parsed?.Self?.HostName || "";
-        tailnetName = parsed?.MagicDNSSuffix || "";
-        urls = (parsed?.Self?.TailscaleIPs || []).map((ip: string) => `http://${ip}:${port}`);
-        if (deviceName && tailnetName) {
-          magicDnsUrls = [`http://${deviceName}.${tailnetName}:${port}`];
-          httpsServeUrl = `https://${deviceName}.${tailnetName}`;
+        deviceName = String(parsed?.Self?.HostName || "").trim();
+        tailnetName = String(parsed?.MagicDNSSuffix || "").trim().replace(/\.+$/, "");
+        const reportedDnsName = String(parsed?.Self?.DNSName || "").trim().replace(/\.+$/, "");
+        const legacyDnsName = deviceName && tailnetName ? `${deviceName}.${tailnetName}` : "";
+        const isValidDnsName = (value: string) => value.length <= 253
+          && value.split(".").length >= 2
+          && value.split(".").every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label));
+        dnsName = isValidDnsName(reportedDnsName)
+          ? reportedDnsName
+          : isValidDnsName(legacyDnsName)
+          ? legacyDnsName
+          : "";
+        urls = (parsed?.Self?.TailscaleIPs || []).map((ip: string) => {
+          const host = ip.includes(":") ? `[${ip}]` : ip;
+          return `http://${host}:${port}`;
+        });
+        if (dnsName) {
+          magicDnsUrls = [`http://${dnsName}:${port}`];
+          httpsServeUrl = `https://${dnsName}`;
         }
       } catch {
         online = status.output.toLowerCase().includes("logged in");
@@ -2510,9 +2525,13 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
 
   const mobileUrls = Array.from(new Set([...(httpsServeUrl ? [httpsServeUrl] : []), ...magicDnsUrls, ...urls]));
   const serveCommand = httpsServeUrl ? `tailscale serve --bg https:443 http://127.0.0.1:${port}` : "";
-  const magicDnsEnabled = Boolean(deviceName && tailnetName);
+  const magicDnsEnabled = Boolean(dnsName);
   const httpsServeReady = Boolean(online && magicDnsEnabled && httpsServeUrl);
   const loginCommand = "tailscale up";
+  // "Tailscale is stopped" on its own sends people looking at their Tailscale
+  // account when the real cause is usually another tunnel holding the route.
+  const tunnelConflict = detectTunnelConflicts();
+  const tunnelConflictNote = buildTunnelConflictNote(tunnelConflict, online);
 
   return {
     installed,
@@ -2529,6 +2548,7 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
     serveRunning,
     serveCommand,
     serveStatus,
+    tunnelConflict,
     mobileUrls,
     installCommand: process.platform === "darwin" ? "brew install --cask tailscale-app" : "Install the Tailscale client and sign in to the same Tailnet",
     installUrl: "https://tailscale.com/download",
@@ -2547,21 +2567,27 @@ function getTailscaleStatus(portOverride = String(process.env.LIFEOS_PORT || pro
     envTemplate: mobileUrls[0]
       ? `${httpsServeUrl ? "LIFEOS_HOST=127.0.0.1" : "LIFEOS_HOST=0.0.0.0"} LIFEOS_ALLOW_PUBLIC=1${httpsServeUrl ? " LIFEOS_TRUST_PROXY=1" : ""} PUBLIC_BASE_URL=${mobileUrls[0]} npm run start`
       : `LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 npm run start`,
-    notes: installed
+    notes: (installed
       ? [
         online ? "Tailscale is signed in and online. Prefer HTTPS Serve for phone PWA/WebCrypto support." : `Tailscale is installed, but no online status was detected. Run: ${loginCommand}`,
+        tunnelConflictNote,
         !magicDnsEnabled
-          ? "MagicDNS suffix was not detected. Enable MagicDNS in Tailscale admin so OwnOrbit can create a stable HTTPS Serve hostname."
+          ? `MagicDNS suffix was not detected. Turn on MagicDNS at ${TAILSCALE_DNS_ADMIN_URL} so OwnOrbit can create a stable HTTPS Serve hostname.`
           : httpsServeUrl
           ? serveRunning
-            ? `HTTPS Serve appears active at ${httpsServeUrl}.`
+            // `tailscale serve status` keeps reporting the saved config while the
+            // node is signed out, so the note must not call that reachable.
+            ? online
+              ? `HTTPS Serve appears active at ${httpsServeUrl}.`
+              : `HTTPS Serve is configured for ${httpsServeUrl}, but this computer is offline in your Tailnet, so the phone cannot reach it yet.`
             : `For the most reliable phone entry, run: ${serveCommand}`
-          : "Enable HTTPS certificates in Tailscale to get a stable HTTPS Serve hostname.",
+          : `Turn on HTTPS Certificates at ${TAILSCALE_DNS_ADMIN_URL} to get a stable HTTPS Serve hostname.`,
         "Tailscale is suitable for remote access between your own devices and usually avoids public internet exposure.",
       ]
       : [
         "Tailscale CLI was not detected. Install it, sign in, and join the phone and computer to the same Tailnet.",
-      ],
+        tunnelConflictNote,
+      ]).filter(Boolean),
   };
 }
 

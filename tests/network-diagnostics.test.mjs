@@ -259,11 +259,15 @@ exit 1
 `);
   await writeFile(tailscalePath, `#!/bin/sh
 if [ "$1" = "version" ]; then
+  if [ -n "$2" ]; then
+    echo 'flag provided but not defined' >&2
+    exit 2
+  fi
   echo "1.66.4"
   exit 0
 fi
 if [ "$1" = "status" ]; then
-  echo '{"Self":{"Online":true,"HostName":"lifeos-mac","TailscaleIPs":["100.64.0.10"]},"MagicDNSSuffix":"tailnet.example.ts.net"}'
+  echo '{"Self":{"Online":true,"HostName":"王国俊的 Mac mini","DNSName":"lifeos-mac.tailnet.example.ts.net.","TailscaleIPs":["100.64.0.10","fd7a:115c:a1e0::1"]},"MagicDNSSuffix":"tailnet.example.ts.net"}'
   exit 0
 fi
 if [ "$1" = "serve" ]; then
@@ -307,9 +311,9 @@ exit 1
   assert.match(diagnostics.cloudflare.envTemplate, /LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https:\/\/amber-lifeos\.trycloudflare\.com/);
   assert.equal(diagnostics.tailscale.installed, true);
   assert.equal(diagnostics.tailscale.online, true);
-  assert.equal(diagnostics.tailscale.deviceName, "lifeos-mac");
+  assert.equal(diagnostics.tailscale.deviceName, "王国俊的 Mac mini");
   assert.equal(diagnostics.tailscale.tailnetName, "tailnet.example.ts.net");
-  assert.deepEqual(diagnostics.tailscale.urls, ["http://100.64.0.10:4567"]);
+  assert.deepEqual(diagnostics.tailscale.urls, ["http://100.64.0.10:4567", "http://[fd7a:115c:a1e0::1]:4567"]);
   assert.deepEqual(diagnostics.tailscale.magicDnsUrls, ["http://lifeos-mac.tailnet.example.ts.net:4567"]);
   assert.equal(diagnostics.tailscale.loginCommand, "tailscale up");
   assert.equal(diagnostics.tailscale.magicDnsEnabled, true);
@@ -317,7 +321,7 @@ exit 1
   assert.equal(diagnostics.tailscale.httpsServeReady, true);
   assert.equal(diagnostics.tailscale.serveRunning, true);
   assert.equal(diagnostics.tailscale.serveCommand, "tailscale serve --bg https:443 http://127.0.0.1:4567");
-  assert.deepEqual(diagnostics.tailscale.mobileUrls, ["https://lifeos-mac.tailnet.example.ts.net", "http://lifeos-mac.tailnet.example.ts.net:4567", "http://100.64.0.10:4567"]);
+  assert.deepEqual(diagnostics.tailscale.mobileUrls, ["https://lifeos-mac.tailnet.example.ts.net", "http://lifeos-mac.tailnet.example.ts.net:4567", "http://100.64.0.10:4567", "http://[fd7a:115c:a1e0::1]:4567"]);
   assert.match(diagnostics.tailscale.installUrl, /^https:\/\/tailscale\.com\/download/);
   assert.equal(diagnostics.tailscale.autoInstall.command, "brew install --cask tailscale-app");
   assert.equal(diagnostics.tailscale.autoInstall.reason, "already-installed");
@@ -343,6 +347,7 @@ exit 1
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-serve-https" && candidate.baseUrl === "https://lifeos-mac.tailnet.example.ts.net"), true);
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-magicdns-0" && candidate.baseUrl === "http://lifeos-mac.tailnet.example.ts.net:4567"), true);
   assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-ip-0" && candidate.baseUrl === "http://100.64.0.10:4567"), true);
+  assert.equal(diagnostics.connectionCandidates.some((candidate) => candidate.id === "tailscale-ip-1" && candidate.baseUrl === "http://[fd7a:115c:a1e0::1]:4567"), true);
   const tailscaleCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-serve-https");
   const tailscaleHttpCandidate = diagnostics.connectionCandidates.find((candidate) => candidate.id === "tailscale-magicdns-0");
   assert.match(tailscaleCandidate.envTemplate, /LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https:\/\/lifeos-mac\.tailnet\.example\.ts\.net/);

@@ -15,6 +15,7 @@ import { appendIcloudAutoRefreshStatus } from "./icloudAutoRefreshStatus";
 import { getIcloudActionFollowupKey, getPrimaryIcloudAction, getPrimaryIcloudInstructionKeys, isIcloudEntrySameWifiOnly } from "./appleRemoteIcloudPrimaryAction";
 import { getIcloudPhonePickupStatus } from "./icloudPhonePickupStatus";
 import { formatDevicePairingCreateError } from "../../services/devicePairingErrors";
+import { getAiProviderTestFeedback } from "../../services/aiProviderTestFeedback";
 
 const providerLabels: Record<string, string> = {
   gemini: "Google Gemini",
@@ -50,7 +51,11 @@ function formatIcloudHandoffExportError(error: any, t: (key: any, params?: Recor
 
 function formatOnboardingApiError(error: any, t: (key: any, params?: Record<string, any>) => string, fallbackKey: TranslationKey) {
   if (isLifeosRequestTimeout(error)) return t("api.requestTimeout");
-  return error?.message || t(fallbackKey);
+  const code = String(error?.code || "").trim().toUpperCase();
+  if (code === "AUTH_REQUIRED" || code === "INVALID_ADMIN_SESSION") return t("api.adminSessionExpired");
+  if (code === "INVALID_CSRF") return t("api.securityCheckFailed");
+  if (code === "AI_CONFIG_MISSING") return t("api.aiConfigurationMissing");
+  return t(fallbackKey);
 }
 
 export default function AdminOnboardingPage() {
@@ -73,6 +78,7 @@ export default function AdminOnboardingPage() {
   const [inlinePairingSession, setInlinePairingSession] = useState<BindingSession | null>(null);
   const [inlinePairingBusy, setInlinePairingBusy] = useState(false);
   const [inlinePairingError, setInlinePairingError] = useState("");
+  const [providerLoadError, setProviderLoadError] = useState("");
 
   const activeProvider = useMemo(() => providers.find((provider) => provider.id === selectedProvider), [providers, selectedProvider]);
   const isLocalProvider = selectedProvider === "local";
@@ -80,8 +86,9 @@ export default function AdminOnboardingPage() {
   const aiConfigured = providers.some((provider) => provider.configured);
   const latestBackup = backups[0];
   const hasBackup = backups.length > 0;
-  const hasDevice = devices.some((device) => device.status !== "revoked");
   const onboardingSteps = Array.isArray(onboarding?.steps) ? onboarding.steps : [];
+  const hasBoundWebDevice = devices.some((device) => device.status !== "revoked");
+  const hasDevice = hasBoundWebDevice || Boolean(onboarding?.deviceReadiness?.ready) || onboardingSteps.some((step) => step.id === "device" && step.done);
   const primaryStep = !aiConfigured ? "ai" : !hasDevice ? "device" : "chat";
   const primaryStepNumber = primaryStep === "ai" ? 2 : 3;
   const primaryStepsTotal = 3;
@@ -293,30 +300,52 @@ export default function AdminOnboardingPage() {
   const refresh = async () => {
     // The model picker is the first interactive onboarding control. Populate it
     // before slower backup, network, iCloud, and device diagnostics finish.
-    const providerData = await listAiProviders();
-    setProviders(providerData.providers);
+    const providerData = await listAiProviders().catch(() => null);
+    if (providerData) {
+      setProviders(providerData.providers);
+      setProviderLoadError("");
+    } else {
+      setProviderLoadError(t("onboarding.providerLoadFailed"));
+    }
     // The device step depends on this result. Commit it independently so an
     // unrelated backup or onboarding request cannot hide the Apple handoff UI.
     const networkData = await getNetworkDiagnostics().catch(() => null);
     setNetworkDiagnostics(networkData);
     const [diagnosticsData, backupData, scheduleData, deviceData, onboardingData, deviceTrustData] = await Promise.all([
-      getConfigDiagnostics(),
-      listBackups(),
-      getBackupSchedule(),
-      listDevices(),
-      getOnboardingStatus(),
+      getConfigDiagnostics().catch(() => null),
+      listBackups().catch(() => null),
+      getBackupSchedule().catch(() => null),
+      listDevices().catch(() => null),
+      getOnboardingStatus().catch(() => null),
       getCloudKitDeviceTrustMetadata(10).catch(() => null),
     ]);
-    setDiagnostics(diagnosticsData);
-    setBackups(backupData.backups);
-    setBackupSchedule(scheduleData.schedule);
-    setDevices(deviceData.devices);
+    if (diagnosticsData) setDiagnostics(diagnosticsData);
+    if (backupData) setBackups(backupData.backups);
+    if (scheduleData) setBackupSchedule(scheduleData.schedule);
+    if (deviceData) setDevices(deviceData.devices);
     setCloudKitDeviceTrustSummary(deviceTrustData?.deviceTrust.summary || null);
-    setOnboarding(onboardingData.onboarding);
+    if (onboardingData) setOnboarding(onboardingData.onboarding);
+    if (!providerData && !networkData && !diagnosticsData && !backupData && !scheduleData && !deviceData && !onboardingData) {
+      throw new Error("Local core is not ready.");
+    }
+  };
+
+  const retryOnboardingLoad = async () => {
+    setBusy("providers");
+    setProviderLoadError("");
+    setStatus(null);
+    try {
+      await refresh();
+    } catch {
+      setProviderLoadError(t("onboarding.providerLoadFailed"));
+      setStatus(t("onboarding.loadFailed"));
+    } finally {
+      setBusy(null);
+    }
   };
 
   useEffect(() => {
-    refresh().catch((error) => setStatus(error.message || t("onboarding.loadFailed")));
+    refresh().catch(() => setStatus(t("onboarding.loadFailed")));
     setDesktopBridgeAvailable(Boolean((window as any).lifeosDesktop));
   }, []);
 
@@ -370,6 +399,25 @@ export default function AdminOnboardingPage() {
       window.clearInterval(interval);
     };
   }, [simpleIcloudShouldPollPickup, simpleIcloudFlowStage]);
+
+  useEffect(() => {
+    if (primaryStep !== "device" || hasDevice) return;
+    let stopped = false;
+    const refreshNativeDeviceReadiness = async () => {
+      const [onboardingData, deviceTrustData] = await Promise.all([
+        getOnboardingStatus().catch(() => null),
+        getCloudKitDeviceTrustMetadata(10).catch(() => null),
+      ]);
+      if (stopped) return;
+      if (onboardingData) setOnboarding(onboardingData.onboarding);
+      if (deviceTrustData) setCloudKitDeviceTrustSummary(deviceTrustData.deviceTrust.summary);
+    };
+    const interval = window.setInterval(refreshNativeDeviceReadiness, 2500);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+    };
+  }, [primaryStep, hasDevice]);
 
   useEffect(() => {
     if (primaryStep !== "device" || hasDevice || !showSimpleIcloudQrAfterPickup || !simpleIcloudCurrentEntry || inlinePairingSession || inlinePairingBusy || inlinePairingError) return;
@@ -428,10 +476,15 @@ export default function AdminOnboardingPage() {
       if (selectedModel.trim()) {
         await updateAiProviderModel(selectedProvider, selectedModel.trim());
       }
+      const result = await testAiProvider(selectedProvider, "live", apiKey.trim());
+      if (!result.ok || result.selectedModelAvailable === false) {
+        const feedback = getAiProviderTestFeedback(result);
+        setStatus(t(feedback.key, feedback.params));
+        return;
+      }
       await saveAiProviderKey(selectedProvider, apiKey.trim());
       await updateActiveAiProvider(selectedProvider);
-      const result = await testAiProvider(selectedProvider, selectedProvider === "local" ? "live" : "configuration");
-      const testDetails = result.mode === "live" ? t("aiKey.testLiveOk", { count: result.modelCount ?? 0 }) : t("aiKey.testConfigOnly");
+      const testDetails = t("aiKey.testLiveOk", { count: result.modelCount ?? 0 });
       const catalogDetails = result.modelCatalogUpdated ? ` ${t("aiKey.modelCatalogUpdated", { count: result.discoveredModelCount || result.modelCount || 0 })}` : "";
       setApiKey("");
       setStatus(result.ok
@@ -453,7 +506,7 @@ export default function AdminOnboardingPage() {
       setStatus(t("onboarding.backupCreated", { file: result.backup.file }));
       await refresh();
     } catch (error: any) {
-      setStatus(error.message || t("onboarding.backupFailed"));
+      setStatus(formatOnboardingApiError(error, t, "onboarding.backupFailed"));
     } finally {
       setBusy(null);
     }
@@ -468,7 +521,7 @@ export default function AdminOnboardingPage() {
       setStatus(t("onboarding.dailyBackupStatus"));
       await refresh();
     } catch (error: any) {
-      setStatus(error.message || t("onboarding.dailyBackupFailed"));
+      setStatus(formatOnboardingApiError(error, t, "onboarding.dailyBackupFailed"));
     } finally {
       setBusy(null);
     }
@@ -482,7 +535,7 @@ export default function AdminOnboardingPage() {
       setNetworkDiagnostics(result.diagnostics);
       setStatus(appendIcloudAutoRefreshStatus(result.message || t("onboarding.appleRemoteTailscaleStarted"), result.icloudRefresh, t));
     } catch (error: any) {
-      setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
+      setStatus(formatOnboardingApiError(error, t, "onboarding.appleRemoteActionFailed"));
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
     } finally {
       setBusy(null);
@@ -497,7 +550,7 @@ export default function AdminOnboardingPage() {
       setNetworkDiagnostics(result.diagnostics);
       setStatus(appendIcloudAutoRefreshStatus(result.message || t("onboarding.appleRemoteCloudflareStarted"), result.icloudRefresh, t));
     } catch (error: any) {
-      setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
+      setStatus(formatOnboardingApiError(error, t, "onboarding.appleRemoteActionFailed"));
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
     } finally {
       setBusy(null);
@@ -549,7 +602,7 @@ export default function AdminOnboardingPage() {
         files: result.handoff.cleanup.removedOrphanedFileCount,
       }));
     } catch (error: any) {
-      setStatus(error.message || t("onboarding.appleRemoteIcloudCleanupFailed"));
+      setStatus(formatOnboardingApiError(error, t, "onboarding.appleRemoteIcloudCleanupFailed"));
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
     } finally {
       setBusy(null);
@@ -572,7 +625,7 @@ export default function AdminOnboardingPage() {
       ));
       setNetworkDiagnostics(result.diagnostics);
     } catch (error: any) {
-      setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
+      setStatus(formatOnboardingApiError(error, t, "onboarding.appleRemoteActionFailed"));
     } finally {
       setBusy(null);
     }
@@ -586,7 +639,7 @@ export default function AdminOnboardingPage() {
       setStatus(result.result.ok ? t("onboarding.appleRemoteTestOk", { url: candidate.baseUrl }) : t("onboarding.appleRemoteTestFailed", { url: candidate.baseUrl }));
       await getNetworkDiagnostics().then(setNetworkDiagnostics).catch(() => null);
     } catch (error: any) {
-      setStatus(error.message || t("onboarding.appleRemoteActionFailed"));
+      setStatus(formatOnboardingApiError(error, t, "onboarding.appleRemoteActionFailed"));
     } finally {
       setBusy(null);
     }
@@ -599,7 +652,7 @@ export default function AdminOnboardingPage() {
       const result = await completeOnboarding();
       setOnboarding(result.onboarding);
       setStatus(t("onboarding.doneStatus"));
-      window.location.href = result.onboarding.nextPath || "/chat";
+      window.location.href = result.onboarding.nextPath || "/admin/dashboard";
     } catch (error: any) {
       setStatus(error.message || t("onboarding.doneFailed"));
       await refresh().catch(() => null);
@@ -710,6 +763,21 @@ export default function AdminOnboardingPage() {
           <section id="onboarding-ai-key" className="scroll-mt-5 rounded-[28px] border border-cyan-400/20 bg-[#101722] p-5 shadow-2xl shadow-cyan-950/20">
             <StepHeader done={aiConfigured} icon={<KeyRound className="h-5 w-5" />} title={t("onboarding.simpleAiTitle")} />
             <p className="mt-3 text-sm leading-relaxed text-zinc-400">{t("onboarding.simpleAiBody")}</p>
+
+            {providerLoadError ? (
+              <div className="mt-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4">
+                <p className="text-sm leading-relaxed text-amber-100">{providerLoadError}</p>
+                <button
+                  type="button"
+                  onClick={retryOnboardingLoad}
+                  disabled={busy === "providers"}
+                  className="mt-3 inline-flex items-center gap-2 rounded-xl border border-amber-300/25 bg-black/20 px-3 py-2 text-xs font-bold text-amber-50 disabled:opacity-50"
+                >
+                  {busy === "providers" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  {t("onboarding.retryLocalCore")}
+                </button>
+              </div>
+            ) : null}
 
             <label className="mt-5 block text-xs font-bold uppercase tracking-wider text-zinc-500">
               {t("onboarding.simpleProviderLabel")}
@@ -1407,9 +1475,11 @@ export default function AdminOnboardingPage() {
           <a href="/admin/dashboard" className="text-sm font-bold text-zinc-400 hover:text-cyan-200">
             {t("onboarding.enterDashboard")}
           </a>
-          <a href="/admin/settings" className="text-sm font-bold text-zinc-400 hover:text-cyan-200">
-            {t("onboarding.continueSettings")}
-          </a>
+          {onboarding?.completed ? (
+            <a href="/admin/settings" className="text-sm font-bold text-zinc-400 hover:text-cyan-200">
+              {t("onboarding.continueSettings")}
+            </a>
+          ) : null}
         </div>
       </main>
     </div>
