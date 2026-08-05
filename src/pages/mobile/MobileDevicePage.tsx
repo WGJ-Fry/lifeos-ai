@@ -13,6 +13,7 @@ import type { PwaServiceWorkerLifecycleStatus } from "../../services/pwaServiceW
 import { flushPendingMobileIcloudHandoffEvents, getMobileIcloudHandoffServerRepairStatus, getMobileIcloudHandoffStatus, handleMobileIcloudHandoffLaunch } from "../../services/mobileIcloudHandoff";
 import type { MobileIcloudHandoffServerRepairStatus } from "../../services/mobileIcloudHandoff";
 import MobileConnectionRecoveryCard from "./MobileConnectionRecoveryCard";
+import MobileEndpointFallbackCard from "./MobileEndpointFallbackCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
 import MobileOfflineQueueRecoveryCard from "./MobileOfflineQueueRecoveryCard";
@@ -337,6 +338,12 @@ export default function MobileDevicePage() {
           currentEntry={currentEntry}
           lastConnectivityResult={lastConnectivityResult}
         />
+        {credential ? (
+          // Gate on a connectivity test that actually failed IN THIS SESSION —
+          // a stale failure report fetched from the server must not tell the
+          // user their working entry is unreachable.
+          <MobileEndpointFallbackCard active={Boolean(connectivityTest && !connectivityTest.ok)} />
+        ) : null}
         {credential ? (
           <MobileConnectionRecoveryCard
             connectivityBusy={connectivityBusy}

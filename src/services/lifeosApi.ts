@@ -4,6 +4,8 @@ import { clearDevicePrivateKey, createDeviceKeyPair, isDeviceSignatureAvailable,
 import { clearDeviceCredential, getCachedDeviceCredential, getDeviceCredentialExpiryStatus, getDeviceCredentialStorageStatus, hydrateDeviceCredential, saveDeviceCredential } from "./deviceCredentialStore";
 import { clearActiveChatSessionId } from "./chatSessionStorage";
 import type { DeviceCredentialExpiryStatus, StoredDeviceCredential } from "./deviceCredentialStore";
+import { clearEndpointCandidates, getStoredEndpointCandidates, saveEndpointCandidates } from "./endpointCandidates";
+import type { EndpointCandidatesSnapshot } from "./endpointCandidates";
 
 export type BoundDevice = {
   id: string;
@@ -2422,6 +2424,9 @@ export function saveStoredDeviceCredential(credential: StoredDeviceCredential) {
 export async function clearStoredDeviceCredential() {
   await clearDeviceCredential();
   await clearDevicePrivateKey().catch(() => null);
+  // The stored desktop address list rides along with the credential: an
+  // unpaired phone should not keep a map of every address the desktop had.
+  clearEndpointCandidates();
 }
 
 export function getAdminStatus(options?: { timeoutMs?: number }) {
@@ -3190,7 +3195,7 @@ export function getBindingSession(bindingId: string) {
 
 export async function confirmBinding(token: string, deviceName: string) {
   const keyPair = isDeviceSignatureAvailable() ? await createDeviceKeyPair() : null;
-  const credential = await requestJson<StoredDeviceCredential>("/api/v1/devices/bind/confirm", {
+  const { endpoints, ...credential } = await requestJson<StoredDeviceCredential & { endpoints?: EndpointCandidatesSnapshot }>("/api/v1/devices/bind/confirm", {
     method: "POST",
     body: JSON.stringify({
       token,
@@ -3199,12 +3204,41 @@ export async function confirmBinding(token: string, deviceName: string) {
       ...(keyPair ? { publicKey: keyPair.publicKey } : {}),
     }),
   });
+  // The pairing response carries every currently reachable desktop address so a
+  // later failure of this origin is not a dead end. Addresses only, no secrets.
+  if (endpoints) saveEndpointCandidates(endpoints);
   if (!keyPair) return credential;
   return {
     device: credential.device,
     authMethod: "signature" as const,
     accessTokenExpiresAt: credential.accessTokenExpiresAt,
   };
+}
+
+export type DeviceEndpointsResponse = EndpointCandidatesSnapshot & { unchanged?: boolean };
+
+let lastEndpointRefreshAt = 0;
+const ENDPOINT_REFRESH_MIN_INTERVAL_MS = 60_000;
+
+export async function refreshDeviceEndpoints(options: { force?: boolean } = {}) {
+  // A flapping WebSocket reconnects (and fires auth.ok) about once a second;
+  // without a floor that alone exhausts the server-side rate limit.
+  const now = Date.now();
+  if (!options.force && now - lastEndpointRefreshAt < ENDPOINT_REFRESH_MIN_INTERVAL_MS) return null;
+  lastEndpointRefreshAt = now;
+
+  const stored = getStoredEndpointCandidates();
+  const query = stored?.version ? `?version=${encodeURIComponent(stored.version)}` : "";
+  const response = await requestJson<DeviceEndpointsResponse>(`/api/v1/devices/me/endpoints${query}`);
+  if (!response.unchanged && Array.isArray(response.candidates)) {
+    // Never wipe a known-good list with a transient empty snapshot — right
+    // after a desktop restart the diagnostics may answer before its tunnels
+    // have come back up.
+    if (response.candidates.length > 0 || !stored?.candidates.length) {
+      saveEndpointCandidates(response);
+    }
+  }
+  return response;
 }
 
 export async function rotateDeviceToken() {

@@ -139,6 +139,10 @@ Tailscale 和 Cloudflare Tunnel 不受这个限制：它们把流量转发到 `1
 8. 点击连接测试，测试通过后保存到桌面启动配置。
 9. 退出并重新打开 OwnOrbit AI，然后重新生成手机绑定二维码。
 
+#### 地址变化后手机怎么办
+
+配对成功时，手机会保存电脑当前所有可达地址（仅地址，不含任何凭证）。之后每次实时通道重连、以及电脑地址集合变化时，手机都会自动刷新这份列表。如果当前入口连不上，"设备与连接"页会自动探测其余已知地址；找到电脑仍在线的备用地址后，会给出一键跳转。注意：浏览器凭证是按地址（源）保存的，跳到备用地址后需要重新扫码配对一次。
+
 #### 代理软件的 TUN 模式会挡住 Tailscale
 
 如果电脑上装了 Clash、Mihomo、Surge 之类的代理客户端并开启了 **TUN 模式**，它的路由接管和 DNS 劫持会让 Tailscale 一直连不上，界面上只显示"未检测到在线状态"。连接向导现在会自动检测这种情况并在诊断里点名。
@@ -403,6 +407,10 @@ For long-term personal use, prefer Tailscale:
 
 8. Run the connection test, then save it to the desktop startup configuration.
 9. Quit and reopen OwnOrbit AI, then generate a fresh mobile pairing QR code.
+
+#### When the address changes after pairing
+
+At pairing time the phone stores every address the desktop is currently reachable at (addresses only — never credentials). The list refreshes automatically on every realtime reconnect and whenever the desktop's address set changes. If the current entry becomes unreachable, the Devices page probes the other known addresses and offers a one-tap jump to a backup address where the desktop still answers. Note that browser credentials are stored per address (origin), so the backup address will ask for one fresh pairing QR scan.
 
 #### A proxy client in TUN mode blocks Tailscale
 

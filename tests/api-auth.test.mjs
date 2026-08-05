@@ -2018,6 +2018,34 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     "X-LifeOS-Device-ID": credential.device.id,
     "X-LifeOS-Device-Token": credential.accessToken,
   };
+
+  // Endpoint discovery: bind/confirm hands the phone the address snapshot,
+  // the authenticated route serves it with version-conditional responses,
+  // and neither anonymous callers nor admin sessions may read it.
+  assert.equal(typeof credential.endpoints?.version, "string");
+  assert.ok(Array.isArray(credential.endpoints?.candidates));
+  const endpointsResponse = await request(port, "/api/v1/devices/me/endpoints", { headers: deviceHeaders });
+  assert.equal(endpointsResponse.status, 200);
+  const endpointsBody = await endpointsResponse.json();
+  assert.equal(typeof endpointsBody.version, "string");
+  assert.equal(endpointsBody.unchanged, false);
+  assert.ok(Array.isArray(endpointsBody.candidates));
+  for (const endpointCandidate of endpointsBody.candidates) {
+    assert.deepEqual(Object.keys(endpointCandidate).sort(), ["baseUrl", "id", "mode", "priority", "secure", "stability"]);
+  }
+  const endpointsUnchanged = await request(port, `/api/v1/devices/me/endpoints?version=${encodeURIComponent(endpointsBody.version)}`, { headers: deviceHeaders });
+  assert.equal(endpointsUnchanged.status, 200);
+  const endpointsUnchangedBody = await endpointsUnchanged.json();
+  assert.equal(endpointsUnchangedBody.unchanged, true);
+  assert.equal(endpointsUnchangedBody.candidates, undefined);
+  const anonEndpoints = await request(port, "/api/v1/devices/me/endpoints");
+  assert.equal(anonEndpoints.status, 401);
+  const adminEndpoints = await request(port, "/api/v1/devices/me/endpoints", { headers: adminHeaders });
+  assert.equal(adminEndpoints.status, 401);
+  // Health CORS reflection stays closed for unknown origins.
+  const evilOriginHealth = await request(port, "/api/v1/health", { headers: { Origin: "https://evil.example.com" } });
+  assert.equal(evilOriginHealth.headers.get("access-control-allow-origin"), null);
+
   const unauthConnectivityReport = await request(port, "/api/v1/devices/me/connectivity-report", {
     method: "POST",
     headers: adminHeaders,

@@ -8,6 +8,8 @@ import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionB
 import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { rateLimit } from "../httpSecurity";
 import { maybeRefreshIcloudHandoff } from "../networkDiagnostics";
+import { getDeviceEndpointsSnapshot } from "../deviceEndpoints";
+import { pairingBaseUrlNeedsLanBinding } from "../phoneReachability";
 import { getConfiguredPublicBaseUrl, isTemporaryTryCloudflareUrl, normalizePublicBaseUrl } from "../publicBaseUrl";
 import { broadcastRealtime, closeDeviceConnection, isDeviceOnline, sendRealtimeToDevice } from "../realtime";
 import { createSecret, tokenHash } from "../security";
@@ -48,32 +50,8 @@ function normalizePairingBaseUrl(value: unknown) {
   return normalized;
 }
 
-function isLoopbackBindHost(bindHost: string) {
-  const host = String(bindHost || "").trim().toLowerCase().replace(/^\[|\]$/g, "");
-  return host === "localhost" || host === "::1" || host.startsWith("127.");
-}
-
-function isPrivateLanIPv4(host: string) {
-  if (/^10\./.test(host)) return true;
-  if (/^192\.168\./.test(host)) return true;
-  const match = host.match(/^172\.(\d+)\./);
-  return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
-}
-
-// A LAN IP in the QR only works when the server actually listens on that interface.
-// While the core is bound to loopback the QR still renders and still looks valid, but
-// the phone can only ever get a connection refusal. Fail loudly instead.
-// Tunnel hostnames (Tailscale, Cloudflare) legitimately proxy into loopback, so only
-// literal private IPv4 addresses are rejected here.
-export function pairingBaseUrlNeedsLanBinding(baseUrl: string, bindHost: string) {
-  if (!isLoopbackBindHost(bindHost)) return false;
-  try {
-    const host = new URL(baseUrl).hostname.toLowerCase().replace(/^\[|\]$/g, "");
-    return isPrivateLanIPv4(host);
-  } catch {
-    return false;
-  }
-}
+// Re-exported so existing imports/tests keep one canonical path.
+export { pairingBaseUrlNeedsLanBinding };
 
 function sanitizeDevice(device: DeviceRecord) {
   const { accessTokenHash, ...safeDevice } = device;
@@ -394,11 +372,22 @@ export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1
       timestamp: now,
     });
 
+    // Hand the phone every currently reachable address at pairing time so a
+    // later failure of the pairing address is not a dead end. Never let a
+    // diagnostics hiccup break binding itself.
+    let endpoints: ReturnType<typeof getDeviceEndpointsSnapshot> | null = null;
+    try {
+      endpoints = getDeviceEndpointsSnapshot(bindHost);
+    } catch {
+      endpoints = null;
+    }
+
     res.json({
       device: sanitizeDevice(device),
       authMethod,
       ...(authMethod === "token" ? { accessToken } : {}),
       ...(device.accessTokenExpiresAt ? { accessTokenExpiresAt: device.accessTokenExpiresAt } : {}),
+      ...(endpoints ? { endpoints } : {}),
     });
   });
 
@@ -481,6 +470,27 @@ export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1
     if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
 
     res.json({ report: getLatestDeviceConnectivityReport(device.id) || null });
+  });
+
+  // Behind a tunnel every phone shares one upstream IP, so the bucket must
+  // hold several devices' worth of refreshes (clients also self-throttle).
+  app.get("/api/v1/devices/me/endpoints", rateLimit({ keyPrefix: "device-endpoints", windowMs: 60 * 1000, max: 60 }), (req, res) => {
+    const actor = getRequestActor(req);
+    if (!actor || actor.type !== "device") return res.status(401).json({ error: "Device authentication required" });
+    const device = getDevice(actor.id);
+    if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
+
+    let snapshot: ReturnType<typeof getDeviceEndpointsSnapshot>;
+    try {
+      snapshot = getDeviceEndpointsSnapshot(bindHost);
+    } catch {
+      return res.status(503).json({ error: "Endpoint snapshot is temporarily unavailable" });
+    }
+    const knownVersion = String(req.query?.version || "");
+    if (knownVersion && knownVersion === snapshot.version) {
+      return res.json({ version: snapshot.version, generatedAt: snapshot.generatedAt, unchanged: true });
+    }
+    res.json({ ...snapshot, unchanged: false });
   });
 
   app.post("/api/v1/devices/me/icloud-handoff-event", (req, res) => {

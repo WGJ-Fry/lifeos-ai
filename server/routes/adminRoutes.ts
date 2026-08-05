@@ -1,6 +1,7 @@
 import type express from "express";
 import crypto from "crypto";
 import { createDatabaseBackup, db } from "../db";
+import { maybeBroadcastDeviceEndpointsChange } from "../deviceEndpoints";
 import { insertAuditLog, listAuditLogs } from "../audit";
 import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiConfigStatus, getAiProviderBaseUrl, getAiProviderDefinition, getAiProviderStatus, listAiProviderStatuses, saveActiveAiProvider, saveAiApiKey, saveDiscoveredAiModelCatalog, saveSelectedAiModel, supportsAiProviderModelDiscovery, type AiProviderId } from "../appSecrets";
 import { buildCalendarSyncPreview, buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } from "../calendarSyncPreview";
@@ -2446,6 +2447,9 @@ export function registerAdminRoutes(app: express.Express) {
       process.env.LIFEOS_ALLOW_PUBLIC = "1";
       process.env.LIFEOS_TRUST_PROXY = "1";
       const icloudRefresh = safeAutoRefreshIcloudHandoff("cloudflare-tunnel-started");
+      try {
+        maybeBroadcastDeviceEndpointsChange("cloudflare-tunnel-started");
+      } catch {}
       insertAuditLog("cloudflare_tunnel_started", "network", tunnel.url, {
         pid: tunnel.pid,
         url: tunnel.url,
@@ -2473,6 +2477,9 @@ export function registerAdminRoutes(app: express.Express) {
     insertAuditLog("cloudflare_tunnel_stopped", "network", "cloudflare", {
       stoppedAt: Date.now(),
     }, (req as any).actor?.type, (req as any).actor?.id);
+    try {
+      maybeBroadcastDeviceEndpointsChange("cloudflare-tunnel-stopped");
+    } catch {}
     res.json({ tunnel, diagnostics: getAdminNetworkDiagnostics(), message: "Cloudflare Tunnel stopped." });
   });
 
@@ -2489,6 +2496,9 @@ export function registerAdminRoutes(app: express.Express) {
       process.env.LIFEOS_ALLOW_PUBLIC = "1";
       process.env.LIFEOS_TRUST_PROXY = "1";
       const icloudRefresh = safeAutoRefreshIcloudHandoff("tailscale-serve-started");
+      try {
+        maybeBroadcastDeviceEndpointsChange("tailscale-serve-started");
+      } catch {}
       insertAuditLog("tailscale_https_serve_started", "network", serve.url, {
         command: serve.command,
         url: serve.url,
@@ -2541,6 +2551,9 @@ export function registerAdminRoutes(app: express.Express) {
         command: serve.command,
         url: serve.url,
       }, (req as any).actor?.type, (req as any).actor?.id);
+      try {
+        maybeBroadcastDeviceEndpointsChange("tailscale-serve-stopped");
+      } catch {}
       res.json({ serve, diagnostics: getAdminNetworkDiagnostics(), message: "Tailscale HTTPS Serve stopped." });
     } catch (error: any) {
       insertAuditLog("tailscale_https_serve_stop_failed", "network", "tailscale", {
@@ -2558,6 +2571,9 @@ export function registerAdminRoutes(app: express.Express) {
         baseUrl: req.body?.baseUrl,
       });
       const icloudRefresh = safeAutoRefreshIcloudHandoff("desktop-connection-config-saved");
+      try {
+        maybeBroadcastDeviceEndpointsChange("desktop-connection-config-saved");
+      } catch {}
       insertAuditLog("desktop_connection_config_saved", "network", config.mode, {
         mode: config.mode,
         label: config.label,

@@ -1,4 +1,5 @@
 import { getDesktopRuntimeConfig } from "./desktopRuntimeConfig.ts";
+import { maybeBroadcastDeviceEndpointsChange } from "./deviceEndpoints.ts";
 import { maybeStartConfiguredCloudflareTunnel, setCloudflareTunnelReconnectHandler } from "./cloudflareTunnel.ts";
 import { maybeRefreshIcloudHandoff, maybeStartConfiguredTailscaleServe, testConnectionUrl } from "./networkDiagnostics.ts";
 import { getRemoteValidationReport, saveRemoteValidationReport, type RemoteValidationReport } from "./remoteValidationReport.ts";
@@ -97,6 +98,12 @@ function configuredRemoteBaseUrl() {
 
 export async function runRemoteHealthCheck(reason = "manual") {
   const icloudRefresh = safeRefreshIcloudHandoff(`remote-health-${reason}`);
+  // Endpoint-set change detection must run even without a configured remote
+  // entry — a LAN-only desktop still has addresses that move, and this is its
+  // only scheduled observer.
+  try {
+    maybeBroadcastDeviceEndpointsChange(`remote-health-${reason}`);
+  } catch {}
   const baseUrl = configuredRemoteBaseUrl();
   if (!baseUrl) return { skipped: true, reason: "no_remote_entry", report: getRemoteValidationReport(), icloudRefresh };
   if (running) return { skipped: true, reason: "already_running", report: getRemoteValidationReport() };
@@ -127,6 +134,11 @@ export async function runRemoteHealthCheck(reason = "manual") {
       healthOkAfter: result.ok,
     });
     saveRemoteHealthSample({ reason, report, recovery: recoveryReport });
+    // Recovery may have just restarted a tunnel — observe again so the change
+    // reaches phones now instead of on the next scheduled cycle.
+    try {
+      maybeBroadcastDeviceEndpointsChange(`remote-health-${reason}-after-recovery`);
+    } catch {}
     const postCheckIcloudRefresh = safeRefreshIcloudHandoff(`remote-health-${reason}-after-check`);
     return { skipped: false, reason, restored: recovery.restored, recovery: recoveryReport, report, icloudRefresh: postCheckIcloudRefresh.refreshed ? postCheckIcloudRefresh : icloudRefresh };
   } finally {
