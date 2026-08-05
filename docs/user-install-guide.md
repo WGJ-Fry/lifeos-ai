@@ -141,7 +141,11 @@ Tailscale 和 Cloudflare Tunnel 不受这个限制：它们把流量转发到 `1
 
 #### 地址变化后手机怎么办
 
-配对成功时，手机会保存电脑当前所有可达地址（仅地址，不含任何凭证）。之后每次实时通道重连、以及电脑地址集合变化时，手机都会自动刷新这份列表。如果当前入口连不上，"设备与连接"页会自动探测其余已知地址；找到电脑仍在线的备用地址后，会给出一键跳转。注意：浏览器凭证是按地址（源）保存的，跳到备用地址后需要重新扫码配对一次。
+配对成功时，手机会保存电脑当前所有可达地址（仅地址，不含任何凭证）。之后每次实时通道重连、以及电脑地址集合变化时，手机都会自动刷新这份列表。
+
+**当前入口还能用时**：如果列表里有比当前入口更稳定的地址（例如当前是临时隧道、而 Tailscale 域名可用且已确认在线），"设备与连接"页会提示"一键迁移"。迁移通过当前入口签发一张 5 分钟内有效、只能用一次的迁移凭证，到新地址自动换发新密钥，**不需要重新扫码**；旧地址上的凭证在迁移瞬间失效，始终保持每台设备只有一份有效凭证。
+
+**当前入口连不上时**：设备页会自动探测其余已知地址；找到电脑仍在线的备用地址后给出一键跳转。此时旧入口已经无法签发迁移凭证，所以跳过去需要重新扫码配对一次（浏览器凭证按地址保存）。
 
 #### 代理软件的 TUN 模式会挡住 Tailscale
 
@@ -410,7 +414,11 @@ For long-term personal use, prefer Tailscale:
 
 #### When the address changes after pairing
 
-At pairing time the phone stores every address the desktop is currently reachable at (addresses only — never credentials). The list refreshes automatically on every realtime reconnect and whenever the desktop's address set changes. If the current entry becomes unreachable, the Devices page probes the other known addresses and offers a one-tap jump to a backup address where the desktop still answers. Note that browser credentials are stored per address (origin), so the backup address will ask for one fresh pairing QR scan.
+At pairing time the phone stores every address the desktop is currently reachable at (addresses only — never credentials). The list refreshes automatically on every realtime reconnect and whenever the desktop's address set changes.
+
+**While the current entry still works**: if the list holds a more stable address (say the phone is on a temporary tunnel while a verified Tailscale hostname is online), the Devices page offers one-tap migration. It issues a single-use voucher (5-minute TTL) over the current entry and re-keys on the new address automatically — **no new QR scan**. The old origin's credential dies the moment migration completes, keeping exactly one active credential per device.
+
+**When the current entry is unreachable**: the Devices page probes the other known addresses and offers a one-tap jump to a backup address where the desktop still answers. The dead entry can no longer issue vouchers, so the backup address asks for one fresh pairing QR scan (browser credentials are stored per address).
 
 #### A proxy client in TUN mode blocks Tailscale
 

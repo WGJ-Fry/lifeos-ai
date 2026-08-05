@@ -2326,6 +2326,173 @@ test("admin auth protects APIs and device binding enables mobile access", async 
     ws.on("error", reject);
   });
 
+  // Cross-origin migration: a working device requests a one-time voucher,
+  // redeems it with a fresh keypair (as the new origin would), the whole
+  // credential rotates, and the voucher burns.
+  const migrationSourceBinding = await request(port, "/api/v1/devices/bind/start", {
+    method: "POST",
+    headers: adminHeaders,
+    body: JSON.stringify({}),
+  }).then((res) => res.json());
+  const migrationOldKeyPair = createDeviceKeyPair();
+  const migrationCredential = await request(port, "/api/v1/devices/bind/confirm", {
+    method: "POST",
+    body: JSON.stringify({
+      token: migrationSourceBinding.token,
+      deviceName: "Migration Phone",
+      deviceType: "mobile",
+      publicKey: migrationOldKeyPair.publicKey,
+    }),
+  }).then((res) => res.json());
+  assert.equal(migrationCredential.authMethod, "signature");
+  const migrationDeviceId = migrationCredential.device.id;
+
+  const anonMigrateToken = await request(port, "/api/v1/devices/me/migrate-token", { method: "POST" });
+  assert.equal(anonMigrateToken.status, 401);
+
+  const migrateVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationOldKeyPair.privateKey,
+      method: "POST",
+      pathname: "/api/v1/devices/me/migrate-token",
+    }),
+  }).then((res) => res.json());
+  assert.match(migrateVoucher.token, /^migrate_/);
+  assert.equal(typeof migrateVoucher.expiresAt, "number");
+
+  const migrationNewKeyPair = createDeviceKeyPair();
+  const migrated = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: migrateVoucher.token, publicKey: migrationNewKeyPair.publicKey }),
+  }).then((res) => res.json());
+  assert.equal(migrated.device.id, migrationDeviceId, JSON.stringify(migrated));
+  assert.equal(migrated.authMethod, "signature");
+  assert.equal(migrated.accessToken, undefined);
+  assert.equal(typeof migrated.endpoints?.version, "string");
+  assert.equal(JSON.stringify(migrated).includes("accessTokenHash"), false);
+
+  // The old origin's key is dead, the new one works.
+  const oldKeyAfterMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationOldKeyPair.privateKey,
+      method: "GET",
+      pathname: "/api/v1/devices/me/connectivity-report",
+    }),
+  });
+  assert.equal(oldKeyAfterMigration.status, 401);
+  const newKeyAfterMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationNewKeyPair.privateKey,
+      method: "GET",
+      pathname: "/api/v1/devices/me/connectivity-report",
+    }),
+  });
+  assert.equal(newKeyAfterMigration.status, 200);
+
+  // Single-use: replaying the voucher fails without leaking it back.
+  const replayedVoucher = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: migrateVoucher.token, publicKey: createDeviceKeyPair().publicKey }),
+  });
+  assert.equal(replayedVoucher.status, 400);
+  const replayedVoucherBody = await replayedVoucher.json();
+  assert.equal(replayedVoucherBody.code, "migration_token_invalid_or_expired");
+  assert.equal(JSON.stringify(replayedVoucherBody).includes(migrateVoucher.token), false);
+
+  const bogusVoucher = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: "migrate_totally_bogus_voucher_value" }),
+  });
+  assert.equal(bogusVoucher.status, 400);
+
+  // A voucher pinned to a target origin burns on a wrong-origin redemption
+  // attempt and cannot be replayed at the right origin afterwards.
+  const pinnedVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    headers: {
+      ...signedDeviceHeaders({
+        deviceId: migrationDeviceId,
+        privateKey: migrationNewKeyPair.privateKey,
+        method: "POST",
+        pathname: "/api/v1/devices/me/migrate-token",
+        body: JSON.stringify({ targetBaseUrl: "https://stable.example.com" }),
+      }),
+    },
+    body: JSON.stringify({ targetBaseUrl: "https://stable.example.com" }),
+  }).then((res) => res.json());
+  assert.match(pinnedVoucher.token, /^migrate_/);
+  const wrongOriginRedeem = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: pinnedVoucher.token, targetBaseUrl: "https://evil.example.com", publicKey: createDeviceKeyPair().publicKey }),
+  });
+  assert.equal(wrongOriginRedeem.status, 400);
+  const rightOriginAfterBurn = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: pinnedVoucher.token, targetBaseUrl: "https://stable.example.com", publicKey: createDeviceKeyPair().publicKey }),
+  });
+  assert.equal(rightOriginAfterBurn.status, 400);
+
+  // Token-mode redemption (a plain-HTTP origin without WebCrypto): the device
+  // downgrades to bearer-token auth and the signature key dies.
+  const tokenModeVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationNewKeyPair.privateKey,
+      method: "POST",
+      pathname: "/api/v1/devices/me/migrate-token",
+    }),
+  }).then((res) => res.json());
+  const tokenModeMigrated = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: tokenModeVoucher.token }),
+  }).then((res) => res.json());
+  assert.equal(tokenModeMigrated.authMethod, "token");
+  assert.match(tokenModeMigrated.accessToken, /^device_/);
+  assert.equal(typeof tokenModeMigrated.accessTokenExpiresAt, "number");
+  const signatureAfterTokenMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: signedDeviceHeaders({
+      deviceId: migrationDeviceId,
+      privateKey: migrationNewKeyPair.privateKey,
+      method: "GET",
+      pathname: "/api/v1/devices/me/connectivity-report",
+    }),
+  });
+  assert.equal(signatureAfterTokenMigration.status, 401);
+  const tokenAfterTokenMigration = await request(port, "/api/v1/devices/me/connectivity-report", {
+    headers: {
+      "X-LifeOS-Device-ID": migrationDeviceId,
+      "X-LifeOS-Device-Token": tokenModeMigrated.accessToken,
+    },
+  });
+  assert.equal(tokenAfterTokenMigration.status, 200);
+
+  // A voucher issued before revocation must not resurrect a revoked device.
+  const preRevocationVoucher = await request(port, "/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    headers: {
+      "X-LifeOS-Device-ID": migrationDeviceId,
+      "X-LifeOS-Device-Token": tokenModeMigrated.accessToken,
+    },
+  }).then((res) => res.json());
+  assert.match(preRevocationVoucher.token, /^migrate_/);
+  const revokeMigrationDevice = await request(port, `/api/v1/devices/${migrationDeviceId}`, {
+    method: "DELETE",
+    headers: adminHeaders,
+  });
+  assert.equal(revokeMigrationDevice.status, 200);
+  const revokedRedeem = await request(port, "/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({ token: preRevocationVoucher.token, publicKey: createDeviceKeyPair().publicKey }),
+  });
+  assert.equal(revokedRedeem.status, 400);
+  const revokedRedeemBody = await revokedRedeem.json();
+  assert.equal(revokedRedeemBody.code, "migration_token_invalid_or_expired");
+
   const tamperedSignedState = await request(port, "/api/v1/state/lifeos_proxy_enabled", {
     method: "PUT",
     headers: signedStateHeaders,
@@ -2557,10 +2724,13 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   assert.equal(deletedMemory.status, 200);
 
   const cloudKitAutoSyncAfterLocalChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 10);
+  // 14 = 2 chat + 3 memory + 9 device-trust (the migration flows above add a
+  // bind, two credential rotations, and a revocation — one device-trust
+  // change each).
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.total, 14);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["chat-history"], 2);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType.memory, 3);
-  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["device-trust"], 5);
+  assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.byType["device-trust"], 9);
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.rawPayloadStored, false);
   assert.equal(typeof cloudKitAutoSyncAfterLocalChanges.schedule.pendingLocalChanges.nextSuggestedRunAt, "number");
   assert.equal(cloudKitAutoSyncAfterLocalChanges.schedule.enabled, false);
@@ -3527,7 +3697,9 @@ test("admin auth protects APIs and device binding enables mobile access", async 
   const revokedStateAccess = await request(port, "/api/v1/state/lifeos_tasks_pro", { headers: deviceHeaders });
   assert.equal(revokedStateAccess.status, 401);
   const cloudKitAutoSyncAfterDeviceTrustChanges = await request(port, "/api/v1/admin/icloud-data-sync/auto-sync", { headers: adminHeaders }).then((res) => res.json());
-  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["device-trust"], 7);
+  // 11 = the original 7 plus the migration flows: bind, two rotations, and a
+  // revocation.
+  assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["device-trust"], 11);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["generated-app-state"], 1);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType.tasks, 1);
   assert.equal(cloudKitAutoSyncAfterDeviceTrustChanges.schedule.pendingLocalChanges.byType["chat-history"] >= 1, true);

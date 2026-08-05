@@ -3215,6 +3215,36 @@ export async function confirmBinding(token: string, deviceName: string) {
   };
 }
 
+// Migration: the phone asks its current (working) origin for a one-time
+// voucher, then redeems it on the target origin with a fresh keypair so the
+// binding moves without a new QR scan.
+export function requestDeviceMigrationToken(targetBaseUrl: string) {
+  return requestJson<{ token: string; expiresAt: number }>("/api/v1/devices/me/migrate-token", {
+    method: "POST",
+    body: JSON.stringify({ targetBaseUrl }),
+  });
+}
+
+export async function confirmDeviceMigration(token: string) {
+  const keyPair = isDeviceSignatureAvailable() ? await createDeviceKeyPair() : null;
+  const { endpoints, ...credential } = await requestJson<StoredDeviceCredential & { endpoints?: EndpointCandidatesSnapshot }>("/api/v1/devices/migrate/confirm", {
+    method: "POST",
+    body: JSON.stringify({
+      token,
+      // The redeeming origin must match the origin the voucher was pinned to.
+      targetBaseUrl: window.location.origin,
+      ...(keyPair ? { publicKey: keyPair.publicKey } : {}),
+    }),
+  });
+  if (endpoints) saveEndpointCandidates(endpoints);
+  if (!keyPair) return credential;
+  return {
+    device: credential.device,
+    authMethod: "signature" as const,
+    accessTokenExpiresAt: credential.accessTokenExpiresAt,
+  };
+}
+
 export type DeviceEndpointsResponse = EndpointCandidatesSnapshot & { unchanged?: boolean };
 
 let lastEndpointRefreshAt = 0;

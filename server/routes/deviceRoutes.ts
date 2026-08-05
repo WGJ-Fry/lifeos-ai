@@ -4,7 +4,7 @@ import { insertAuditLog, redactAuditString } from "../audit";
 import { requireAdmin } from "../auth";
 import { getRequestActor } from "../auth";
 import { noteCloudKitLocalChange } from "../cloudKitAutoSyncSchedule";
-import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getLatestDeviceIcloudHandoffEvent, getOpenBindingSessionByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, insertDeviceIcloudHandoffEvent, pruneExpiredBindingSessions, revokeDeviceRecord, rotateDeviceToken } from "../devices";
+import { BindingSession, DeviceRecord, confirmBindingSession, getBindingSessionById, getDevice, getDevices, getLatestDeviceConnectivityReport, getLatestDeviceIcloudHandoffEvent, getOpenBindingSessionByToken, getOpenDeviceMigrationVoucherByToken, insertBindingSession, insertDevice, insertDeviceConnectivityReport, insertDeviceIcloudHandoffEvent, insertDeviceMigrationVoucher, markDeviceMigrationVoucherUsed, migrateDeviceCredential, pruneExpiredBindingSessions, pruneExpiredDeviceMigrationVouchers, revokeDeviceRecord, rotateDeviceToken } from "../devices";
 import { getDesktopRuntimeConfig } from "../desktopRuntimeConfig";
 import { rateLimit } from "../httpSecurity";
 import { maybeRefreshIcloudHandoff } from "../networkDiagnostics";
@@ -421,6 +421,152 @@ export function registerDeviceRoutes(app: express.Express, bindHost = "127.0.0.1
 
     revokeDevice(device, actor, "self");
     res.json({ ok: true, device: sanitizeDevice({ ...device, status: "revoked", revokedAt: Date.now() }) });
+  });
+
+  // Issued over the OLD, still-working origin so the phone can carry its
+  // binding to a new origin without a fresh QR. Short-lived and single-use;
+  // only its hash is stored.
+  app.post("/api/v1/devices/me/migrate-token", rateLimit({ keyPrefix: "device-migrate-token", windowMs: 5 * 60 * 1000, max: 10 }), (req, res) => {
+    const actor = getRequestActor(req);
+    if (!actor || actor.type !== "device") return res.status(401).json({ error: "Device authentication required" });
+    const device = getDevice(actor.id);
+    if (!device || device.revokedAt) return res.status(404).json({ error: "Device not found" });
+
+    // Pinning the voucher to the intended target origin means a token that
+    // leaks toward the wrong host cannot rotate the credential there.
+    let targetBaseUrl: string | undefined;
+    const rawTarget = String(req.body?.targetBaseUrl || "").trim();
+    if (rawTarget) {
+      try {
+        targetBaseUrl = new URL(rawTarget).origin.toLowerCase();
+      } catch {
+        return res.status(400).json({ error: "targetBaseUrl is invalid" });
+      }
+    }
+
+    const now = Date.now();
+    pruneExpiredDeviceMigrationVouchers(now);
+    const token = createSecret("migrate");
+    const voucher = {
+      id: crypto.randomUUID(),
+      deviceId: device.id,
+      tokenHash: tokenHash(token),
+      targetBaseUrl,
+      createdAt: now,
+      expiresAt: now + 5 * 60 * 1000,
+    };
+    insertDeviceMigrationVoucher(voucher);
+    insertAuditLog("device_migration_voucher_created", "device", device.id, {
+      voucherId: voucher.id,
+      targetBaseUrl: targetBaseUrl || null,
+      expiresAt: voucher.expiresAt,
+    }, "device", device.id);
+    res.json({ token, expiresAt: voucher.expiresAt });
+  });
+
+  // Redeemed on the NEW origin. The phone arrives with a fresh origin-scoped
+  // keypair (or none, over plain HTTP) and the whole credential rotates onto
+  // it — the old origin's credential stops working at this moment, keeping
+  // exactly one active credential per device.
+  app.post("/api/v1/devices/migrate/confirm", rateLimit({ keyPrefix: "device-migrate-confirm", windowMs: 5 * 60 * 1000, max: 20 }), (req, res) => {
+    const { token, publicKey } = req.body || {};
+    if (!token) return res.status(400).json({ error: "token is required" });
+
+    let normalizedPublicKey: string | undefined;
+    try {
+      normalizedPublicKey = normalizeP256PublicKey(publicKey);
+    } catch (error: any) {
+      return res.status(400).json({
+        code: "invalid_device_public_key",
+        error: error.message || "Device public key is invalid",
+      });
+    }
+
+    const now = Date.now();
+    const voucher = getOpenDeviceMigrationVoucherByToken(String(token), now);
+    const device = voucher ? getDevice(voucher.deviceId) : undefined;
+    if (!voucher || !device || device.revokedAt) {
+      insertAuditLog("device_migration_invalid_or_expired", "device", voucher?.deviceId || "unknown", {
+        reason: !voucher ? "voucher-invalid-or-expired" : "device-revoked",
+        attemptedAt: now,
+      }, "device", "unbound");
+      return res.status(400).json({
+        code: "migration_token_invalid_or_expired",
+        error: "Migration token is invalid or expired",
+        recovery: { reason: "migration-token-invalid-or-expired", action: "generate-new-qr" },
+      });
+    }
+
+    // The redeemer must state which origin it is redeeming at; a mismatch
+    // against a pinned voucher burns it — a probing wrong host must not leave
+    // the token alive for further tries.
+    if (voucher.targetBaseUrl) {
+      let redeemerOrigin = "";
+      try {
+        redeemerOrigin = new URL(String(req.body?.targetBaseUrl || "")).origin.toLowerCase();
+      } catch {}
+      if (redeemerOrigin !== voucher.targetBaseUrl) {
+        markDeviceMigrationVoucherUsed(voucher.id, now);
+        insertAuditLog("device_migration_target_mismatch", "device", device.id, {
+          voucherId: voucher.id,
+          attemptedAt: now,
+        }, "device", "unbound");
+        return res.status(400).json({
+          code: "migration_token_invalid_or_expired",
+          error: "Migration token is invalid or expired",
+          recovery: { reason: "migration-target-mismatch", action: "generate-new-qr" },
+        });
+      }
+    }
+
+    if (!markDeviceMigrationVoucherUsed(voucher.id, now)) {
+      return res.status(400).json({
+        code: "migration_token_invalid_or_expired",
+        error: "Migration token is invalid or expired",
+        recovery: { reason: "migration-token-invalid-or-expired", action: "generate-new-qr" },
+      });
+    }
+    const authMethod = normalizedPublicKey ? "signature" : "token";
+    const accessToken = createSecret("device");
+    const migrated = migrateDeviceCredential(device.id, {
+      publicKey: normalizedPublicKey,
+      accessTokenHash: tokenHash(accessToken),
+      accessTokenExpiresAt: authMethod === "token" ? deviceTokenExpiresAt(now) : undefined,
+      migratedAt: now,
+    });
+    if (!migrated) {
+      return res.status(400).json({
+        code: "migration_token_invalid_or_expired",
+        error: "Migration token is invalid or expired",
+        recovery: { reason: "device-unavailable", action: "generate-new-qr" },
+      });
+    }
+
+    insertAuditLog("device_migrated", "device", device.id, {
+      voucherId: voucher.id,
+      authMethod,
+      credentialExpiresAt: migrated.accessTokenExpiresAt || null,
+    }, "device", device.id);
+    noteCloudKitLocalChange("device-trust", { type: "device", id: device.id });
+    // The old origin's realtime session authenticated with the credential that
+    // just died — close it like revoke does instead of letting it linger.
+    closeDeviceConnection(device.id, "credential-migrated");
+    broadcastRealtime({ type: "device.migrated", deviceId: device.id, timestamp: now });
+
+    let endpoints: ReturnType<typeof getDeviceEndpointsSnapshot> | null = null;
+    try {
+      endpoints = getDeviceEndpointsSnapshot(bindHost);
+    } catch {
+      endpoints = null;
+    }
+
+    res.json({
+      device: sanitizeDevice(migrated),
+      authMethod,
+      ...(authMethod === "token" ? { accessToken } : {}),
+      ...(migrated.accessTokenExpiresAt ? { accessTokenExpiresAt: migrated.accessTokenExpiresAt } : {}),
+      ...(endpoints ? { endpoints } : {}),
+    });
   });
 
   app.post("/api/v1/devices/me/connectivity-report", (req, res) => {

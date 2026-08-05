@@ -716,6 +716,22 @@ CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_jobs_trusted_mac
   ON cloudkit_chat_jobs (trusted_mac_fingerprint, status, created_at);
 `,
   },
+  {
+    version: 36,
+    name: "device_migration_vouchers",
+    sql: `
+CREATE TABLE IF NOT EXISTS device_migration_vouchers (
+  id TEXT PRIMARY KEY,
+  device_id TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  target_base_url TEXT,
+  created_at INTEGER NOT NULL,
+  expires_at INTEGER NOT NULL,
+  used_at INTEGER,
+  FOREIGN KEY (device_id) REFERENCES devices(id)
+);
+`,
+  },
 ];
 
 function parseMigration(migrationDir: string, file: string): Migration | null {

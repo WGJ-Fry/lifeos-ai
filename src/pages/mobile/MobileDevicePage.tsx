@@ -14,6 +14,7 @@ import { flushPendingMobileIcloudHandoffEvents, getMobileIcloudHandoffServerRepa
 import type { MobileIcloudHandoffServerRepairStatus } from "../../services/mobileIcloudHandoff";
 import MobileConnectionRecoveryCard from "./MobileConnectionRecoveryCard";
 import MobileEndpointFallbackCard from "./MobileEndpointFallbackCard";
+import MobileEndpointMigrationCard from "./MobileEndpointMigrationCard";
 import MobileDeviceHealthSummary from "./MobileDeviceHealthSummary";
 import MobileGeneratedToolsCard from "./MobileGeneratedToolsCard";
 import MobileOfflineQueueRecoveryCard from "./MobileOfflineQueueRecoveryCard";
@@ -343,6 +344,11 @@ export default function MobileDevicePage() {
           // a stale failure report fetched from the server must not tell the
           // user their working entry is unreachable.
           <MobileEndpointFallbackCard active={Boolean(connectivityTest && !connectivityTest.ok)} />
+        ) : null}
+        {credential ? (
+          // Suggested only while the current entry works — migration needs the
+          // old origin alive to hand out its voucher.
+          <MobileEndpointMigrationCard active={!connectivityTest || connectivityTest.ok} />
         ) : null}
         {credential ? (
           <MobileConnectionRecoveryCard
