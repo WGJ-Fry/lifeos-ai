@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "motion/react";
 import ChatInputBar from "./components/chat/ChatInputBar";
 import ChatWidgetBox from "./components/chat/ChatWidgetBox";
 import InlineWidgetRenderer from "./components/chat/InlineWidgetRenderer";
-import LocalSettingsModal from "./components/chat/LocalSettingsModal";
 import MobileChatHeader from "./components/chat/MobileChatHeader";
 import OfflineQueueBanner from "./components/chat/OfflineQueueBanner";
 import ProfileModal from "./components/chat/ProfileModal";
@@ -22,6 +21,14 @@ const StudioApp = lazy(() => import("./components/apps/StudioApp"));
 
 export default function App() {
   const { locale, t } = useI18n();
+  const formatChatError = (error: unknown) => {
+    const code = error && typeof error === "object" && "code" in error ? String((error as { code?: unknown }).code || "") : "";
+    const status = error && typeof error === "object" && "status" in error ? Number((error as { status?: unknown }).status || 0) : 0;
+    if (code === "AI_CONFIG_MISSING") return t("chat.aiNotConfigured");
+    if (status === 401 || status === 403) return t("chat.authorizationError");
+    if (status >= 500) return t("chat.serverError");
+    return t("chat.networkError");
+  };
   const [messages, setMessages] = useState<Message[]>(() => {
     return loadStoredChatMessages();
   });
@@ -29,11 +36,9 @@ export default function App() {
   const [viewMode, setViewMode] = useState<ViewMode>("terminal");
   const [showProfile, setShowProfile] = useState(false);
   const [showVoiceMode, setShowVoiceMode] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [customApps, setCustomApps] = useState<CustomApp[]>([]);
   const [customAppsHydrated, setCustomAppsHydrated] = useState(false);
   
-  const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [voiceState, setVoiceState] = useState<"speaking" | "listening" | "processing">("listening");
   const [voiceRecognitionText, setVoiceRecognitionText] = useState("");
   const recognitionRef = useRef<any>(null);
@@ -194,7 +199,7 @@ export default function App() {
 
     } catch (err) {
       console.error(err);
-      const errorMessage: Message = { role: "model", parts: [{ text: err instanceof Error ? err.message : t("chat.networkError") }] };
+      const errorMessage: Message = { role: "model", parts: [{ text: formatChatError(err) }] };
       setMessages((prev) => [...prev, errorMessage]);
       void persistMessageToCore(errorMessage);
       setVoiceState("listening");
@@ -331,7 +336,7 @@ export default function App() {
       void persistMessageToCore(modelMessage);
     } catch (err) {
       console.error(err);
-      const errorMessage: Message = { role: "model", parts: [{ text: err instanceof Error ? err.message : t("chat.networkError") }] };
+      const errorMessage: Message = { role: "model", parts: [{ text: formatChatError(err) }] };
       setMessages((prev) => [...prev, errorMessage]);
       void persistMessageToCore(errorMessage);
     } finally {
@@ -475,25 +480,7 @@ export default function App() {
             onClose={() => setShowProfile(false)}
             onOpenSettings={() => {
               setShowProfile(false);
-              setShowSettings(true);
-            }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Settings / Local Deployment Overlay */}
-      <AnimatePresence>
-        {showSettings && (
-          <LocalSettingsModal
-            onClose={() => setShowSettings(false)}
-            saveStatus={saveStatus}
-            onSave={() => {
-              setSaveStatus(t("chat.configSaving"));
-              setTimeout(() => setSaveStatus(t("chat.configSaved")), 1000);
-              setTimeout(() => {
-                setSaveStatus(null);
-                setShowSettings(false);
-              }, 2500);
+              window.location.assign("/mobile/device");
             }}
           />
         )}
@@ -515,7 +502,10 @@ export default function App() {
 
       {/* Main Terminal View (Phone Profile Layout) */}
       <div className="w-full max-w-[500px] bg-[#09090b] flex flex-col h-full relative shadow-[0_0_80px_rgba(0,0,0,0.5)] border-x [border-color:transparent] sm:border-white/[0.05]">
-        <MobileChatHeader onOpenStudio={() => setViewMode("studio")} onOpenProfile={() => setShowProfile(true)} />
+        <MobileChatHeader
+          onOpenDevice={() => window.location.assign("/mobile/device")}
+          onOpenProfile={() => setShowProfile(true)}
+        />
         
         {/* Chat Feed */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-7 scroll-smooth bg-gradient-to-b from-transparent to-[#09090b] hide-scrollbar pb-32">

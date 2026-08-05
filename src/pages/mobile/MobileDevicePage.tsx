@@ -72,9 +72,14 @@ export default function MobileDevicePage() {
       await flushPendingMobileIcloudHandoffEvents().catch(() => null);
       setIcloudHandoffStatus(getMobileIcloudHandoffStatus());
       setIcloudServerRepair(getMobileIcloudHandoffServerRepairStatus());
-      if (options.announce) setStatus(t("mobileDevice.serverStateRefreshed"));
-    } catch (error: any) {
-      if (options.announce) setStatus(error.message || t("mobileDevice.serverStateRefreshFailed"));
+      if (options.announce) {
+        const refreshedServerState = healthResult.status === "fulfilled" || reportResult.status === "fulfilled";
+        setStatus(t(refreshedServerState
+          ? "mobileDevice.serverStateRefreshed"
+          : "mobileDevice.serverStateRefreshFailed"));
+      }
+    } catch {
+      if (options.announce) setStatus(t("mobileDevice.serverStateRefreshFailed"));
     } finally {
       if (options.announce) setServerRefreshBusy(false);
     }
@@ -181,11 +186,11 @@ export default function MobileDevicePage() {
       setCredential(null);
       await refreshCredentialStorage();
       setStatus(t("mobileDevice.unboundDone"));
-    } catch (error: any) {
+    } catch {
       await clearStoredDeviceCredential();
       setCredential(null);
       await refreshCredentialStorage();
-      setStatus(t("mobileDevice.localClearedRevokeFailed", { message: error.message || t("mobileDevice.revokeLater") }));
+      setStatus(t("mobileDevice.localClearedRevokeFailed", { message: t("mobileDevice.revokeLater") }));
     }
   };
 
@@ -196,8 +201,8 @@ export default function MobileDevicePage() {
       setCredential(next);
       await refreshCredentialStorage();
       setStatus(t("mobileDevice.credentialRefreshed"));
-    } catch (error: any) {
-      setStatus(error.message || t("mobileDevice.refreshFailed"));
+    } catch {
+      setStatus(t("mobileDevice.refreshFailed"));
     }
   };
 
@@ -256,8 +261,8 @@ export default function MobileDevicePage() {
     try {
       await navigator.clipboard.writeText(text);
       setStatus(t("mobileDevice.itemCopied"));
-    } catch (error: any) {
-      setStatus(error.message || t("mobileDevice.copyFailed"));
+    } catch {
+      setStatus(t("mobileDevice.copyFailed"));
     }
   };
 

@@ -212,9 +212,20 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(serviceWorker, /SHELL_ASSETS/);
   assert.match(serviceWorker, /extractBuildAssets/);
   assert.match(serviceWorker, /cacheBuildAssets/);
+  assert.match(serviceWorker, /extractManifestAssets/);
+  assert.match(serviceWorker, /cacheManifestAssets/);
+  assert.match(serviceWorker, /asset-manifest\.json/);
   assert.match(serviceWorker, /html\.match\(/);
   assert.match(serviceWorker, /assets/);
   assert.match(serviceWorker, /withBasePath\("\/"\)/);
+
+  const assetManifestResponse = await request(port, "/asset-manifest.json");
+  assert.equal(assetManifestResponse.status, 200);
+  assert.match(assetManifestResponse.headers.get("content-type") || "", /json/);
+  const assetManifest = await assetManifestResponse.json();
+  const buildFiles = Object.values(assetManifest).map((entry) => entry.file);
+  assert.ok(buildFiles.some((file) => /translations-zh-CN/.test(file)));
+  assert.ok(buildFiles.some((file) => /translations-en-US/.test(file)));
   assert.match(serviceWorker, /cache\.addAll\(buildAssets\)/);
   assert.match(serviceWorker, /\/mobile\/chat/);
   assert.match(serviceWorker, /\/mobile\/device/);
@@ -236,7 +247,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mainSource, /window\.location\.reload\(\)/);
   assert.match(mainSource, /registration\.update\(\)/);
   assert.match(mainSource, /LIFEOS_SKIP_WAITING/);
-  assert.match(mainSource, /basename=\{lifeosBasePath \|\| undefined\}/);
+  assert.match(mainSource, /function currentLifeOSPath\(\)/);
+  assert.match(mainSource, /pathname\.startsWith\(`\$\{basePath\}\/`\)/);
+  assert.match(mainSource, /pathname\.slice\(basePath\.length\)/);
+  assert.match(mainSource, /\$\{basePath\}\$\{routePath\}\$\{window\.location\.search\}\$\{window\.location\.hash\}/);
   assert.match(mainSource, /navigator\.serviceWorker\.register\(`\$\{lifeosBasePath\}\/sw\.js`/);
 
   const indexHtmlSource = await readFile(path.join(rootDir, "index.html"), "utf8");
@@ -278,6 +292,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(appSource, /resolveChatStateChanges\(stateChanges\)/);
   assert.match(appSource, /loadStoredChatMessages/);
   assert.match(appSource, /persistStoredChatMessages/);
+  assert.match(appSource, /formatChatError/);
+  assert.match(appSource, /chat\.aiNotConfigured/);
+  assert.doesNotMatch(appSource, /err instanceof Error \? err\.message/);
   assert.doesNotMatch(appSource, /localStorage\.getItem\("lifeos_messages"/);
   assert.doesNotMatch(appSource, /localStorage\.setItem\("lifeos_messages"/);
 
@@ -319,7 +336,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(chatStateChangesSource, /OPEN_APP/);
   assert.match(chatStateChangesSource, /REQUEST_APP_GENERATION/);
   assert.match(chatStateChangesSource, /widgetArgKeys/);
-  const translationsSource = await readFile(path.join(rootDir, "src", "i18n", "translations.ts"), "utf8");
+  const translationsSource = (await Promise.all([
+    "translations.ts",
+    "translations.zh-CN.ts",
+    "translations.en-US.ts",
+  ].map((file) => readFile(path.join(rootDir, "src", "i18n", file), "utf8")))).join("\n");
   const systemActionsAppSource = await readFile(path.join(rootDir, "src", "components", "apps", "SystemActionsApp.tsx"), "utf8");
   const systemActionsServiceSource = await readFile(path.join(rootDir, "src", "services", "systemActions.ts"), "utf8");
   const problemBlueprintSource = await readFile(path.join(rootDir, "src", "services", "problemBlueprint.ts"), "utf8");
@@ -523,6 +544,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(loginSource, /auth\.forgotPassword/);
   assert.match(loginSource, /auth\.resetPasswordSubmit/);
   assert.match(loginSource, /auth\.invalidPassword/);
+  assert.equal(loginSource.includes('"/chat"'), false, "desktop login must return to an admin route");
   assert.match(loginSource, /publicRiskItems\.slice\(0, 4\)\.map/);
   assert.match(loginSource, /auth\.mustFix/);
   assert.match(loginSource, /item\.action/);
@@ -542,6 +564,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.alreadyDefault/);
   assert.match(onboardingSource, /aiKey\.modelCatalogUpdated/);
   assert.match(onboardingSource, /modelCatalogUpdated/);
+  assert.match(onboardingSource, /result\.selectedModelAvailable === false/);
+  assert.match(onboardingSource, /retryOnboardingLoad/);
+  assert.match(onboardingSource, /await refresh\(\)/);
   assert.match(onboardingSource, /primaryStep/);
   assert.match(onboardingSource, /primaryProgress/);
   assert.match(onboardingSource, /onboarding\.simpleAiTitle/);
@@ -677,6 +702,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingSource, /onboarding\.simpleIcloudOpenQr/);
   assert.match(onboardingSource, /onboarding\.simpleIcloudRegenerate/);
   assert.match(onboardingSource, /onboarding\.simpleStartChat/);
+  assert.match(onboardingSource, /\/admin\/dashboard/);
+  assert.equal(onboardingSource.includes('"/chat"'), false, "desktop onboarding must finish in the admin console");
   assert.match(onboardingSource, /onboarding\.simpleAdvancedSummary/);
   assert.match(onboardingSource, /<details/);
   assert.match(onboardingSource, /onboarding\.localEndpointLabel/);
@@ -1141,6 +1168,10 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(onboardingAppleRemoteSource, /icloudDataSyncStatusKeys/);
   assert.match(adminSettingsPageSource, /CloudKitDeviceTrustPanel/);
   assert.match(cloudKitDeviceTrustPanelSource, /getCloudKitDeviceTrustMetadata\(20\)/);
+  assert.match(cloudKitDeviceTrustPanelSource, /getCloudKitChatDevices\(20\)/);
+  assert.match(cloudKitDeviceTrustPanelSource, /approveCloudKitChatDevice/);
+  assert.match(cloudKitDeviceTrustPanelSource, /revokeCloudKitChatDevice/);
+  assert.match(cloudKitDeviceTrustPanelSource, /settings\.cloudKitChatDeviceApprove/);
   assert.match(cloudKitDeviceTrustPanelSource, /settings\.cloudKitDeviceTrustSafeBoundary/);
   assert.match(cloudKitDeviceTrustPanelSource, /\/admin\/devices\/pair/);
   assert.match(lifeosApiSource, /CloudKitDeviceTrustMetadataItem/);
@@ -1295,6 +1326,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   const onboardingHandoffSource = await readFile(path.join(rootDir, "src", "pages", "admin", "OnboardingHandoffCard.tsx"), "utf8");
   assert.match(onboardingHandoffSource, /onboarding\.handoffChatTitle/);
   assert.match(onboardingHandoffSource, /onboarding\.copyHandoffSummary/);
+  assert.match(onboardingHandoffSource, /\/admin\/devices\/pair/);
+  assert.equal(onboardingHandoffSource.includes('"/chat"'), false, "desktop handoff must send chat setup to the phone pairing route");
   assert.match(onboardingHandoffSource, /\/admin\/settings#mobile-connect/);
   const mobileIcloudHandoffSource = await readFile(path.join(rootDir, "src", "services", "mobileIcloudHandoff.ts"), "utf8");
   assert.match(mobileIcloudHandoffSource, /lifeosEntry/);
@@ -1326,9 +1359,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /开启每日自动备份/);
   assert.match(translationsSource, /长期使用建议开启自动备份/);
   assert.match(translationsSource, /还不能完成向导/);
-  assert.match(translationsSource, /进入聊天后先发送一条测试消息/);
+  assert.match(translationsSource, /在手机端先发送一条测试消息/);
   assert.match(translationsSource, /The guide cannot be finished yet/);
-  assert.match(translationsSource, /send one test message first/);
+  assert.match(translationsSource, /Send one test message from the phone/);
   assert.match(translationsSource, /打开日志文件夹/);
   assert.match(translationsSource, /导出诊断包/);
   assert.match(translationsSource, /必须处理/);
@@ -1448,7 +1481,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileToolsSource, /openApp=\$\{encodeURIComponent\(app\.id\)\}/);
   assert.match(mobileChatSource, /\/mobile\/tools/);
   assert.match(mainSource, /MobileToolsPage/);
-  assert.match(mainSource, /path="\/mobile\/tools"/);
+  assert.match(mainSource, /case "\/mobile\/tools":/);
   assert.match(translationsSource, /最近生成的解决程序/);
   assert.match(translationsSource, /Recently Generated Problem-Solving Tools/);
   assert.match(translationsSource, /我的解决程序/);
@@ -1635,6 +1668,8 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileDeviceSource, /testMobileRemoteConnectivity/);
   assert.match(mobileDeviceSource, /reportMobileConnectivity/);
   assert.match(mobileDeviceSource, /getLatestMobileConnectivityReport/);
+  assert.match(mobileDeviceSource, /healthResult\.status === "fulfilled" \|\| reportResult\.status === "fulfilled"/);
+  assert.match(mobileDeviceSource, /mobileDevice\.serverStateRefreshFailed/);
   assert.match(mobileDeviceSource, /lastConnectivityReport/);
   assert.match(mobileDeviceSource, /mobileConnectivityResultFromReport/);
   assert.match(mobileDeviceSource, /connectivityReportStale/);
@@ -1852,7 +1887,19 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(studioSandboxSource, /request-action/);
   assert.match(studioSandboxSource, /request-capability/);
   assert.match(studioSandboxSource, /lifeos-custom-app-host/);
+  assert.match(studioSandboxSource, /STUDIO_IFRAME_SANDBOX = "allow-scripts"/);
+  assert.doesNotMatch(studioSandboxSource, /allow-scripts allow-forms/);
+  assert.match(studioSandboxSource, /Content-Security-Policy/);
+  assert.match(studioSandboxSource, /connect-src/);
+  assert.match(studioSandboxSource, /form-action 'none'/);
+  assert.match(studioSandboxSource, /networkCapabilityError/);
+  assert.match(studioSandboxSource, /tailwindcss\.com\/3\.4\.17/);
+  assert.match(studioSandboxSource, /alpinejs@3\.14\.9/);
+  assert.match(studioSandboxSource, /chart\.js@4\.4\.7/);
   assert.match(customAppFrameSource, /getCustomAppState/);
+  assert.match(customAppFrameSource, /getCustomAppCapabilityManifest/);
+  assert.match(customAppFrameSource, /allowedNetworkOrigins/);
+  assert.match(customAppFrameSource, /manifest\.allowedNetworkOrigins/);
   assert.match(customAppFrameSource, /saveCustomAppState/);
   assert.match(customAppFrameSource, /createCustomAppRuntimeEvent/);
   assert.match(customAppFrameSource, /createCustomAppActionRequest/);
@@ -2075,7 +2122,11 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(mobileCustomAppActionsPanelSource, /getCustomAppActionPolicy\(app\.id\)/);
   assert.match(mobileCustomAppActionsPanelSource, /getCustomAppCapabilityManifest\(app\.id\)/);
   assert.match(mobileCustomAppActionsPanelSource, /updateCustomAppActionPolicy\(appId, \{ template \}\)/);
-  assert.match(mobileCustomAppActionsPanelSource, /updateCustomAppCapabilityManifest\(appId, \{ allowedCapabilities: nextCapabilities \}\)/);
+  assert.match(
+    mobileCustomAppActionsPanelSource,
+    /updateCustomAppCapabilityManifest\(appId, \{ allowedCapabilities: nextCapabilities, allowedNetworkOrigins \}\)/,
+  );
+  assert.match(mobileCustomAppActionsPanelSource, /allowedNetworkOrigins\.length === 0/);
   assert.match(mobileCustomAppActionsPanelSource, /decideCustomAppCapabilityRequest/);
   assert.match(mobileCustomAppActionsPanelSource, /decideCustomAppActionRequest\(request\.appId, request\.id, "cancelled"/);
   assert.match(mobileCustomAppActionsPanelSource, /customAppActions\.title/);
@@ -2387,11 +2438,16 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(devicePairSource, /devicePair\.openConnectionGuide/);
   assert.match(devicePairSource, /testConnectionUrl/);
   assert.match(devicePairSource, /devicePair\.testCurrent/);
+  assert.match(devicePairSource, /devicePair\.tailscalePhoneRequiredTitle/);
+  assert.match(devicePairSource, /activeCandidate\?\.mode === "tailscale"/);
   assert.match(devicePairSource, /connection\.secureRecommended/);
   assert.match(devicePairSource, /connection\.trustedNetworkOnly/);
   assert.match(devicePairSource, /connection\.restartBadge/);
   assert.match(devicePairSource, /activeCandidate\.envTemplate/);
-  assert.match(devicePairSource, /activeCandidate\.restartInstruction/);
+  assert.doesNotMatch(devicePairSource, /activeCandidate\.restartInstruction/);
+  assert.doesNotMatch(devicePairSource, /activeCandidate\.notes\[0\]/);
+  assert.match(devicePairSource, /candidateLabelKey/);
+  assert.match(devicePairSource, /candidateNoteKey/);
   assert.match(devicePairSource, /copiedEnv/);
   assert.match(devicePairSource, /devicePair\.copyEnv/);
   assert.match(devicePairSource, /devicePair\.restartTitle/);
@@ -2399,12 +2455,23 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(devicePairSource, /devicePair\.temporaryBody/);
   assert.match(devicePairSource, /formatDevicePairingCreateError/);
   assert.match(devicePairSource, /DevicePairConnectionTestResult/);
+  assert.match(devicePairSource, /setClockNow\(Date\.now\(\)\)/);
+  assert.match(devicePairSource, /Date\.now\(\) >= session\.expiresAt/);
+  assert.match(devicePairSource, /devicePair\.expiredBody/);
+  const devicePairConnectionResultSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairConnectionTestResult.tsx"), "utf8");
+  assert.match(devicePairConnectionResultSource, /visibleFailure/);
+  assert.doesNotMatch(devicePairConnectionResultSource, /result\.error \|\| `HTTP/);
+  const voiceModeSource = await readFile(path.join(rootDir, "src", "components", "chat", "VoiceModeOverlay.tsx"), "utf8");
+  assert.match(voiceModeSource, /chat\.voice\.submitKey/);
+  assert.doesNotMatch(voiceModeSource, />Enter</);
   const devicePairingErrorsSource = await readFile(path.join(rootDir, "src", "services", "devicePairingErrors.ts"), "utf8");
   assert.match(devicePairingErrorsSource, /binding_session_create_failed/);
   assert.match(devicePairingErrorsSource, /devicePair\.createFailedRestart/);
   const devicePairingErrorsTestSource = await readFile(path.join(rootDir, "tests", "device-pairing-errors.test.mjs"), "utf8");
   assert.match(devicePairingErrorsTestSource, /device pairing QR creation errors become actionable copy/);
   assert.match(translationsSource, /devicePair\.createFailedRestart/);
+  assert.match(translationsSource, /现在只做这一步：在 iPhone 打开 Tailscale/);
+  assert.match(translationsSource, /Do this now: open Tailscale on the iPhone/);
   assert.match(translationsSource, /The QR code was not created/);
   const devicePairConnectionTestSource = await readFile(path.join(rootDir, "src", "pages", "admin", "DevicePairConnectionTestResult.tsx"), "utf8");
   assert.match(devicePairConnectionTestSource, /devicePair\.testStep\.health/);
@@ -2445,6 +2512,9 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(translationsSource, /Next step: install cloudflared first/);
 
   const adminDashboardSource = await readFile(path.join(rootDir, "src", "pages", "admin", "AdminDashboardPage.tsx"), "utf8");
+  assert.match(adminDashboardSource, /dashboard\.mobileChatTitle/);
+  assert.match(adminDashboardSource, /dashboard\.openPhoneQr/);
+  assert.equal(adminDashboardSource.includes('"/chat"'), false, "desktop dashboard must not promote the consumer chat route");
   assert.match(adminDashboardSource, /dashboard\.publicRiskTitle/);
   assert.match(adminDashboardSource, /health\.publicRisk\.items\.map/);
   assert.match(adminDashboardSource, /dashboard\.openSecuritySettings/);
@@ -2568,6 +2638,7 @@ test("production build serves desktop admin, mobile PWA, manifest, and service w
   assert.match(aiKeyPanelSource, /updateAiProviderModel/);
   assert.match(aiKeyPanelSource, /testAiProvider/);
   assert.match(aiKeyPanelSource, /testAiProvider\(selectedProvider, "live"\)/);
+  assert.match(aiKeyPanelSource, /result\.selectedModelAvailable !== false/);
   assert.match(aiKeyPanelSource, /aiKey\.testConfigOk/);
   assert.match(aiKeyPanelSource, /aiKey\.testConfigOnly/);
   assert.match(aiKeyPanelSource, /aiKey\.testLiveOk/);

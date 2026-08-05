@@ -151,6 +151,16 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_cloudkit_sync_quarantine_record
     ON cloudkit_sync_quarantine (zone, record_type, record_name);
 
+  CREATE TABLE IF NOT EXISTS cloudkit_chat_conversation_owners (
+    conversation_id TEXT PRIMARY KEY,
+    source_device_hash TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    last_seen_at INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_cloudkit_chat_conversation_owners_device
+    ON cloudkit_chat_conversation_owners (source_device_hash, last_seen_at DESC);
+
   CREATE TABLE IF NOT EXISTS cloudkit_device_trust_metadata (
     device_id_hash TEXT PRIMARY KEY,
     display_name TEXT NOT NULL,
@@ -243,7 +253,10 @@ db.exec(`
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
     last_seen_at INTEGER NOT NULL,
-    revoked_at INTEGER
+    revoked_at INTEGER,
+    credential_source TEXT NOT NULL DEFAULT 'db',
+    credential_version INTEGER NOT NULL DEFAULT 0,
+    revoked_reason TEXT
   );
 
   CREATE TABLE IF NOT EXISTS client_state (
@@ -313,9 +326,25 @@ export function applyMigration(version: number, name: string, sql: string) {
     return true;
   } catch (error) {
     if (error instanceof Error && /duplicate column name/i.test(error.message)) {
-      db.prepare("INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)").run(version, name, Date.now());
-      db.exec("COMMIT");
-      return false;
+      db.exec("ROLLBACK");
+      db.exec("BEGIN");
+      try {
+        for (const statement of sql.split(";").map((item) => item.trim()).filter(Boolean)) {
+          try {
+            db.exec(`${statement};`);
+          } catch (statementError) {
+            if (!(statementError instanceof Error) || !/duplicate column name/i.test(statementError.message)) {
+              throw statementError;
+            }
+          }
+        }
+        db.prepare("INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)").run(version, name, Date.now());
+        db.exec("COMMIT");
+        return false;
+      } catch (repairError) {
+        db.exec("ROLLBACK");
+        throw repairError;
+      }
     }
     db.exec("ROLLBACK");
     throw error;

@@ -505,7 +505,7 @@ function getMasterKey() {
   return crypto.createHash("sha256").update(fs.readFileSync(keyPath, "utf8")).digest();
 }
 
-function encryptSecret(value: string): EncryptedSecret {
+function encryptSecret(value: string, options: { requireSystemStorage?: boolean } = {}): EncryptedSecret {
   const safeStorage = getElectronSafeStorage();
   if (safeStorage) {
     return {
@@ -514,6 +514,9 @@ function encryptSecret(value: string): EncryptedSecret {
       tag: "",
       storage: "electron_safe_storage",
     };
+  }
+  if (options.requireSystemStorage) {
+    throw new Error("System secure storage is required for this secret. Open OwnOrbit AI from the desktop app.");
   }
 
   const iv = crypto.randomBytes(12);
@@ -561,6 +564,59 @@ function decryptSecret(row: any) {
     decipher.update(Buffer.from(row.ciphertext, "base64url")),
     decipher.final(),
   ]).toString("utf8");
+}
+
+const internalSecretIdPattern = /^internal\.[a-z0-9][a-z0-9._-]{2,95}$/;
+
+export function getInternalAppSecret(
+  secretId: string,
+  options: { requireSystemStorage?: boolean; migrateToSystemStorage?: boolean } = {},
+) {
+  if (!internalSecretIdPattern.test(secretId)) throw new Error("Internal secret id is invalid.");
+  const row = db.prepare("SELECT * FROM app_secrets WHERE id = ? AND provider = 'internal'")
+    .get(secretId) as any;
+  if (!row) return "";
+  if (options.requireSystemStorage && row.secret_storage !== "electron_safe_storage") {
+    const value = decryptSecret(row);
+    if (!options.migrateToSystemStorage) {
+      throw new Error("This internal identity is not protected by system secure storage.");
+    }
+    saveInternalAppSecret(secretId, value, { requireSystemStorage: true });
+    return value;
+  }
+  return decryptSecret(row);
+}
+
+export function saveInternalAppSecret(
+  secretId: string,
+  value: string,
+  options: { requireSystemStorage?: boolean } = {},
+) {
+  if (!internalSecretIdPattern.test(secretId)) throw new Error("Internal secret id is invalid.");
+  if (!value || value.length > 16_384) throw new Error("Internal secret value is invalid.");
+  const encrypted = encryptSecret(value, options);
+  const now = Date.now();
+  db.prepare(`
+    INSERT INTO app_secrets (id, provider, secret_storage, ciphertext, iv, auth_tag, created_at, updated_at)
+    VALUES (?, 'internal', ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      provider = 'internal',
+      secret_storage = excluded.secret_storage,
+      ciphertext = excluded.ciphertext,
+      iv = excluded.iv,
+      auth_tag = excluded.auth_tag,
+      updated_at = excluded.updated_at
+  `).run(secretId, encrypted.storage, encrypted.ciphertext, encrypted.iv, encrypted.tag, now, now);
+}
+
+export function getInternalAppSecretStorage(secretId: string) {
+  if (!internalSecretIdPattern.test(secretId)) throw new Error("Internal secret id is invalid.");
+  const row = db.prepare(`
+    SELECT secret_storage as secretStorage
+    FROM app_secrets
+    WHERE id = ? AND provider = 'internal'
+  `).get(secretId) as { secretStorage?: SecretStorageKind } | undefined;
+  return row?.secretStorage;
 }
 
 export function getStoredAiApiKey(providerId: AiProviderId = "gemini") {

@@ -527,6 +527,10 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("1 / 3");
   await page.route("**/api/v1/admin/ai-providers/openai/test", async (route) => {
     expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual({
+      mode: "live",
+      credential: "sk-playwright-onboarding-secret-value",
+    });
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -756,20 +760,23 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(page.getByText(/二维码没有生成。下一步：重启 OwnOrbit AI/)).toBeVisible();
   await expect(page.getByText("当前检测到的地址")).toBeVisible();
   await page.getByRole("button", { name: "测试这个地址" }).click();
-  await expect(page.getByText("连接测试通过：3/3 项通过，18ms，手机可访问 https://pair.example.test")).toBeVisible();
+  await expect(page.getByText("电脑端入口测试通过：3/3 项通过，18ms，https://pair.example.test。手机仍需按当前连接方式完成网络准备。")).toBeVisible();
   await page.getByRole("button", { name: "用这个地址生成二维码" }).click();
   await expect(page.getByText("已根据连接诊断自动选择绑定地址")).toBeVisible();
   expect(recommendedBindStartAttempts).toBe(2);
   await expect(page.getByText("https://pair.example.test", { exact: true })).toBeVisible();
   await expect(page.getByText("推荐安全")).toBeVisible();
   await expect(page.getByText("需重启生效")).toBeVisible();
-  await expect(page.getByText(/Cloudflare Tunnel · 适合异地访问/)).toBeVisible();
+  await expect(page.getByText("Cloudflare 安全隧道 · 这是稳定的 Cloudflare HTTPS 入口。")).toBeVisible();
   await expect(page.getByText("LIFEOS_HOST=0.0.0.0 LIFEOS_ALLOW_PUBLIC=1 LIFEOS_TRUST_PROXY=1 PUBLIC_BASE_URL=https://pair.example.test npm run start")).toBeVisible();
   const currentPairingEnvButton = page.getByRole("button", { name: "复制当前绑定启动环境" });
   await expect(currentPairingEnvButton).toBeVisible();
   await currentPairingEnvButton.click();
   await expect(currentPairingEnvButton).toContainText("已复制启动环境");
-  await expect(page.getByRole("button", { name: "测试当前绑定地址" })).toBeVisible();
+  const currentPairingTestButton = page.getByRole("button", { name: "测试当前绑定地址" });
+  await expect(currentPairingTestButton).toBeVisible();
+  await currentPairingTestButton.click();
+  await expect(page.getByText("电脑端入口测试通过：3/3 项通过，18ms，https://pair.example.test。手机仍需按当前连接方式完成网络准备。")).toBeVisible();
   await page.unroute("**/api/v1/admin/network-diagnostics");
   await page.unroute("**/api/v1/admin/network-diagnostics/test-url");
   await page.unroute("**/api/v1/devices/bind/start");
@@ -863,7 +870,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
 
   await page.goto("/admin/onboarding");
   await expect(page.getByTestId("onboarding-progress-count")).toHaveText("3 / 3");
-  await expect(page.getByRole("heading", { name: "已准备好", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "手机端已经准备好", exact: true })).toBeVisible();
 
   await phone.goto(`${phoneBaseUrl}/mobile/chat`);
   await expect(phone.getByText(/已连接电脑|正在连接电脑|连接中断，正在重试/)).toBeVisible();
@@ -886,10 +893,10 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   await expect(phone.getByText("已收到第一条测试消息，聊天链路正常。")).toBeVisible();
 
   await page.goto("/admin/onboarding");
-  await page.getByRole("button", { name: "完成并开始聊天" }).click();
-  await expect(page).toHaveURL(/\/chat/);
-  await expect(page.getByText("JARVIS", { exact: true }).first()).toBeVisible();
-  await expect(page.getByPlaceholder("发送指令，或召唤新应用...")).toBeVisible();
+  await page.getByRole("button", { name: "完成并进入电脑管理台" }).click();
+  await expect(page).toHaveURL(/\/admin\/dashboard/);
+  await expect(page.getByRole("heading", { name: "OwnOrbit Local Core" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "绑定手机" })).toBeVisible();
   await phone.unroute("**/api/chat");
   await expect(phone.getByText("添加到主屏幕", { exact: true })).toBeVisible();
   await phone.getByRole("button", { name: "关闭安装提示" }).click();
@@ -1279,6 +1286,7 @@ test("admin setup, mobile binding, chat shell, and device revoke flow", async ({
   const restoreButton = backupPanel.getByRole("button", { name: "恢复" }).first();
   await expect(restoreButton).toBeEnabled();
   await restoreButton.click();
+  await expect(backupPanel.getByText(/已安排下次启动恢复|Restore scheduled for next launch/)).toBeVisible();
   await expect(backupPanel.getByText(/恢复任务等待重启|Restore Waiting for Restart/)).toBeVisible();
   page.once("dialog", async (dialog) => {
     expect(dialog.message()).toMatch(/取消等待重启|Cancel the restore task waiting for restart/);

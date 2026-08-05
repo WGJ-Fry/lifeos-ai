@@ -89,6 +89,21 @@ test("Electron desktop starts the local core and exposes admin health", async (t
   assert.match(desktopMainSource, /LIFEOS_TRUST_PROXY/);
   assert.match(desktopMainSource, /resolveCloudKitHelperRuntime/);
   assert.match(desktopMainSource, /applyCloudKitHelperRuntimeEnvironment/);
+  assert.match(desktopMainSource, /\/api\/v1\/internal\/cloudkit-chat-relay\/run/);
+  assert.match(desktopMainSource, /reconcileCloudKitChatRelayPolling/);
+  assert.match(desktopMainSource, /desktop-chat-relay-poll/);
+  assert.match(desktopMainSource, /cloudKitChatRelayRequestInFlight/);
+  assert.match(desktopMainSource, /75_000/);
+  assert.match(desktopMainSource, /configureDesktopLoginItem/);
+  assert.match(desktopMainSource, /setLoginItemSettings/);
+  assert.match(desktopMainSource, /shouldShowDesktopWindowOnStartup/);
+  assert.match(desktopMainSource, /Desktop started in background/);
+  assert.match(desktopMainSource, /guardDesktopWebContents/);
+  assert.match(desktopMainSource, /setPermissionRequestHandler/);
+  assert.match(desktopMainSource, /will-navigate/);
+  assert.match(desktopMainSource, /Blocked unsafe desktop link/);
+  assert.match(desktopMainSource, /if \(status\.onboardingRequired\) return "\/admin\/onboarding"/);
+  assert.match(desktopMainSource, /return "\/admin\/dashboard"/);
   const port = 6310 + Math.floor(Math.random() * 1000);
   const dataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-smoke-"));
   const userDataDir = await mkdtemp(path.join(tmpdir(), "lifeos-desktop-user-data-"));
@@ -103,6 +118,7 @@ test("Electron desktop starts the local core and exposes admin health", async (t
       PUBLIC_BASE_URL: "",
       APP_URL: "",
       LIFEOS_ADMIN_PASSWORD: "",
+      LIFEOS_ALLOW_BROWSER_ADMIN_BOOTSTRAP: "1",
       LIFEOS_DESKTOP_USER_DATA_DIR: userDataDir,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -181,7 +197,10 @@ test("Electron desktop starts the local core and exposes admin health", async (t
 
   const setupResponse = await fetch(`http://127.0.0.1:${actualPort}/api/v1/admin/setup`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Origin: `http://127.0.0.1:${actualPort}`,
+    },
     body: JSON.stringify({ password: "desktop-onboarding-secret" }),
   });
   assert.equal(setupResponse.status, 200);

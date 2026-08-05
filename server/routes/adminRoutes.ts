@@ -6,7 +6,7 @@ import { aiProviders, deleteAiApiKey, getActiveAiProviderId, getAiApiKey, getAiC
 import { buildCalendarSyncPreview, buildCalendarSyncPreviewAsync, executeCalendarSyncOperationAsync } from "../calendarSyncPreview";
 import { listCalendarSyncOperations, rollbackCalendarSyncOperation, saveCalendarSyncOperation } from "../calendarSyncHistory";
 import { createCalendarSyncRun, listCalendarSyncRuns } from "../calendarSyncRuns";
-import { createAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, verifyAdminPassword } from "../auth";
+import { bootstrapAdminCredential, createAdminSession, getAdminSessionByToken, getBearerToken, isAdminConfigured, requireAdmin, resetAdminCredential, rotateAdminCredential, verifyAdminPassword } from "../auth";
 import { createDiagnosticBundle, getReleaseDiagnostics } from "../diagnosticBundle";
 import { clearHttpOnlyCookie, getClientIp, rateLimit, setClientCookie, setHttpOnlyCookie } from "../httpSecurity";
 import { IcloudHandoffExportError, analyzeIcloudHandoffRepairPacket, cleanupIcloudHandoffEntries, exportIcloudHandoff, getNetworkDiagnostics, installTailscaleClient, maybeRefreshIcloudHandoff, startTailscaleHttpsServe, stopTailscaleHttpsServe, testConnectionUrl } from "../networkDiagnostics";
@@ -44,14 +44,25 @@ import { buildCloudKitSyncBatchPreview, buildCloudKitSyncExportPackage, CLOUDKIT
 import { CLOUDKIT_SYNC_IMPORT_CONFIRMATION, getCloudKitSyncQuarantineSummary, getCloudKitSyncStateSnapshot, listCloudKitSyncCheckpoints, publicCloudKitHelperResult, saveCloudKitSyncChangesPreview, saveCloudKitSyncImportQuarantine } from "../cloudKitSyncState";
 import { applyCloudKitSyncQuarantine, CLOUDKIT_SYNC_APPLY_CONFIRMATION, listCloudKitSyncQuarantineItems } from "../cloudKitSyncApply";
 import { listCloudKitDeviceTrustMetadata } from "../cloudKitDeviceTrustMetadata";
+import {
+  approveCloudKitChatDevice,
+  listCloudKitChatDevices,
+  revokeCloudKitChatDevice,
+} from "../cloudKitDeviceKeys";
 import { CLOUDKIT_SYNC_NOW_CONFIRMATION, runCloudKitSyncNow } from "../cloudKitSyncNow";
 import { CLOUDKIT_SYNC_UPLOAD_NOW_CONFIRMATION, runCloudKitSyncUploadNow } from "../cloudKitSyncUploadNow";
 import { CLOUDKIT_SYNC_CYCLE_CONFIRMATION, runCloudKitSyncCycle } from "../cloudKitSyncCycle";
 import { clearCloudKitLocalChanges, getCloudKitAutoSyncSchedule, runCloudKitAutoSyncNow, updateCloudKitAutoSyncSchedule } from "../cloudKitAutoSyncSchedule";
 import { getCloudKitPushEvidence, isCloudKitPushEventPair, recordCloudKitPushEvent } from "../cloudKitPushEvidence";
 import { requeueCloudKitChatJobsAfterAiConfiguration } from "../cloudKitChatJobs";
+import { getCloudKitChatRelayReadiness } from "../cloudKitChatRelayReadiness";
+import { runCloudKitChatRelayCycle, type CloudKitChatRelayCycleResult } from "../cloudKitChatRelayCycle";
+import { generateAiContent } from "../aiProviderRuntime";
 
 const loginFailures = new Map<string, { count: number; lockedUntil: number }>();
+const desktopAdminCapabilities = new Map<string, { action: "setup" | "reset"; expiresAt: number }>();
+const DESKTOP_ADMIN_CAPABILITY_TTL_MS = 30_000;
+let cloudKitChatRelayRunPromise: Promise<CloudKitChatRelayCycleResult> | null = null;
 
 function loginKey(req: express.Request) {
   return getClientIp(req);
@@ -62,6 +73,42 @@ function isLoopbackSocket(req: express.Request) {
   return remoteAddress === "127.0.0.1" || remoteAddress === "::1" || remoteAddress === "::ffff:127.0.0.1";
 }
 
+function isDirectLoopbackRequest(req: express.Request) {
+  if (!isLoopbackSocket(req)) return false;
+  const forwardedHeaders = [
+    "forwarded",
+    "x-forwarded-for",
+    "x-forwarded-host",
+    "x-forwarded-proto",
+    "cf-connecting-ip",
+    "true-client-ip",
+  ];
+  if (forwardedHeaders.some((header) => Boolean(req.headers[header]))) return false;
+
+  const host = String(req.get("host") || "").toLowerCase();
+  try {
+    const requestHost = new URL(`http://${host}`).hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    return requestHost === "localhost" || requestHost === "::1" || requestHost.startsWith("127.");
+  } catch {
+    return false;
+  }
+}
+
+function isTrustedLoopbackBrowserRequest(req: express.Request) {
+  if (!isDirectLoopbackRequest(req)) return false;
+  const origin = String(req.headers.origin || "").trim();
+  if (!origin) return false;
+  try {
+    const parsed = new URL(origin);
+    const host = String(req.get("host") || "").toLowerCase();
+    const hostname = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    const loopbackOrigin = hostname === "localhost" || hostname === "::1" || hostname.startsWith("127.");
+    return parsed.protocol === "http:" && loopbackOrigin && parsed.host.toLowerCase() === host;
+  } catch {
+    return false;
+  }
+}
+
 function verifyDesktopInternalToken(req: express.Request) {
   const expected = String(process.env.LIFEOS_DESKTOP_INTERNAL_TOKEN || "");
   const provided = String(req.headers["x-lifeos-desktop-token"] || "");
@@ -69,6 +116,77 @@ function verifyDesktopInternalToken(req: express.Request) {
   const expectedBuffer = Buffer.from(expected);
   const providedBuffer = Buffer.from(provided);
   return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+}
+
+async function runCloudKitChatRelayCycleLocked() {
+  if (cloudKitChatRelayRunPromise) {
+    return { joined: true, result: await cloudKitChatRelayRunPromise };
+  }
+  const run = runCloudKitChatRelayCycle();
+  cloudKitChatRelayRunPromise = run;
+  try {
+    return { joined: false, result: await run };
+  } finally {
+    if (cloudKitChatRelayRunPromise === run) cloudKitChatRelayRunPromise = null;
+  }
+}
+
+function publicCloudKitChatRelayCycle(result: CloudKitChatRelayCycleResult) {
+  return {
+    ok: result.ok,
+    status: result.status,
+    processed: result.worker?.processed || 0,
+    completed: result.worker?.completed || 0,
+    retryScheduled: result.worker?.retryScheduled || 0,
+    failed: result.worker?.failed || 0,
+    expired: result.worker?.expired || 0,
+    exportedResponses: result.export?.recordCount || 0,
+    safety: result.safety,
+    rawPayloadReturned: false,
+    promptReturned: false,
+    responseReturned: false,
+    cloudKitChangeTokenReturned: false,
+  };
+}
+
+function pruneDesktopAdminCapabilities(now = Date.now()) {
+  for (const [hash, capability] of desktopAdminCapabilities) {
+    if (capability.expiresAt <= now) desktopAdminCapabilities.delete(hash);
+  }
+  while (desktopAdminCapabilities.size > 20) {
+    const oldest = desktopAdminCapabilities.keys().next().value;
+    if (!oldest) break;
+    desktopAdminCapabilities.delete(oldest);
+  }
+}
+
+function issueDesktopAdminCapability(action: "setup" | "reset", now = Date.now()) {
+  pruneDesktopAdminCapabilities(now);
+  const token = createSecret("desktop-admin-capability");
+  desktopAdminCapabilities.set(tokenHash(token), {
+    action,
+    expiresAt: now + DESKTOP_ADMIN_CAPABILITY_TTL_MS,
+  });
+  return { token, expiresAt: now + DESKTOP_ADMIN_CAPABILITY_TTL_MS };
+}
+
+function consumeDesktopAdminCapability(req: express.Request, action: "setup" | "reset", now = Date.now()) {
+  const provided = String(req.headers["x-lifeos-desktop-capability"] || "");
+  if (provided.length < 32) return false;
+  const hash = tokenHash(provided);
+  const capability = desktopAdminCapabilities.get(hash);
+  desktopAdminCapabilities.delete(hash);
+  return Boolean(capability && capability.action === action && capability.expiresAt > now);
+}
+
+function browserAdminBootstrapAllowed() {
+  return process.env.NODE_ENV !== "production" || process.env.LIFEOS_ALLOW_BROWSER_ADMIN_BOOTSTRAP === "1";
+}
+
+function authorizeDesktopAdminAction(req: express.Request, action: "setup" | "reset") {
+  if (!isDirectLoopbackRequest(req)) return false;
+  if (consumeDesktopAdminCapability(req, action)) return true;
+  return browserAdminBootstrapAllowed() && isTrustedLoopbackBrowserRequest(req);
 }
 
 function normalizeInternalRefreshReason(value: unknown) {
@@ -264,9 +382,12 @@ type AiProviderTestSummary = {
   selectedModelAvailable?: boolean;
 };
 
-async function testLocalModelEndpoint(status: ReturnType<typeof getAiProviderStatus>): Promise<AiProviderTestSummary> {
+async function testLocalModelEndpoint(
+  status: ReturnType<typeof getAiProviderStatus>,
+  credentialOverride = "",
+): Promise<AiProviderTestSummary> {
   const credentialKind = "endpoint" as const;
-  const endpoint = getAiApiKey("local");
+  const endpoint = credentialOverride || getAiApiKey("local");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 3000);
   try {
@@ -295,21 +416,34 @@ async function testLocalModelEndpoint(status: ReturnType<typeof getAiProviderSta
   }
 }
 
-async function testRemoteModelCatalog(status: ReturnType<typeof getAiProviderStatus>): Promise<AiProviderTestSummary> {
+async function testRemoteModelCatalog(
+  status: ReturnType<typeof getAiProviderStatus>,
+  credentialOverride = "",
+): Promise<AiProviderTestSummary> {
   const credentialKind = "api_key" as const;
-  const credential = getAiApiKey(status.id);
+  const credential = credentialOverride || getAiApiKey(status.id);
   const provider = getAiProviderDefinition(status.id);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4500);
   try {
     if (provider.apiStyle === "gemini") {
+      const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
+        signal: controller.signal,
+        headers: { "x-goog-api-key": credential },
+      });
+      const data = await response.json().catch(() => ({}));
+      const models = Array.isArray(data?.models) ? data.models : [];
+      const modelIds = models
+        .map((model: any) => String(model?.name || model?.id || "").replace(/^models\//, ""))
+        .filter(Boolean);
       return {
-        ok: true,
-        result: "ready",
-        reason: "sdk_provider_model_catalog_static",
+        ok: response.ok,
+        result: response.ok ? "live_ready" : "live_failed",
+        reason: response.ok ? "models_endpoint_ok" : "models_endpoint_http_error",
         credentialKind,
-        modelCount: status.models?.length || 0,
-        selectedModelAvailable: status.models?.includes(status.selectedModel),
+        models: modelIds,
+        modelCount: modelIds.length,
+        selectedModelAvailable: modelIds.length ? modelIds.includes(status.selectedModel) : undefined,
       };
     }
     const headers: Record<string, string> = provider.apiStyle === "anthropic"
@@ -340,7 +474,47 @@ async function testRemoteModelCatalog(status: ReturnType<typeof getAiProviderSta
   }
 }
 
-async function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderStatus>, mode: "configuration" | "live" = "configuration"): Promise<AiProviderTestSummary> {
+async function testRemoteProviderCredential(
+  status: ReturnType<typeof getAiProviderStatus>,
+  credentialOverride = "",
+): Promise<AiProviderTestSummary> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const response = await generateAiContent({
+      providerId: status.id,
+      modelEngine: status.selectedModel,
+      contents: "Reply with OK only.",
+      systemInstruction: "This is a credential test. Return only OK.",
+      temperature: 0,
+      maxOutputTokens: 32,
+      credentialOverride,
+      signal: controller.signal,
+    });
+    return {
+      ok: Boolean(response.text.trim()),
+      result: response.text.trim() ? "live_ready" : "live_failed",
+      reason: response.text.trim() ? "credential_probe_ok" : "credential_probe_empty",
+      credentialKind: "api_key",
+      selectedModelAvailable: response.model === status.selectedModel,
+    };
+  } catch (error: any) {
+    return {
+      ok: false,
+      result: "live_failed",
+      reason: error?.name === "AbortError" ? "credential_probe_timeout" : "credential_probe_failed",
+      credentialKind: "api_key",
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function getAiProviderTestSummary(
+  status: ReturnType<typeof getAiProviderStatus>,
+  mode: "configuration" | "live" = "configuration",
+  credentialOverride = "",
+): Promise<AiProviderTestSummary> {
   const credentialKind = status.id === "local" ? "endpoint" : "api_key";
   if (!status.enabled) {
     return {
@@ -350,7 +524,7 @@ async function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderS
       credentialKind,
     };
   }
-  if (!status.configured) {
+  if (!status.configured && !credentialOverride) {
     return {
       ok: false,
       result: "not_configured",
@@ -359,8 +533,33 @@ async function getAiProviderTestSummary(status: ReturnType<typeof getAiProviderS
     };
   }
   if (mode === "live") {
-    if (status.id === "local") return testLocalModelEndpoint(status);
-    if (supportsAiProviderModelDiscovery(status.id)) return testRemoteModelCatalog(status);
+    if (status.id === "local") {
+      const summary = await testLocalModelEndpoint(status, credentialOverride);
+      if (summary.ok && summary.selectedModelAvailable === false) {
+        return {
+          ...summary,
+          ok: false,
+          result: "live_failed",
+          reason: "selected_model_unavailable",
+        };
+      }
+      return summary;
+    }
+    if (status.id === "gemini" || supportsAiProviderModelDiscovery(status.id)) {
+      const liveProbe = await testRemoteProviderCredential(status, credentialOverride);
+      if (!liveProbe.ok) return liveProbe;
+      const catalog = await testRemoteModelCatalog(status, credentialOverride);
+      return {
+        ...liveProbe,
+        ...(catalog.ok
+          ? {
+              models: catalog.models,
+              modelCount: catalog.modelCount,
+            }
+          : {}),
+      };
+    }
+    return testRemoteProviderCredential(status, credentialOverride);
   }
   return {
     ok: true,
@@ -519,6 +718,7 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
   const dataSync = icloud.dataSync;
   const cloudKitAutoSync = getCloudKitAutoSyncSchedule();
   const cloudKitPushEvidence = getCloudKitPushEvidence();
+  const cloudKitChatRelay = getCloudKitChatRelayReadiness({ platformSupported: process.platform === "darwin" });
 
   if (latestRepair && latestRepair.status !== "none" && latestRepair.action !== "none") {
     issues.push({
@@ -671,6 +871,18 @@ function buildDesktopInternalNetworkSummary(reason = "desktop-summary") {
         selectedDataTypes: Array.isArray(dataSync.selectedDataTypes) ? dataSync.selectedDataTypes.slice(0, 8) : [],
         autoSync: publicDesktopCloudKitAutoSync(cloudKitAutoSync),
         pushEvidence: cloudKitPushEvidence,
+      },
+      chatRelay: {
+        enabled: cloudKitChatRelay.enabled,
+        ready: cloudKitChatRelay.ready,
+        status: cloudKitChatRelay.status,
+        mode: cloudKitChatRelay.mode,
+        scope: cloudKitChatRelay.dataSyncScope,
+        blockedDataTypes: cloudKitChatRelay.blockedDataTypes,
+        safety: cloudKitChatRelay.privacy,
+        rawPayloadReturned: false,
+        promptReturned: false,
+        responseReturned: false,
       },
       monitor: {
         enabled: Boolean(diagnostics.icloudMonitor?.enabled),
@@ -942,6 +1154,55 @@ export function registerAdminRoutes(app: express.Express) {
     }
     const reason = normalizeInternalRefreshReason(req.body?.reason || "desktop-summary");
     res.json(buildDesktopInternalNetworkSummary(reason));
+  });
+
+  app.post("/api/v1/internal/cloudkit-chat-relay/run", rateLimit({ keyPrefix: "internal-cloudkit-chat-relay", windowMs: 60_000, max: 20 }), async (req, res) => {
+    if (!isLoopbackSocket(req)) {
+      insertAuditLog("icloud_chat_relay_blocked", "network", "cloudkit-chat-relay", { reason: "non_loopback_socket" }, "system", "desktop");
+      return res.status(403).json({ error: "The iPhone chat relay is only available on this computer.", code: "local_only" });
+    }
+    if (!verifyDesktopInternalToken(req)) {
+      insertAuditLog("icloud_chat_relay_blocked", "network", "cloudkit-chat-relay", { reason: "invalid_desktop_token" }, "system", "desktop");
+      return res.status(401).json({ error: "Desktop internal authentication required", code: "desktop_internal_auth_required" });
+    }
+    const reason = normalizeInternalRefreshReason(req.body?.reason || "desktop-chat-relay");
+    try {
+      const cycle = await runCloudKitChatRelayCycleLocked();
+      const result = publicCloudKitChatRelayCycle(cycle.result);
+      insertAuditLog(
+        result.ok ? "icloud_chat_relay_completed" : "icloud_chat_relay_needs_attention",
+        "network",
+        "cloudkit-chat-relay",
+        {
+          reason,
+          joinedExistingRun: cycle.joined,
+          status: result.status,
+          processed: result.processed,
+          completed: result.completed,
+          exportedResponses: result.exportedResponses,
+        },
+        "system",
+        "desktop",
+      );
+      return res.status(result.ok || result.status === "needs-setup" ? 200 : 503).json({
+        ok: result.ok,
+        reason,
+        joinedExistingRun: cycle.joined,
+        result,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      insertAuditLog("icloud_chat_relay_failed", "network", "cloudkit-chat-relay", {
+        reason,
+        error: message,
+      }, "system", "desktop");
+      return res.status(503).json({
+        ok: false,
+        reason,
+        error: "The private iPhone chat relay could not finish.",
+        code: "cloudkit_chat_relay_failed",
+      });
+    }
   });
 
   app.post("/api/v1/admin/network-diagnostics/test-url", requireAdmin, async (req, res) => {
@@ -1674,6 +1935,47 @@ export function registerAdminRoutes(app: express.Express) {
     }
   });
 
+  app.get("/api/v1/admin/cloudkit-chat/devices", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-chat-devices", windowMs: 60_000, max: 20 }), (req, res) => {
+    const devices = listCloudKitChatDevices({ limit: normalizeCloudKitBatchLimit(req.query.limit) || 50 });
+    insertAuditLog("cloudkit_chat_devices_viewed", "device", "cloudkit-chat", {
+      total: devices.summary.total,
+      pending: devices.summary.pending,
+      rawPublicKeyReturned: false,
+      rawDeviceIdReturned: false,
+    }, (req as any).actor?.type, (req as any).actor?.id);
+    res.json({ devices });
+  });
+
+  app.post("/api/v1/admin/cloudkit-chat/devices/:deviceId/approve", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-chat-device-approve", windowMs: 60_000, max: 10 }), (req, res) => {
+    try {
+      const actor = `${(req as any).actor?.type || "admin"}:${(req as any).actor?.id || "session"}`;
+      const device = approveCloudKitChatDevice(req.params.deviceId, actor);
+      insertAuditLog("cloudkit_chat_device_approved", "device", req.params.deviceId, {
+        state: device.state,
+        approvedAt: device.approvedAt,
+        rawPublicKeyLogged: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ ok: true, device });
+    } catch (error: any) {
+      res.status(400).json({ error: error?.message || "CloudKit chat device approval failed" });
+    }
+  });
+
+  app.post("/api/v1/admin/cloudkit-chat/devices/:deviceId/revoke", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-chat-device-revoke", windowMs: 60_000, max: 10 }), (req, res) => {
+    try {
+      const actor = `${(req as any).actor?.type || "admin"}:${(req as any).actor?.id || "session"}`;
+      const device = revokeCloudKitChatDevice(req.params.deviceId, actor);
+      insertAuditLog("cloudkit_chat_device_revoked", "device", req.params.deviceId, {
+        state: device.state,
+        revokedAt: device.revokedAt,
+        rawPublicKeyLogged: false,
+      }, (req as any).actor?.type, (req as any).actor?.id);
+      res.json({ ok: true, device });
+    } catch (error: any) {
+      res.status(400).json({ error: error?.message || "CloudKit chat device revoke failed" });
+    }
+  });
+
   app.post("/api/v1/admin/icloud-data-sync/apply-quarantine", requireAdmin, rateLimit({ keyPrefix: "admin-cloudkit-sync-apply-quarantine", windowMs: 60_000, max: 3 }), (req, res) => {
     const confirmation = normalizeCloudKitApplyConfirmation(req.body?.confirmation);
     const diagnostics = getAdminNetworkDiagnostics();
@@ -1839,8 +2141,10 @@ export function registerAdminRoutes(app: express.Express) {
     const evidence = recordCloudKitPushEvent({ event, reason, subscriptionMatched }, { type: "system", id: "desktop-cloudkit-listener" });
     const cloudKitSchedule = getCloudKitAutoSyncSchedule();
     const cloudKitReadiness = getIcloudDataSyncReadiness({ platformSupported: process.platform === "darwin" });
-    const cloudKitQueued = subscriptionMatched && cloudKitSchedule.enabled && cloudKitReadiness.ready;
-    if (cloudKitQueued) {
+    const chatRelayReadiness = getCloudKitChatRelayReadiness({ platformSupported: process.platform === "darwin" });
+    const dataSyncQueued = subscriptionMatched && cloudKitSchedule.enabled && cloudKitReadiness.ready;
+    const chatRelayQueued = subscriptionMatched && chatRelayReadiness.ready;
+    if (dataSyncQueued) {
       const pushTimer = setTimeout(() => {
         runCloudKitAutoSyncNow("scheduled", { type: "system", id: "cloudkit-push" }).catch((error) => {
           insertAuditLog("icloud_cloudkit_auto_sync_failed", "network", "cloudkit-auto-sync", {
@@ -1851,18 +2155,39 @@ export function registerAdminRoutes(app: express.Express) {
       }, 0);
       pushTimer.unref?.();
     }
+    if (chatRelayQueued) {
+      const relayTimer = setTimeout(() => {
+        runCloudKitChatRelayCycleLocked().catch((error) => {
+          insertAuditLog("icloud_chat_relay_failed", "network", "cloudkit-chat-relay", {
+            trigger: "cloudkit-push",
+            error: error instanceof Error ? error.message : String(error),
+          }, "system", "cloudkit-push");
+        });
+      }, 0);
+      relayTimer.unref?.();
+    }
     res.json({
       ok: true,
       accepted: true,
-      queued: cloudKitQueued,
+      queued: dataSyncQueued || chatRelayQueued,
       evidence,
       cloudKitDataSync: {
+        queued: dataSyncQueued,
         enabled: cloudKitSchedule.enabled,
         ready: cloudKitReadiness.ready,
         status: cloudKitReadiness.status,
         rawPayloadReturned: false,
         deviceTokenReturned: false,
         cloudKitChangeTokenReturned: false,
+      },
+      cloudKitChatRelay: {
+        queued: chatRelayQueued,
+        enabled: chatRelayReadiness.enabled,
+        ready: chatRelayReadiness.ready,
+        status: chatRelayReadiness.status,
+        rawPayloadReturned: false,
+        promptReturned: false,
+        responseReturned: false,
       },
     });
   });
@@ -1882,6 +2207,8 @@ export function registerAdminRoutes(app: express.Express) {
     const cloudKitSchedule = getCloudKitAutoSyncSchedule();
     const cloudKitReadiness = getIcloudDataSyncReadiness({ platformSupported: process.platform === "darwin" });
     const cloudKitQueued = cloudKitSchedule.enabled && cloudKitReadiness.ready;
+    const chatRelayReadiness = getCloudKitChatRelayReadiness({ platformSupported: process.platform === "darwin" });
+    const chatRelayQueued = chatRelayReadiness.ready;
     if (cloudKitQueued) {
       const wakeTimer = setTimeout(() => {
         runCloudKitAutoSyncNow("scheduled", { type: "system", id: `desktop-${reason}` }).catch((error) => {
@@ -1894,6 +2221,18 @@ export function registerAdminRoutes(app: express.Express) {
       }, 0);
       wakeTimer.unref?.();
     }
+    if (chatRelayQueued) {
+      const relayTimer = setTimeout(() => {
+        runCloudKitChatRelayCycleLocked().catch((error) => {
+          insertAuditLog("icloud_chat_relay_failed", "network", "cloudkit-chat-relay", {
+            trigger: "desktop-wake",
+            reason,
+            error: error instanceof Error ? error.message : String(error),
+          }, "system", `desktop-${reason}`);
+        });
+      }, 0);
+      relayTimer.unref?.();
+    }
     insertAuditLog("icloud_handoff_internal_refreshed", "network", result.recommendedBaseUrl || "icloud-handoff", {
       reason,
       refreshed: result.refreshed,
@@ -1903,6 +2242,8 @@ export function registerAdminRoutes(app: express.Express) {
       recommendedBaseUrl: result.recommendedBaseUrl || null,
       cloudKitDataSyncQueued: cloudKitQueued,
       cloudKitDataSyncReady: cloudKitReadiness.ready,
+      cloudKitChatRelayQueued: chatRelayQueued,
+      cloudKitChatRelayReady: chatRelayReadiness.ready,
     }, "system", "desktop");
     res.json({
       ok: true,
@@ -1916,6 +2257,15 @@ export function registerAdminRoutes(app: express.Express) {
         nextRunAt: cloudKitSchedule.nextRunAt || null,
         rawPayloadReturned: false,
         cloudKitChangeTokenReturned: false,
+      },
+      cloudKitChatRelay: {
+        queued: chatRelayQueued,
+        enabled: chatRelayReadiness.enabled,
+        ready: chatRelayReadiness.ready,
+        status: chatRelayReadiness.status,
+        rawPayloadReturned: false,
+        promptReturned: false,
+        responseReturned: false,
       },
     });
   });
@@ -2240,8 +2590,11 @@ export function registerAdminRoutes(app: express.Express) {
     let status = getAiProviderStatus(providerId);
     const checkedAt = Date.now();
     const mode = req.body?.mode === "live" ? "live" : "configuration";
-    const liveSupported = supportsAiProviderModelDiscovery(status.id);
-    const summary = await getAiProviderTestSummary(status, mode);
+    const credentialOverride = typeof req.body?.credential === "string"
+      ? req.body.credential.trim().slice(0, 4096)
+      : "";
+    const liveSupported = true;
+    const summary = await getAiProviderTestSummary(status, mode, credentialOverride);
     const discoveredModelCount = summary.models?.length || 0;
     let modelCatalogUpdated = false;
     if (summary.ok && mode === "live" && discoveredModelCount > 0) {
@@ -2277,13 +2630,15 @@ export function registerAdminRoutes(app: express.Express) {
       modelCatalogUpdated,
       selectedModelAvailable: summary.selectedModelAvailable,
       message: status.enabled
-        ? status.configured
-          ? mode === "live" && liveSupported
-            ? summary.ok
+        ? summary.ok
+          ? mode === "live"
+            ? summary.reason === "models_endpoint_ok"
               ? `${status.provider} model catalog check succeeded for ${status.selectedModel}. ${summary.modelCount ?? 0} model(s) reported by the endpoint. Model list refreshed.`
-              : `${status.provider} model catalog check failed. Check the key, endpoint, and whether /models is supported.`
+              : `${status.provider} live connection succeeded for ${status.selectedModel}.`
             : `${status.provider} configuration is ready for ${status.selectedModel}. Live API call was not run.`
-          : status.id === "local"
+          : mode === "live"
+            ? `${status.provider} connection test failed. Check the key, endpoint, and selected model.`
+            : status.id === "local"
             ? `${status.provider} has no endpoint configured.`
             : `${status.provider} has no key configured.`
         : `${status.provider} configuration is disabled.`,
@@ -2456,7 +2811,24 @@ export function registerAdminRoutes(app: express.Express) {
     res.json({ provider: status });
   });
 
-  app.post("/api/v1/admin/setup", (req, res) => {
+  app.post("/api/v1/internal/admin-capability", rateLimit({ keyPrefix: "desktop-admin-capability", windowMs: 60_000, max: 10 }), (req, res) => {
+    if (!isDirectLoopbackRequest(req) || !verifyDesktopInternalToken(req) || req.headers.origin) {
+      insertAuditLog("desktop_admin_capability_blocked", "admin", "owner", { reason: "invalid_desktop_boundary" }, "system", "local-core");
+      return res.status(401).json({ error: "Desktop admin capability was rejected.", code: "desktop_capability_required" });
+    }
+    const action = req.body?.action === "setup" ? "setup" : req.body?.action === "reset" ? "reset" : "";
+    if (!action) {
+      return res.status(400).json({ error: "Desktop admin capability action is invalid.", code: "invalid_desktop_capability_action" });
+    }
+    const capability = issueDesktopAdminCapability(action);
+    res.json({ capability: capability.token, expiresAt: capability.expiresAt, action });
+  });
+
+  app.post("/api/v1/admin/setup", rateLimit({ keyPrefix: "admin-setup", windowMs: 15 * 60 * 1000, max: 5 }), (req, res) => {
+    if (!authorizeDesktopAdminAction(req, "setup")) {
+      insertAuditLog("admin_setup_blocked", "admin", "owner", { reason: "desktop_capability_required" }, "system", "local-core");
+      return res.status(403).json({ error: "Admin setup is only available on this computer.", code: "local_setup_only" });
+    }
     if (isAdminConfigured()) {
       return res.status(409).json({ error: "Admin is already configured" });
     }
@@ -2468,9 +2840,9 @@ export function registerAdminRoutes(app: express.Express) {
       return res.status(400).json({ error: policyError, code: "weak_password", passwordPolicy: policy });
     }
 
-    createAdminCredential(password);
+    const session = bootstrapAdminCredential(password);
+    if (!session) return res.status(409).json({ error: "Admin is already configured" });
     setClientState("lifeos_admin_password_policy", policy, { type: "admin", id: "owner" });
-    const session = createAdminSession();
     setHttpOnlyCookie(res, "lifeos_admin_session", session.token, session.expiresAt);
     setClientCookie(res, "lifeos_csrf", createSecret("csrf"), session.expiresAt);
     res.json({ expiresAt: session.expiresAt, onboardingRequired: true, nextPath: "/admin/onboarding" });
@@ -2493,7 +2865,11 @@ export function registerAdminRoutes(app: express.Express) {
       return res.status(400).json({ error: policyError, code: "weak_password", passwordPolicy: policy });
     }
 
-    createAdminCredential(newPassword, { auditAction: false });
+    const session = rotateAdminCredential(currentPassword, newPassword);
+    if (!session) {
+      insertAuditLog("admin_password_change_failed", "admin", "owner", { reason: "credential_changed_concurrently" }, "admin", "owner");
+      return res.status(409).json({ error: "Admin credential changed while the request was in progress", code: "admin_credential_changed" });
+    }
     setClientState("lifeos_admin_password_policy", policy, { type: "admin", id: "owner" });
     insertAuditLog("admin_password_changed", "admin", "owner", {
       meetsPolicy: policy.meetsPolicy,
@@ -2501,12 +2877,14 @@ export function registerAdminRoutes(app: express.Express) {
       hasVariety: policy.hasVariety,
       notCommon: policy.notCommon,
     }, "admin", "owner");
-    res.json({ ok: true, passwordPolicy: policy, securityCheck: getSecurityDiagnostics() });
+    setHttpOnlyCookie(res, "lifeos_admin_session", session.token, session.expiresAt);
+    setClientCookie(res, "lifeos_csrf", createSecret("csrf"), session.expiresAt);
+    res.json({ ok: true, expiresAt: session.expiresAt, passwordPolicy: policy, securityCheck: getSecurityDiagnostics() });
   });
 
   app.post("/api/v1/admin/local-password-reset", rateLimit({ keyPrefix: "admin-local-password-reset", windowMs: 15 * 60 * 1000, max: 5 }), (req, res) => {
-    if (!isLoopbackSocket(req)) {
-      insertAuditLog("admin_password_local_reset_blocked", "admin", "owner", { reason: "non_loopback_socket" }, "admin", "owner");
+    if (!authorizeDesktopAdminAction(req, "reset")) {
+      insertAuditLog("admin_password_local_reset_blocked", "admin", "owner", { reason: "desktop_capability_required" }, "admin", "owner");
       return res.status(403).json({ error: "Local password reset is only available on this computer.", code: "local_reset_only" });
     }
     if (!isAdminConfigured()) {
@@ -2523,9 +2901,7 @@ export function registerAdminRoutes(app: express.Express) {
       return res.status(400).json({ error: policyError, code: "weak_password", passwordPolicy: policy });
     }
 
-    const now = Date.now();
-    db.prepare("UPDATE admin_sessions SET revoked_at = ? WHERE revoked_at IS NULL").run(now);
-    createAdminCredential(newPassword, { auditAction: false });
+    const session = resetAdminCredential(newPassword);
     setClientState("lifeos_admin_password_policy", policy, { type: "admin", id: "owner" });
     insertAuditLog("admin_password_local_reset", "admin", "owner", {
       meetsPolicy: policy.meetsPolicy,
@@ -2533,7 +2909,6 @@ export function registerAdminRoutes(app: express.Express) {
       hasVariety: policy.hasVariety,
       notCommon: policy.notCommon,
     }, "admin", "owner");
-    const session = createAdminSession();
     setHttpOnlyCookie(res, "lifeos_admin_session", session.token, session.expiresAt);
     setClientCookie(res, "lifeos_csrf", createSecret("csrf"), session.expiresAt);
     const onboarding = getOnboardingStatus();
